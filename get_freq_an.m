@@ -26,6 +26,7 @@ def_params = [...
     1.3 ...         % theta_pot
     321 ...         % gamma_pot
     150 ...         % tau       syn plast time cst  (ms)
+    2.85 ...        % sigma     noise level
     -75 ...         % dt
     1 ...           % freq_def                      (Hz)
     75 ...          % n_iter_max
@@ -75,15 +76,16 @@ theta_pot = params(9);
 gamma_pot = params(10);
 
 tau = params(11);
+sigma = params(12);
 
-dt = params(12);
+dt = params(13);
 
-freq_def = params(13);
-n_iter_max= params(14);
+freq_def = params(14);
+n_iter_max= params(15);
 
-n_iter_def = params(15);
-freq_min = params(16);
-freq_max = params(17);
+n_iter_def = params(16);
+freq_min = params(17);
+freq_max = params(18);
 
 %% Frequency analysis
 %%%%%%%%%%%%%%%%%%%%%
@@ -91,27 +93,27 @@ freq_max = params(17);
 dw_freq_prepost = [];
 dw_freq_postpre = [];
 
-for freq = linspace(freq_min, freq_max, 30)
+for freq = linspace(freq_min, freq_max, 50)
     % 0) Compute the simulation parameters
-    T = n_iter_def/(1000*freq) + 200;
-    naive_params = [T, rho_0, C_pre, C_post, tau_Ca, delay_pre, theta_dep, gamma_dep, theta_pot, gamma_pot, tau];
+    T = 1000*(n_iter_def-1)/freq + 5*tau;
+    naive_params = [T, rho_0, C_pre, C_post, tau_Ca, delay_pre, theta_dep, gamma_dep, theta_pot, gamma_pot, tau, sigma];
     
     % 1) Simulation for the pre-post scenario
-    pre_spikes_hist = linspace(0, n_iter_def/(1000*freq), n_iter_def);
+    pre_spikes_hist = linspace(0, 1000*(n_iter_def-1)/freq, n_iter_def);
     post_spikes_hist = pre_spikes_hist + dt;
     if strcmp(model, 'naive')
         rho_hist = naive_model(pre_spikes_hist, post_spikes_hist, naive_params, int_scheme, int_step);
         q_rho = rho_hist(end) / rho_hist(1);
-        dw_freq_prepost = [dw_freq_prepost, [freq, q_rho]];
+        dw_freq_prepost = cat(1, dw_freq_prepost, [freq, q_rho]);
     end
     
     % 2) Simulation for the post-pre scenario
-    post_spikes_hist = linspace(0, n_iter_def/(1000*freq), n_iter_def);
+    post_spikes_hist = linspace(0, 1000*(n_iter_def-1)/freq, n_iter_def);
     pre_spikes_hist = post_spikes_hist + dt;
     if strcmp(model, 'naive')
         rho_hist = naive_model(pre_spikes_hist, post_spikes_hist, naive_params, int_scheme, int_step);
         q_rho = rho_hist(end) / rho_hist(1);
-        dw_freq_postpre= [dw_freq_postpre, [freq, q_rho]];
+        dw_freq_postpre= cat(1, dw_freq_postpre, [freq, q_rho]);
     end
 end
 
@@ -123,11 +125,11 @@ dw_npairs_postpre = [];
 
 for n_iter = linspace(1, n_iter_max, n_iter_max / 2)
     % 0) Compute the simulation parameters
-    T = n_iter/(1000*freq_def) + 200;
-    naive_params = [T, rho_0, C_pre, C_post, tau_Ca, delay_pre, theta_dep, gamma_dep, theta_pot, gamma_pot, tau];
+    T = 1000*(n_iter+1)/freq_def + 5*tau;
+    naive_params = [T, rho_0, C_pre, C_post, tau_Ca, delay_pre, theta_dep, gamma_dep, theta_pot, gamma_pot, tau, sigma];
     
     % 1) Simulation for the pre-post scenario
-    pre_spikes_hist = linspace(0, n_iter/(1000*freq_def), n_iter);
+    pre_spikes_hist = linspace(0, 1000*(n_iter-1)/freq_def, n_iter);
     post_spikes_hist = pre_spikes_hist + dt;
     if strcmp(model, 'naive')
         rho_hist = naive_model(pre_spikes_hist, post_spikes_hist, naive_params, int_scheme, int_step);
@@ -136,7 +138,7 @@ for n_iter = linspace(1, n_iter_max, n_iter_max / 2)
     end
     
     % 2) Simulation for the post-pre scenario
-    post_spikes_hist = linspace(0, n_iter_def/(1000*freq), n_iter_def);
+    post_spikes_hist = linspace(0, 1000*(n_iter_def-1)/freq, n_iter_def);
     pre_spikes_hist = post_spikes_hist + dt;
     if strcmp(model, 'naive')
         rho_hist = naive_model(pre_spikes_hist, post_spikes_hist, naive_params, int_scheme, int_step);

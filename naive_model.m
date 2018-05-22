@@ -18,6 +18,7 @@ def_params = [...
     1.3 ...         % theta_pot
     321 ...         % gamma_pot
     150 ...         % tau       syn plast time cst  (ms)
+    0.5 ...        % sigma     noise level
     ];
 
 switch nargin
@@ -27,30 +28,23 @@ switch nargin
         params = def_params;
         int_scheme = 'euler_expl';
         int_step = 0.1;
-        noise_lvl = 0;
     case 1
         post_spikes_hist = [];
         params = def_params;
         int_scheme = 'euler_expl';
         int_step = 0.1;
-        noise_lvl = 0;
     case 2
         params = def_params;
         int_scheme = 'euler_expl';
         int_step = 0.1;
-        noise_lvl = 0;
     case 3
         int_scheme = 'euler_expl';
         int_step = 0.1;
-        noise_lvl = 0;
     case 4
         int_step = 0.1;
-        noise_lvl = 0;
     case 5
-        noise_lvl = 0;
-    case 6
     otherwise
-        error('6 inputs max are accepted')
+        error('5 inputs max are accepted')
 end
 
 %%%%%%%%%%%%%%%%%%%%
@@ -75,6 +69,9 @@ theta_pot = params(9);
 gamma_pot = params(10);
 
 tau = params(11);
+sigma = params(12);
+
+eq_thr = 1e-5;
 
 %% Building events list based on calcium hypothesis
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -118,7 +115,7 @@ if strcmp(int_scheme, 'euler_expl')
     else
         % Scheme propagation %
         %%%%%%%%%%%%%%%%%%%%%%
-        while t < T
+        while t <= T + eq_thr
             c_hist = [c_hist, c];
             evt = find(abs(t - double(evts(:,1))) < simult_thr);
             if evt
@@ -127,9 +124,9 @@ if strcmp(int_scheme, 'euler_expl')
             end
 
             if c > theta_pot
-                rho = rho + step/tau * (gamma_pot*(1-rho) - gamma_dep*rho + noise_lvl*sqrt(tau)*randn);
+                rho = rho + step/tau * (gamma_pot*(1-rho) - gamma_dep*rho + sigma*sqrt(tau)*randn);
             elseif c > theta_dep
-                rho = rho - step/tau * gamma_dep * rho;
+                rho = rho - step/tau * (gamma_dep * rho + sigma*sqrt(tau)*randn);
             end
             rho_hist = [rho_hist, rho];
             c = c * exp(-step/tau_Ca);
