@@ -21,6 +21,7 @@ def_params = [...
     1.3 ...         % theta_pot
     321 ...         % gamma_pot
     150 ...         % tau       syn plast time cst  (ms)
+    2.85 ...        % sigma     noise level
     -75 ...         % t_min
     75 ...          % t_max
     3 ...           % dt        step of d_t grid
@@ -69,33 +70,34 @@ theta_pot = params(9);
 gamma_pot = params(10);
 
 tau = params(11);
+sigma = params(12);
 
-t_min = params(12);
-t_max = params(13);
-dt = params(14);
-n_iter = params(15);
-freq = params(16);
+t_min = params(13);
+t_max = params(14);
+dt = params(15);
+n_iter = params(16);
+freq = params(17);
 
 %% Running simulations, returning STDP curve
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-n_points = (t_max - t_min) / dt;
+n_points = 1 + (t_max - t_min)/dt;
 STDP = [];
 
 for d_t = linspace(t_min, t_max, n_points)
     % Define the calcium bumps history
     if d_t > 0
-        pre_spikes_hist = linspace(0, n_iter/(1000*freq), n_iter);
+        pre_spikes_hist = linspace(0, (n_iter-1)/(1000*freq), n_iter);
         post_spikes_hist = pre_spikes_hist + d_t;
     else
-        post_spikes_hist = linspace(0, n_iter/(1000*freq), n_iter);
-        pre_spikes_hist = post_spikes_hist + d_t;
+        post_spikes_hist = linspace(0, (n_iter-1)/(1000*freq), n_iter);
+        pre_spikes_hist = post_spikes_hist - d_t;
     end
     
     % Simulate the evolution of synaptic strength through model
     if strcmp(model, 'naive')
-        rho_hist = naive_model(pre_spikes_hist, post_spikes_hist, params(1:11), int_scheme, int_step);
-        d_rho = rho_hist(end) - rho_hist(1);
+        params(1) = 1000*(n_iter-1)/freq + 5*tau;
+        rho_hist = naive_model(pre_spikes_hist, post_spikes_hist, params(1:12), int_scheme, int_step);
         q_rho = rho_hist(end)/rho_hist(1);
         STDP = cat(1, STDP, [d_t, q_rho]);
     end
