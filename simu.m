@@ -18,7 +18,7 @@ delay_pre = 3;
 Ca_params = [C_pre, C_post, tau_Ca, delay_pre];
 
 theta_dep = 1;
-gamma_dep = 200;
+gamma_dep = 120;
 dep_params = [theta_dep, gamma_dep];
 
 theta_pot = 1.3;
