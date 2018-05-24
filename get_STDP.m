@@ -84,23 +84,55 @@ freq = params(17);
 n_points = 1 + (t_max - t_min)/dt;
 STDP = [];
 
-for d_t = linspace(t_min, t_max, n_points)
-    % Define the calcium bumps history
-    if d_t > 0
-        pre_spikes_hist = linspace(0, (n_iter-1)/(1000*freq), n_iter);
-        post_spikes_hist = pre_spikes_hist + d_t;
-    else
-        post_spikes_hist = linspace(0, (n_iter-1)/(1000*freq), n_iter);
-        pre_spikes_hist = post_spikes_hist - d_t;
+perm_regime = (freq < 1/(t_max + 10*tau_Ca));
+
+    function r = Ca_topTetba_rate(theta, dt)
+        dt_crit_high = log((theta - C_pre)/C_post);
+        dt_crit_low = log(theta/C_post);
+        
+        r = tau_Ca * freq * (...
+            log((C_post * exp(dt/tau_Ca) + C_pre)/(theta*exp(dt/tau_Ca))) * (dt > dt_crit_high) ...
+            + (log(C_post/C) + log((C_post*exp(dt/tau_Ca) + C_pre)/theta)) * (dt > dt_crit_low) * (dt <= dt_crit_high) ...
+            + log(C_post/theta) * (dt <= dt_crit_low) ...
+            );
+    end
+
+% Can we compute the STDP curve explicitely?
+if perm_regime
+    
+    % If so, compute rate of time spent above thresholds...
+        dt = linspace(t_min, t_max, n_points);  % n_points array
+        r_dep = Ca_topTheta_rate(theta_dep);
+        r_pot = Ca_topTheta_rate(theta_pot);
+    % ...then get the analytic STDP curve
+    a = exp(-(r_dep*gamma_dep + r_pot*(gamma_dep+gamma_pot))/(freq*tau)); % n_points array
+    b = (gamma_pot*r_pot)/(freq*tau); % n_points array
+    rho_inf = b/(1-a); % n_points array if division handled correctly
+    STDP = rho_0*a^n_iter + rho_inf;
+    
+else
+    
+    % When we cannot consider that pairs of spikes are independent, we
+    % compute the curve by individual simulations...
+    for dt = linspace(t_min, t_max, n_points)
+        % Define the calcium bumps history
+        if dt > 0
+            pre_spikes_hist = linspace(0, (n_iter-1)/(1000*freq), n_iter);
+            post_spikes_hist = pre_spikes_hist + dt;
+        else
+            post_spikes_hist = linspace(0, (n_iter-1)/(1000*freq), n_iter);
+            pre_spikes_hist = post_spikes_hist - dt;
+        end
+
+        % Simulate the evolution of synaptic strength through model
+        if strcmp(model, 'naive')
+            params(1) = 1000*(n_iter-1)/freq + 5*tau;
+            rho_hist = naive_model(pre_spikes_hist, post_spikes_hist, params(1:12), int_scheme, int_step);
+            q_rho = rho_hist(end)/rho_hist(1);
+            STDP = cat(1, STDP, [dt, q_rho]);
+        end
     end
     
-    % Simulate the evolution of synaptic strength through model
-    if strcmp(model, 'naive')
-        params(1) = 1000*(n_iter-1)/freq + 5*tau;
-        rho_hist = naive_model(pre_spikes_hist, post_spikes_hist, params(1:12), int_scheme, int_step);
-        q_rho = rho_hist(end)/rho_hist(1);
-        STDP = cat(1, STDP, [d_t, q_rho]);
-    end
 end
 
 end

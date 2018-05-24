@@ -122,12 +122,9 @@ if strcmp(int_scheme, 'euler_expl')
                 C_bump = sum(evts(evt,2));
                 c = c + C_bump; 
             end
-
-            if c > theta_pot
-                rho = rho + step/tau * (gamma_pot*(1-rho) - gamma_dep*rho + sigma*sqrt(tau)*randn);
-            elseif c > theta_dep
-                rho = rho - step/tau * (gamma_dep * rho + sigma*sqrt(tau)*randn);
-            end
+            
+            rho = rho + step/tau * (gamma_pot*(1-rho)*(c > theta_pot) - gamma_dep*rho*(c > theta_dep)) + sigma*step*sqrt(tau)*randn();
+            
             rho_hist = [rho_hist, rho];
             c = c * exp(-step/tau_Ca);
             t = t + step;

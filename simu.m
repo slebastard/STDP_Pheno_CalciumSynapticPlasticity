@@ -5,6 +5,10 @@
 % 3) Returns STDP curve by running simulation for several possible timings
 % 4) Analyses the impact of frequency and of number of spike pairs on the
 % plasticity during an experiment
+%
+% -- The following parts are only valid in a regime where calcium pairs are
+% well-spaced in time
+%
 
 % Simulation mode
 % single    Step 2 only
@@ -33,7 +37,7 @@ theta_pot = 1.3;
 gamma_pot = 321;
 pot_params = [theta_pot, gamma_pot];
 
-tau = 150000; % this is larger than I expected. Ask Brunel about this
+tau = 150; % this is larger than I expected. Ask Brunel about this
 noise_lvl = 0.0;
 
 n_iter = 60;
@@ -41,6 +45,9 @@ frequency = 1;
 
 naive_params = [T, rho_0, Ca_params, dep_params, pot_params, tau, noise_lvl];
 model = 'naive';
+
+int_scheme = 'euler_expl';
+scheme_step = 0.5;
 
 %% 1) Define the stimulation history
 d_t = 10;
@@ -51,9 +58,6 @@ naive_params(1) = T;
 
 %% 2) Full evolution of syn plast on a single simulation
 if strcmp(mode, 'single') || strcmp(mode, 'all')
-    int_scheme = 'euler_expl';
-    scheme_step = 0.1;
-
     if strcmp(model, 'naive')
         [rho_hist, c_hist] = naive_model(pre_spikes_hist, post_spikes_hist, naive_params, int_scheme, scheme_step);
     end
@@ -89,9 +93,9 @@ end
 % Obtaining STDP curve
 %%%%%%%%%%%%%%%%%%%%%%
 if strcmp(mode, 'STDP') || strcmp(mode, 'all')
-    t_min = -75;
-    t_max = 75;
-    dt = 3;
+    t_min = -100;
+    t_max = 100;
+    dt = 4;
 
     stdp_params = [naive_params, t_min, t_max, dt, n_iter, frequency];
     STDP = get_STDP(model, stdp_params, int_scheme, scheme_step);
