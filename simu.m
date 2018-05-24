@@ -5,10 +5,8 @@
 % 3) Returns STDP curve by running simulation for several possible timings
 % 4) Analyses the impact of frequency and of number of spike pairs on the
 % plasticity during an experiment
-%
-% -- The following parts are only valid in a regime where calcium pairs are
-% well-spaced in time
-%
+% 5) Provides a frequency vs dt heatmap
+% 6) Provides a n_paris vs dt heatmap
 
 % Simulation mode
 % single    Step 2 only
@@ -23,27 +21,27 @@ mode = 'STDP';
 T = 200;
 rho_0 = 0.3; % must be between 0 and 1
 
-C_pre = 1;
-C_post = 2;
+C_pre = 0.8;
+C_post = 1.3;
 tau_Ca = 20;
-delay_pre = 13.7;
+delay_pre = 5;
 Ca_params = [C_pre, C_post, tau_Ca, delay_pre];
 
 theta_dep = 1;
-gamma_dep = 120;
+gamma_dep = 5;
 dep_params = [theta_dep, gamma_dep];
 
 theta_pot = 1.3;
-gamma_pot = 321;
+gamma_pot = 15;
 pot_params = [theta_pot, gamma_pot];
 
 tau = 150; % this is larger than I expected. Ask Brunel about this
 noise_lvl = 0.0;
 
 n_iter = 60;
-frequency = 1;
+frequency = 2;
 
-naive_params = [T, rho_0, Ca_params, dep_params, pot_params, tau, noise_lvl];
+model_params = [T, rho_0, Ca_params, dep_params, pot_params, tau, noise_lvl];
 model = 'naive';
 
 int_scheme = 'euler_expl';
@@ -54,12 +52,12 @@ d_t = 10;
 pre_spikes_hist = linspace(0, 1000*(n_iter-1)/frequency, n_iter);
 post_spikes_hist = pre_spikes_hist + d_t;
 T = 1000*(n_iter-1)/frequency + 5*tau;
-naive_params(1) = T;
+model_params(1) = T;
 
 %% 2) Full evolution of syn plast on a single simulation
 if strcmp(mode, 'single') || strcmp(mode, 'all')
     if strcmp(model, 'naive')
-        [rho_hist, c_hist] = naive_model(pre_spikes_hist, post_spikes_hist, naive_params, int_scheme, scheme_step);
+        [rho_hist, c_hist] = naive_model(pre_spikes_hist, post_spikes_hist, model_params, int_scheme, scheme_step);
     end
 
     % Plotting rho as a function of time
@@ -93,11 +91,11 @@ end
 % Obtaining STDP curve
 %%%%%%%%%%%%%%%%%%%%%%
 if strcmp(mode, 'STDP') || strcmp(mode, 'all')
-    t_min = -100;
-    t_max = 100;
-    dt = 4;
+    t_min = -75;
+    t_max = 75;
+    dt = 3;
 
-    stdp_params = [naive_params, t_min, t_max, dt, n_iter, frequency];
+    stdp_params = [model_params, t_min, t_max, dt, n_iter, frequency];
     STDP = get_STDP(model, stdp_params, int_scheme, scheme_step);
 
     figure(3)
@@ -123,7 +121,7 @@ if strcmp(mode, 'freq') || strcmp(mode, 'all')
     freq_min = 1;
     freq_max = 50;
 
-    freq_an_params = [naive_params, dt, freq_def, n_iter_max, n_iter_def, freq_min, freq_max];
+    freq_an_params = [model_params, dt, freq_def, n_iter_max, n_iter_def, freq_min, freq_max];
 
     [
         dw_freq_prepost, ...
@@ -160,4 +158,29 @@ if strcmp(mode, 'freq') || strcmp(mode, 'all')
     title('Plasticity as a function of the number of spike pairs, for pairings at +-10ms, at 1Hz')
 
     hold off
+end
+
+%% 5) Frequency - dt - heatmap
+if strcmp(mode, 'freq_heat')
+    tmin = -75;
+    tmax = 75;
+    dt = 3;
+    freq_min = 1;
+    freq_max = 2;
+    freq_step = 2;
+    n_iter = 10;
+    heatmap_params = [tmin, tmax, dt, freq_min, freq_max, freq_step, n_iter];
+    
+    heatmap = get_freq_heatmap(model, model_params, heatmap_params, int_scheme, int_step);
+    
+    figure(6)
+    heatfreq_plot = heatmap(heatmap(:,3),heatmap(:,1),heatmap(:,2));
+    heatfreq_plot.Title = 'Relative change in syn plast as a function of frequency and dt';
+    heatfreq_plot.XLabel = 'Frequency';
+    heatfreq_plot.YLabel = 'dt';
+end
+
+%% 6)Nb Paris - dt - heatmap
+if strcmp(mode, 'pairs_heat')
+    
 end

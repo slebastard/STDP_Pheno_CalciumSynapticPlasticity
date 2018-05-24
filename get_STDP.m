@@ -101,13 +101,13 @@ perm_regime = (freq < 1/(t_max + 10*tau_Ca));
 if perm_regime
     
     % If so, compute rate of time spent above thresholds...
-        dt = linspace(t_min, t_max, n_points);  % n_points array
+        dt = linspace(t_min, t_max, n_points);
         r_dep = Ca_topTheta_rate(theta_dep);
         r_pot = Ca_topTheta_rate(theta_pot);
     % ...then get the analytic STDP curve
-    a = exp(-(r_dep*gamma_dep + r_pot*(gamma_dep+gamma_pot))/(freq*tau)); % n_points array
-    b = (gamma_pot*r_pot)/(freq*tau); % n_points array
-    rho_inf = b/(1-a); % n_points array if division handled correctly
+    a = exp(-(r_dep*gamma_dep + r_pot*(gamma_dep+gamma_pot))/(freq*tau));
+    b = (gamma_pot*r_pot)/(freq*tau);
+    rho_inf = b/(1-a);
     STDP = rho_0*a^n_iter + rho_inf;
     
 else

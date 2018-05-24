@@ -18,12 +18,13 @@ def_model_params = [...
     1.3 ...         % theta_pot
     321 ...         % gamma_pot
     150 ...         % tau       syn plast time cst  (ms)
+    0 ...           % sigma
     ];
 
 def_heatmap_params = [...
-    -75 ...         % dt_min
-    75 ...          % dt_max
-    3               % dt_step
+    -75 ...         % t_min
+    75 ...          % t_max
+    3               % dt
     1 ...           % freq_min
     200 ...         % freq_max
     5 ...           % freq_step
@@ -79,12 +80,11 @@ theta_pot = model_params(9);
 gamma_pot = model_params(10);
 
 tau = model_params(11);
+sigma = model_params(12);
 
-dt = model_params(12);
-
-dt_min = heatmap_params(1);
-dt_max = heatmap_params(2);
-dt_step = heatmap_params(3);
+t_min = heatmap_params(1);
+t_max = heatmap_params(2);
+dt = heatmap_params(3);
 freq_min = heatmap_params(4);
 freq_max = heatmap_params(5);
 freq_step = heatmap_params(6);
@@ -98,20 +98,16 @@ n_freq = (freq_max - 1) / freq_step;
 
 STDP = [];
 
-for dt = linspace(t_min, t_max, n_dt)
-    for freq = linspace(1, n_freq, n_freq)
-        % 0) Compute the simulation parameters
-        T = n_iter/(1000*freq) + 200;
-        naive_params = [T, rho_0, C_pre, C_post, tau_Ca, delay_pre, theta_dep, gamma_dep, theta_pot, gamma_pot, tau];
+for freq = linspace(1, n_freq, n_freq)
+    % 0) Compute the simulation parameters
+    T = n_iter/(1000*freq) + 200;
 
-        % 1) Simulation
-        pre_spikes_hist = linspace(0, n_iter/(1000*freq), n_iter);
-        post_spikes_hist = pre_spikes_hist + dt;
-        if strcmp(model, 'naive')
-            rho_hist = naive_model(pre_spikes_hist, post_spikes_hist, naive_params, int_scheme, int_step);
-            q_rho = rho_hist(end)/rho_hist(1);
-            STDP = cat(1, STDP, [dt, freq, q_rho]);
-        end
+    % 1) Simulation
+    
+    if strcmp(model, 'naive')
+        stdp_params = [model_params, dt_min, dt_max, dt, n_iter, freq];
+        STDP_dt = cat(2, get_STDP(model, stdp_params, int_scheme, int_step), freq*ones(n_dt));
+        STDP = cat(1, STDP, STDP_dt);
     end
 end
 
