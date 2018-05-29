@@ -86,14 +86,14 @@ STDP = [];
 
 perm_regime = (freq < 1/(t_max + 10*tau_Ca));
 
-    function r = Ca_topTetba_rate(theta, dt)
+    function r = Ca_topTheta_rate(theta, dt)
         dt_crit_high = log((theta - C_pre)/C_post);
         dt_crit_low = log(theta/C_post);
         
         r = tau_Ca * freq * (...
-            log((C_post * exp(dt/tau_Ca) + C_pre)/(theta*exp(dt/tau_Ca))) * (dt > dt_crit_high) ...
-            + (log(C_post/C) + log((C_post*exp(dt/tau_Ca) + C_pre)/theta)) * (dt > dt_crit_low) * (dt <= dt_crit_high) ...
-            + log(C_post/theta) * (dt <= dt_crit_low) ...
+            log((C_post * exp(dt/tau_Ca) + C_pre)./(theta*exp(dt/tau_Ca))) .* (dt > dt_crit_high) ...
+            + (log(C_post/theta) + log((C_post*exp(dt/tau_Ca) + C_pre)/theta)) .* (dt > dt_crit_low) .* (dt <= dt_crit_high) ...
+            + log(C_post/theta) .* (dt <= dt_crit_low) ...
             );
     end
 
@@ -107,7 +107,7 @@ if perm_regime
     % ...then get the analytic STDP curve
     a = exp(-(r_dep*gamma_dep + r_pot*(gamma_dep+gamma_pot))/(freq*tau));
     b = (gamma_pot*r_pot)/(freq*tau);
-    rho_inf = b/(1-a);
+    rho_inf = b ./ (1-a);
     STDP = rho_0*a^n_iter + rho_inf;
     
 else
