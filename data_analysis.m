@@ -18,13 +18,19 @@ data = data(:,[1 2 4 6 7 9]);
 %  amplitude and dt
 %    relSTDP to vizualise the amplitude ratio EPSPf/EPSPi as a function of
 %  init EPSP amplitude and dt
-mode = 'relSTDP';
+mode = 'EPSPf';
 
 % First try: 3D plot of dEPSP/EPSP = f(dt, EPSP_0)
 
 figure(1)
 if strcmp(mode, 'EPSPf')
-    scatter3(data(:,1), data(:,3), data(:,4))
+    scatter3(data(:,1), data(:,3), (data(:,4)-data(:,3))./data(:,3).^1.8)
+    view(90,0)
+%     hold on
+%     [x,y] = meshgrid(-30:30, 0:600);
+%     surf(x,y,y)
+%     shading interp;
+%     alpha(0.5)
 elseif strcmp(mode, 'relSTDP')
     scatter3(data(:,1), data(:,3), data(:,2))
 end
@@ -82,56 +88,93 @@ patch([lc_pot, lc_pot, hc_dep, hc_dep], [y_min, y_max, y_max, y_min], [0, 0, 0, 
 patch([hc_dep, hc_dep, hc_pot, hc_pot], [y_min, y_max, y_max, y_min], [0, 0, 0, 0], 'FaceColor', [0 0.5 0.5]);
 alpha(0.2)
 
-if strcmp(mode, 'EPSPf')
-    scatter3(data(:,1), data(:,3), STDP_naive(:,2).*data(:,3) + STDP_naive(:,3), 'r+')
-    xlabel('dt')
-    ylabel('Init EPSP ampl')
-    zlabel('Final EPSP ampl')
-elseif strcmp(mode, 'relSTDP')
-    scatter3(data(:,1), data(:,3), STDP_naive(:,2) + STDP_naive(:,3) ./ data(:,3), 'r+')
-    xlabel('dt')
-    ylabel('Init EPSP ampl')
-    zlabel('Rel var in EPSP ampl')
-end
+% if strcmp(mode, 'EPSPf')
+%     scatter3(data(:,1), data(:,3), STDP_naive(:,2).*data(:,3) + STDP_naive(:,3), 'r+')
+%     xlabel('dt')
+%     ylabel('Init EPSP ampl')
+%     zlabel('Final EPSP ampl')
+% elseif strcmp(mode, 'relSTDP')
+%     scatter3(data(:,1), data(:,3), STDP_naive(:,2) + STDP_naive(:,3) ./ data(:,3), 'r+')
+%     xlabel('dt')
+%     ylabel('Init EPSP ampl')
+%     zlabel('Rel var in EPSP ampl')
+% end
 
 hold off
 
-figure(2)
-plot(data(:,1), a, 'x')
-title('Slope as a fct of dt')
-xlabel('dt')
-ylabel('Slope')
-
-figure(3)
-plot(data(:,1), Ca_topTheta_rate(theta_pot, data(:,1)), 'x')
-title('Rate pot as a fct of dt')
-xlabel('dt')
-ylabel('r_{pot}')
-
-figure(4)
-plot(data(:,1), b./(1-a), 'x')
-title('Limit efficacy as a function of \delta_t')
-xlabel('\delta_t')
-ylabel('Limit efficacy')
+% figure(2)
+% plot(data(:,1), a, 'x')
+% title('Slope as a fct of dt')
+% xlabel('dt')
+% ylabel('Slope')
+% 
+% figure(3)
+% plot(data(:,1), Ca_topTheta_rate(theta_pot, data(:,1)), 'x')
+% title('Rate pot as a fct of dt')
+% xlabel('dt')
+% ylabel('r_{pot}')
+% 
+% figure(4)
+% plot(data(:,1), b./(1-a), 'x')
+% title('Limit efficacy as a function of \delta_t')
+% xlabel('\delta_t')
+% ylabel('Limit efficacy')
 
 %% Functions definition
-function [r, dt_crit_low, dt_crit_high] = Ca_topTheta_rate(theta, dt)
-    dt_crit_low = log((theta - C_pre)/C_post);
-    dt_crit_high = log(theta/C_post);
+function r = Ca_topTheta_rate(theta, dt)
 
-    r = tau_Ca * (freq/1000) * (...
-        log((C_post * exp(dt/tau_Ca) + C_pre)./(theta*exp(dt/tau_Ca))) .* (dt/tau_Ca > dt_crit_high) ...
-        + (log(C_post/theta) + log((C_post*exp(dt/tau_Ca) + C_pre)/theta)) .* (dt/tau_Ca > dt_crit_low) .* (dt/tau_Ca <= dt_crit_high) ...
-        + log(C_post/theta) .* (dt/tau_Ca <= dt_crit_low) ...
-        );   
+    if C_pre<theta && C_post<theta
+        r = tau_Ca * (freq/1000) * (...
+            log((C_pre*exp(dt/tau_Ca)+C_post)/theta) .* (dt/tau_Ca > 0) .*(C_pre*exp(-dt)+C_post > theta) ...
+            + log((C_post*exp(dt/tau_Ca)+C_pre)/theta) .* (dt/tau_Ca < 0) .*(C_pre*exp(-dt)+C_post > theta*exp(-dt)) ...
+            );
+
+    elseif theta<C_pre && theta<C_post
+        dt_crit_low = log(theta/C_post);
+        dt_crit_high = log(C_pre/theta);
+
+        r = tau_Ca * (freq/1000) * (...
+            log(C_pre*C_post/(theta^2)) .* (dt/tau_Ca > dt_crit_high) ...
+            +  log((C_post*exp(dt/tau_Ca)+C_pre)/theta) .* (dt/tau_Ca  > 0) .* (dt/tau_Ca  <= dt_crit_high) ...
+            +  (log(C_pre+C_post*exp(dt/tau_Ca))-(dt/tau_Ca)) .* (dt/tau_Ca  > dt_crit_low) .* (dt/tau_Ca  <= 0) ...
+            + log(C_pre*C_post/(theta^2)) .* (dt/tau_Ca  <= dt_crit_low) ...
+            );
+
+    elseif C_pre<theta
+        dt_crit_low = log((theta - C_pre)/C_post);
+        dt_crit_high = log(theta/C_post);
+
+        r = tau_Ca * (freq/1000) * (...
+            log((C_post * exp(dt/tau_Ca) + C_pre)./(theta*exp(dt/tau_Ca))) .* (dt/tau_Ca > dt_crit_high) ...
+            + (log(C_post/theta) + log((C_post*exp(dt/tau_Ca) + C_pre)/theta)) .* (dt/tau_Ca  > dt_crit_low) .* (dt/tau_Ca  <= dt_crit_high) ...
+            + log(C_post/theta) .* (dt/tau_Ca  <= dt_crit_low) ...
+            );
+
+    else
+        dt_crit_low = log(C_pre/theta);
+        dt_crit_high = log(C_pre/(theta-C_post));
+
+        r = tau_Ca * (freq/1000) * (...
+            log((C_pre * exp(-dt/tau_Ca) + C_post)./(theta*exp(-dt/tau_Ca))) .* (dt/tau_Ca  <= dt_crit_low) ...
+            + (log(C_pre/theta) + log((C_pre*exp(-dt/tau_Ca) + C_post)/theta)) .* (dt/tau_Ca  > dt_crit_low) .* (dt/tau_Ca  <= dt_crit_high) ...
+            + log(C_pre/theta) .* (dt/tau_Ca > dt_crit_high) ...
+            );
+
+    end
 end
 
 function [a, b] = STDP(dt)
     r_pot= Ca_topTheta_rate(theta_pot, dt);
     r_dep = Ca_topTheta_rate(theta_dep, dt) - r_pot;
     
-    a = exp(-(r_pot*(gamma_pot+gamma_dep)+r_dep*gamma_dep)/(tau*freq/1000));
-    b = gamma_pot/(gamma_pot + gamma_dep)*(exp(-(gamma_dep*r_dep)/(tau*freq/1000))-exp(-(gamma_pot+gamma_dep)*r_pot/(tau*freq/1000)));
+    a = exp(-(r_dep*gamma_dep + r_pot*(gamma_dep+gamma_pot))/((freq/1000)*tau));
+    b = (gamma_pot/(gamma_pot + gamma_dep)) * exp(-(r_dep*gamma_dep)/(tau*(freq/1000))) .* (1 - exp(-(r_pot*(gamma_pot+gamma_dep))/(tau*(freq/1000))));
+end
+
+function rho_f = predict(rho_i, dt)
+    [a,b] = STDP(dt);
+    rho_lim = b./(1-a);
+    rho_f = rho_i*a.^n_iter + rho_lim;
 end
 
 end

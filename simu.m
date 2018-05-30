@@ -15,30 +15,29 @@
 % all       All steps
 
 mode = 'STDP';
-
 %% 0) Define the environment
 
 T = 200;
 rho_0 = 0.3; % must be between 0 and 1
 
-C_pre = 0.8;
-C_post = 1.3;
+C_pre = 1;
+C_post = 2;
 tau_Ca = 20;
 delay_pre = 5;
 Ca_params = [C_pre, C_post, tau_Ca, delay_pre];
 
 theta_dep = 1;
-gamma_dep = 5;
+gamma_dep = 200;
 dep_params = [theta_dep, gamma_dep];
 
 theta_pot = 1.3;
-gamma_pot = 15;
+gamma_pot = 321;
 pot_params = [theta_pot, gamma_pot];
 
-tau = 150; % this is larger than I expected. Ask Brunel about this
+tau = 150000; % this is larger than I expected. Ask Brunel about this
 noise_lvl = 0.0;
 
-n_iter = 60;
+n_iter = 150;
 frequency = 2;
 
 model_params = [T, rho_0, Ca_params, dep_params, pot_params, tau, noise_lvl];
@@ -48,10 +47,10 @@ int_scheme = 'euler_expl';
 scheme_step = 0.5;
 
 %% 1) Define the stimulation history
-d_t = 10;
+d_t = -75;
 pre_spikes_hist = linspace(0, 1000*(n_iter-1)/frequency, n_iter);
 post_spikes_hist = pre_spikes_hist + d_t;
-T = 1000*(n_iter-1)/frequency + 5*tau;
+T = 1000*(n_iter-1)/frequency;
 model_params(1) = T;
 
 %% 2) Full evolution of syn plast on a single simulation
@@ -96,7 +95,7 @@ if strcmp(mode, 'STDP') || strcmp(mode, 'all')
     dt = 3;
 
     stdp_params = [model_params, t_min, t_max, dt, n_iter, frequency];
-    STDP = get_STDP(model, stdp_params, int_scheme, scheme_step);
+    STDP = get_STDP(model, 'rel', stdp_params, int_scheme, scheme_step);
 
     figure(3)
     plot(STDP(:,1), STDP(:,2), '+');

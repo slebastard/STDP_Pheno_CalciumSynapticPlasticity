@@ -1,4 +1,4 @@
-function [STDP] = get_STDP(model, params, int_scheme, int_step)
+function [STDP] = get_STDP(model, mode, params, int_scheme, int_step)
 % STDP EXPERIMENT
 % - Runs a battery of model simulation with Calcium bumps
 % relfecting different temporal differences. Uses those simulation to build
@@ -32,21 +32,27 @@ def_params = [...
 switch nargin
     case 0
         model = 'naive';
+        mode = 'rel';
         params = def_params;
         int_scheme = 'euler_expl';
         int_step = 0.1;
     case 1
+        mode = 'rel';
         params = def_params;
         int_scheme = 'euler_expl';
         int_step = 0.1;
     case 2
+        params = def_params;
         int_scheme = 'euler_expl';
         int_step = 0.1;
     case 3
+        int_scheme = 'euler_expl';
         int_step = 0.1;
     case 4
+        int_step = 0.1;
+    case 5
     otherwise
-        error('4 inputs max are accepted')
+        error('5 inputs max are accepted')
 end
 
 %%%%%%%%%%%%%%%%%%%%
@@ -84,31 +90,72 @@ freq = params(17);
 n_points = 1 + (t_max - t_min)/dt;
 STDP = [];
 
-perm_regime = (freq < 1/(t_max + 10*tau_Ca));
+perm_regime = (freq/1000 < 1/(t_max + 10*tau_Ca));
 
-    function r = Ca_topTheta_rate(theta, dt)
-        dt_crit_high = log((theta - C_pre)/C_post);
-        dt_crit_low = log(theta/C_post);
-        
-        r = tau_Ca * freq * (...
-            log((C_post * exp(dt/tau_Ca) + C_pre)./(theta*exp(dt/tau_Ca))) .* (dt > dt_crit_high) ...
-            + (log(C_post/theta) + log((C_post*exp(dt/tau_Ca) + C_pre)/theta)) .* (dt > dt_crit_low) .* (dt <= dt_crit_high) ...
-            + log(C_post/theta) .* (dt <= dt_crit_low) ...
+function r = Ca_topTheta_rate(theta, dt)
+
+    if C_pre<theta && C_post<theta
+        r = tau_Ca * (freq/1000) * (...
+            log((C_pre*exp(dt/tau_Ca)+C_post)/theta) .* (dt/tau_Ca > 0) .*(C_pre*exp(-dt)+C_post > theta) ...
+            + log((C_post*exp(dt/tau_Ca)+C_pre)/theta) .* (dt/tau_Ca < 0) .*(C_pre*exp(-dt)+C_post > theta*exp(-dt)) ...
             );
+
+    elseif theta<C_pre && theta<C_post
+        dt_crit_low = log(theta/C_post);
+        dt_crit_high = log(C_pre/theta);
+
+        r = tau_Ca * (freq/1000) * (...
+            log(C_pre*C_post/(theta^2)) .* (dt/tau_Ca > dt_crit_high) ...
+            +  log((C_post*exp(dt/tau_Ca)+C_pre)/theta) .* (dt/tau_Ca  > 0) .* (dt/tau_Ca  <= dt_crit_high) ...
+            +  (log(C_pre+C_post*exp(dt/tau_Ca))-(dt/tau_Ca)) .* (dt/tau_Ca  > dt_crit_low) .* (dt/tau_Ca  <= 0) ...
+            + log(C_pre*C_post/(theta^2)) .* (dt/tau_Ca  <= dt_crit_low) ...
+            );
+
+    elseif C_pre<theta
+        dt_crit_low = log((theta - C_pre)/C_post);
+        dt_crit_high = log(theta/C_post);
+
+        r = tau_Ca * (freq/1000) * (...
+            log((C_post * exp(dt/tau_Ca) + C_pre)./(theta*exp(dt/tau_Ca))) .* (dt/tau_Ca > dt_crit_high) ...
+            + (log(C_post/theta) + log((C_post*exp(dt/tau_Ca) + C_pre)/theta)) .* (dt/tau_Ca  > dt_crit_low) .* (dt/tau_Ca  <= dt_crit_high) ...
+            + log(C_post/theta) .* (dt/tau_Ca  <= dt_crit_low) ...
+            );
+
+    else
+        dt_crit_low = log(C_pre/theta);
+        dt_crit_high = log(C_pre/(theta-C_post));
+
+        r = tau_Ca * (freq/1000) * (...
+            log((C_pre * exp(-dt/tau_Ca) + C_post)./(theta*exp(-dt/tau_Ca))) .* (dt/tau_Ca  <= dt_crit_low) ...
+            + (log(C_pre/theta) + log((C_pre*exp(-dt/tau_Ca) + C_post)/theta)) .* (dt/tau_Ca  > dt_crit_low) .* (dt/tau_Ca  <= dt_crit_high) ...
+            + log(C_pre/theta) .* (dt/tau_Ca > dt_crit_high) ...
+            );
+
     end
+end
 
 % Can we compute the STDP curve explicitely?
 if perm_regime
     
     % If so, compute rate of time spent above thresholds...
-        dt = linspace(t_min, t_max, n_points);
-        r_dep = Ca_topTheta_rate(theta_dep);
-        r_pot = Ca_topTheta_rate(theta_pot);
+    dt = linspace(t_min, t_max, n_points);
+    r_pot = Ca_topTheta_rate(theta_pot, dt);
+    r_dep = Ca_topTheta_rate(theta_dep, dt) - r_pot;
     % ...then get the analytic STDP curve
-    a = exp(-(r_dep*gamma_dep + r_pot*(gamma_dep+gamma_pot))/(freq*tau));
-    b = (gamma_pot*r_pot)/(freq*tau);
-    rho_inf = b ./ (1-a);
-    STDP = rho_0*a^n_iter + rho_inf;
+    a = exp(-(r_dep*gamma_dep + r_pot*(gamma_dep+gamma_pot))/((freq/1000)*tau));
+    b = (gamma_pot/(gamma_pot + gamma_dep)) * exp(-(r_dep*gamma_dep)/(tau*(freq/1000))) .* (1 - exp(-(r_pot*(gamma_pot+gamma_dep))/(tau*(freq/1000))));
+    rho_lim = b ./ (1-a);
+    rho = rho_0*a.^n_iter + rho_lim; % final EPSP amplitude
+    
+    if strcmp(mode, 'rel')
+        STDP = transpose(cat(1, dt, rho/rho_0));
+    elseif strcmp(mode, 'abs')
+        STDP = transpose(cat(1, dt, rho));
+    elseif strcmp(mode, 'lim')
+        STDP = transpose(cat(1, dt, rho_lim));
+    else
+        error('Unknown mode')
+    end
     
 else
     
@@ -124,11 +171,23 @@ else
             pre_spikes_hist = post_spikes_hist - dt;
         end
 
-        % Simulate the evolution of synaptic strength through model
+        % Simulate the evolution of synaptic strength through model -
+        % COMPARE TO ANALYTIC
         if strcmp(model, 'naive')
             params(1) = 1000*(n_iter-1)/freq + 5*tau;
             rho_hist = naive_model(pre_spikes_hist, post_spikes_hist, params(1:12), int_scheme, int_step);
             q_rho = rho_hist(end)/rho_hist(1);
+            
+            if strcmp(mode, 'rel')
+                STDP = cat(1, STDP, [dt, q_rho]);
+            elseif strcmp(mode, 'abs')
+                STDP = cat(1, STDP, [dt, rho_hist(end)]);
+            elseif strcmp(mode, 'lim')
+                error('Limit mode not supported for transient mode of activity. Please lower frequency')
+            else
+                error('Unknown mode')
+            end
+            
             STDP = cat(1, STDP, [dt, q_rho]);
         end
     end
