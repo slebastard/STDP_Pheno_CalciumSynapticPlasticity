@@ -1,4 +1,4 @@
-function [STDP] = get_STDP(model, mode, params, int_scheme, int_step)
+function [STDP1, STDP2] = get_STDP(model, mode, params, int_scheme, int_step)
 % STDP EXPERIMENT
 % - Runs a battery of model simulation with Calcium bumps
 % relfecting different temporal differences. Uses those simulation to build
@@ -88,27 +88,27 @@ freq = params(17);
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 n_points = 1 + (t_max - t_min)/dt;
-STDP = [];
+STDP1 = [];
+STDP2 = [];
 
 perm_regime = (freq/1000 < 1/(t_max + 10*tau_Ca));
 
 function r = Ca_topTheta_rate(theta, dt)
 
-    if C_pre<theta && C_post<theta
+    if C_pre<=theta && C_post<=theta
         r = tau_Ca * (freq/1000) * (...
             log((C_pre*exp(dt/tau_Ca)+C_post)/theta) .* (dt/tau_Ca > 0) .*(C_pre*exp(-dt)+C_post > theta) ...
             + log((C_post*exp(dt/tau_Ca)+C_pre)/theta) .* (dt/tau_Ca < 0) .*(C_pre*exp(-dt)+C_post > theta*exp(-dt)) ...
             );
 
-    elseif theta<C_pre && theta<C_post
+    elseif theta<=C_pre && theta<=C_post
         dt_crit_low = log(theta/C_post);
         dt_crit_high = log(C_pre/theta);
 
         r = tau_Ca * (freq/1000) * (...
-            log(C_pre*C_post/(theta^2)) .* (dt/tau_Ca > dt_crit_high) ...
-            +  log((C_post*exp(dt/tau_Ca)+C_pre)/theta) .* (dt/tau_Ca  > 0) .* (dt/tau_Ca  <= dt_crit_high) ...
-            +  (log(C_pre+C_post*exp(dt/tau_Ca))-(dt/tau_Ca)) .* (dt/tau_Ca  > dt_crit_low) .* (dt/tau_Ca  <= 0) ...
-            + log(C_pre*C_post/(theta^2)) .* (dt/tau_Ca  <= dt_crit_low) ...
+            ( log(C_pre/theta) + log((C_pre*exp(-dt/tau_Ca) + C_post)/theta) ) .* (dt/tau_Ca > dt_crit_high) ...
+            +  (log((C_pre+C_post*exp(dt/tau_Ca))/theta)-(dt/tau_Ca)) .* (dt/tau_Ca  > dt_crit_low) .* (dt/tau_Ca  <= dt_crit_high) ...
+            + ( log(C_post/theta) + log((C_post*exp(dt/tau_Ca) + C_pre)/theta) ) .* (dt/tau_Ca  <= dt_crit_low) ...
             );
 
     elseif C_pre<theta
@@ -145,50 +145,52 @@ if perm_regime
     a = exp(-(r_dep*gamma_dep + r_pot*(gamma_dep+gamma_pot))/((freq/1000)*tau));
     b = (gamma_pot/(gamma_pot + gamma_dep)) * exp(-(r_dep*gamma_dep)/(tau*(freq/1000))) .* (1 - exp(-(r_pot*(gamma_pot+gamma_dep))/(tau*(freq/1000))));
     rho_lim = b ./ (1-a);
-    rho = rho_0*a.^n_iter + rho_lim; % final EPSP amplitude
+    rho = (rho_0 - rho_lim).*(a.^n_iter) + rho_lim; % final EPSP amplitude
     
     if strcmp(mode, 'rel')
-        STDP = transpose(cat(1, dt, rho/rho_0));
+        STDP1 = transpose(cat(1, dt, rho/rho_0));
     elseif strcmp(mode, 'abs')
-        STDP = transpose(cat(1, dt, rho));
+        STDP1 = transpose(cat(1, dt, rho));
     elseif strcmp(mode, 'lim')
-        STDP = transpose(cat(1, dt, rho_lim));
+        STDP1 = transpose(cat(1, dt, rho_lim));
     else
         error('Unknown mode')
     end
-    
-else
+ 
+end
+if perm_regime
+%else
     
     % When we cannot consider that pairs of spikes are independent, we
     % compute the curve by individual simulations...
     for dt = linspace(t_min, t_max, n_points)
         % Define the calcium bumps history
         if dt > 0
-            pre_spikes_hist = linspace(0, (n_iter-1)/(1000*freq), n_iter);
+            pre_spikes_hist = linspace(0, 1000*(n_iter-1)/freq, n_iter);
             post_spikes_hist = pre_spikes_hist + dt;
         else
-            post_spikes_hist = linspace(0, (n_iter-1)/(1000*freq), n_iter);
+            post_spikes_hist = linspace(0, 1000*(n_iter-1)/freq, n_iter);
             pre_spikes_hist = post_spikes_hist - dt;
         end
 
         % Simulate the evolution of synaptic strength through model -
         % COMPARE TO ANALYTIC
         if strcmp(model, 'naive')
-            params(1) = 1000*(n_iter-1)/freq + 5*tau;
-            rho_hist = naive_model(pre_spikes_hist, post_spikes_hist, params(1:12), int_scheme, int_step);
+            params(1) = 1000*(n_iter-1)/freq + 10*tau_Ca;
+            [rho_hist, ~] = naive_model(pre_spikes_hist, post_spikes_hist, params(1:12), int_scheme, int_step);
             q_rho = rho_hist(end)/rho_hist(1);
             
             if strcmp(mode, 'rel')
-                STDP = cat(1, STDP, [dt, q_rho]);
+                STDP2 = cat(1, STDP2, [dt, q_rho]);
             elseif strcmp(mode, 'abs')
-                STDP = cat(1, STDP, [dt, rho_hist(end)]);
+                STDP2 = cat(1, STDP2, [dt, rho_hist(end)]);
             elseif strcmp(mode, 'lim')
                 error('Limit mode not supported for transient mode of activity. Please lower frequency')
             else
                 error('Unknown mode')
             end
             
-            STDP = cat(1, STDP, [dt, q_rho]);
+            STDP2 = cat(1, STDP2, [dt, q_rho]);
         end
     end
     

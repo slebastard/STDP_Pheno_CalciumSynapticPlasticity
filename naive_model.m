@@ -102,11 +102,13 @@ evts = sortrows(evts, 1);
 if strcmp(int_scheme, 'euler_expl')
     % Initiate simulation %
     %%%%%%%%%%%%%%%%%%%%%%%
-    rho = params(2); 
-    rho_hist = [];
-    c_hist = [];
+    rho = params(2);
     t = 0;
     c = 0;
+    
+    rho_hist = rho;
+    c_hist = 0;
+
 
     % Check whether simulation is trivial %
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -115,7 +117,7 @@ if strcmp(int_scheme, 'euler_expl')
     else
         % Scheme propagation %
         %%%%%%%%%%%%%%%%%%%%%%
-        while t <= T + eq_thr
+        while t < T
             c_hist = [c_hist, c];
             evt = find(abs(t - double(evts(:,1))) < simult_thr);
             if evt

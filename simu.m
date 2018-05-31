@@ -15,6 +15,7 @@
 % all       All steps
 
 mode = 'STDP';
+
 %% 0) Define the environment
 
 T = 200;
@@ -37,8 +38,8 @@ pot_params = [theta_pot, gamma_pot];
 tau = 150000; % this is larger than I expected. Ask Brunel about this
 noise_lvl = 0.0;
 
-n_iter = 150;
-frequency = 2;
+n_iter = 10;
+frequency = 1;
 
 model_params = [T, rho_0, Ca_params, dep_params, pot_params, tau, noise_lvl];
 model = 'naive';
@@ -47,10 +48,10 @@ int_scheme = 'euler_expl';
 scheme_step = 0.5;
 
 %% 1) Define the stimulation history
-d_t = -75;
+d_t = 75;
 pre_spikes_hist = linspace(0, 1000*(n_iter-1)/frequency, n_iter);
 post_spikes_hist = pre_spikes_hist + d_t;
-T = 1000*(n_iter-1)/frequency;
+T = 1000*(n_iter-1)/frequency + 10*tau_Ca;
 model_params(1) = T;
 
 %% 2) Full evolution of syn plast on a single simulation
@@ -95,10 +96,12 @@ if strcmp(mode, 'STDP') || strcmp(mode, 'all')
     dt = 3;
 
     stdp_params = [model_params, t_min, t_max, dt, n_iter, frequency];
-    STDP = get_STDP(model, 'rel', stdp_params, int_scheme, scheme_step);
+    [STDP_an, STDP_num] = get_STDP(model, 'rel', stdp_params, int_scheme, scheme_step);
 
     figure(3)
-    plot(STDP(:,1), STDP(:,2), '+');
+    plot(STDP_an(:,1), STDP_an(:,2), '+r');
+    hold on
+    plot(STDP_num(:,1), STDP_num(:,2), 'ob')
 
     title('Plasticity as a function of pre-post spike delay')
     xlabel('Pre-post spike delay (ms)')
@@ -106,6 +109,10 @@ if strcmp(mode, 'STDP') || strcmp(mode, 'all')
     
     neutral_hline = refline([0 1]);
     neutral_hline.Color = 'b';
+    
+    YL = get(gca,'ylim');
+    YL(1) = 2 - YL(2);
+    set(gca, 'ylim', YL)
     
 end
 
