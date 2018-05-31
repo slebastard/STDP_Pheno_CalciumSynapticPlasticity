@@ -1,17 +1,36 @@
 function data_analysis()
 %% Loading data
 
-data = csvread('data_MSN_Simon.csv',1,1);
+data = csvread('data_MSN.csv',1,0);
 
-% Col       Field               Unit
-% 1    1    dt                  ms
-% 2    2    STDP                %rel%
-% 4    3    Init EPSP ampl      mV
-% 6    4    Final EPSP ampl     mV
-% 7    5    jitter              ms
-% 9    6    Plasticity test     %cat%
+% CSV col   Array col   Field               Unit
+% 1         1           sourceID            Laurent=1, Elodie=2, Hao=3, Yihui=4
+% 2         2           dt                  ms
+% 3                     n_pairs
+% 4                     frequency
+% 5         3           STDP                %rel%
+% 6         4           Init EPSP ampl      mV
+% 7         5           Final EPSP ampl     mV
 
-data = data(:,[1 2 4 6 7 9]);
+data = data(:,[1 2 5 6 7]);
+
+% Data mapping
+source = data(:,1);
+dt = data(:,2);
+r_rho = data(:,3);
+w_i = data(:,4);
+w_f = data(:,5);
+
+% Experimental values of efficacy need to be normalized first
+
+w_max = [];
+w_min = [];
+for i=1:4
+    w_max = cat(1, w_max, max(cat(1, w_i .* (source==i), w_f .* (source==i))));
+    w_min = cat(1, w_min, min(cat(1, w_i .* (source==i) + 100000 .* (source~=i), w_f .* (source==i) + 100000 .* (source~=i))));
+end
+rho_i = (w_i - w_min(source))./(w_max(source) - w_min(source));
+rho_f = (w_f - w_min(source))./(w_max(source) - w_min(source));
 
 % Available modes:
 %    EPSPf to visualize final EPSP amplitude as a function of init EPSP
@@ -24,7 +43,7 @@ mode = 'EPSPf';
 
 figure(1)
 if strcmp(mode, 'EPSPf')
-    scatter3(data(:,1), data(:,3), (data(:,4)-data(:,3))./data(:,3).^1.8)
+    scatter3(dt, rho_i, rho_f)
     view(90,0)
 %     hold on
 %     [x,y] = meshgrid(-30:30, 0:600);
@@ -32,7 +51,7 @@ if strcmp(mode, 'EPSPf')
 %     shading interp;
 %     alpha(0.5)
 elseif strcmp(mode, 'relSTDP')
-    scatter3(data(:,1), data(:,3), data(:,2))
+    scatter3(dt, rho_i, r_rho)
 end
 hold on
 
@@ -46,98 +65,97 @@ theta_pot = 1.3;
 gamma_pot = 321;
 
 freq = 1;
+n_iter = 100;
 tau = 150000;
 tau_Ca = 20;
 
-
 n_dt = 50;
 
-dt_min = min(data(:,1));
-dt_max = max(data(:,1));
+dt_min = min(dt);
+dt_max = max(dt);
 
-STDP_naive = [];
+[a, b] = STDP(dt);
+STDP_naive = cat(2, dt, a, b);
 
-for dt = data(:,1)
-    [a, b] = STDP(dt);
-    STDP_naive = cat(1, STDP_naive, [dt, a, b]);
+% lc_pot = tau_Ca * log((theta_pot - C_pre)/C_post);
+% hc_pot = tau_Ca * log(theta_pot/C_post);
+% lc_dep = tau_Ca * log((theta_dep - C_pre)/C_post);
+% hc_dep = tau_Ca * log(theta_dep/C_post);
+% 
+% XL = get(gca, 'XLim');
+% x_min = XL(1);
+% 
+% YL = get(gca, 'YLim');
+% y_min = YL(1);
+% y_max = YL(2);
+% 
+% ZL = get(gca, 'ZLim');
+% z_min = ZL(1);
+% z_max = ZL(2);
+% 
+% %Low dep - Low pot
+% patch([lc_dep, lc_dep, lc_pot, lc_pot], [y_min, y_max, y_max, y_min], [0, 0, 0, 0], 'FaceColor', [0.5 0 0.5]);
+% 
+% %Low pot - High dep
+% patch([lc_pot, lc_pot, hc_dep, hc_dep], [y_min, y_max, y_max, y_min], [0, 0, 0, 0], 'FaceColor', [0.5 0.5 0]);
+% 
+% %High dep - High pot
+% patch([hc_dep, hc_dep, hc_pot, hc_pot], [y_min, y_max, y_max, y_min], [0, 0, 0, 0], 'FaceColor', [0 0.5 0.5]);
+% alpha(0.2)
+
+rho_lim = STDP_naive(:,3) ./ (1-STDP_naive(:,2));
+rho_f_model = (rho_i - rho_lim).*STDP_naive(:,2).^(n_iter) + rho_lim;
+r_rho_model = rho_f_model ./ rho_i;
+
+if strcmp(mode, 'EPSPf')
+    scatter3(dt, rho_i, rho_f_model, 'r+')
+    xlabel('dt')
+    ylabel('Init EPSP ampl')
+    zlabel('Final EPSP ampl')
+elseif strcmp(mode, 'relSTDP')
+    scatter3(dt, rho_i, r_rho_model, 'r+')
+    xlabel('dt')
+    ylabel('Init EPSP ampl')
+    zlabel('Rel var in EPSP ampl')
 end
-
-lc_pot = tau_Ca * log((theta_pot - C_pre)/C_post);
-hc_pot = tau_Ca * log(theta_pot/C_post);
-lc_dep = tau_Ca * log((theta_dep - C_pre)/C_post);
-hc_dep = tau_Ca * log(theta_dep/C_post);
-
-XL = get(gca, 'XLim');
-x_min = XL(1);
-
-YL = get(gca, 'YLim');
-y_min = YL(1);
-y_max = YL(2);
-
-ZL = get(gca, 'ZLim');
-z_min = ZL(1);
-z_max = ZL(2);
-
-%Low dep - Low pot
-patch([lc_dep, lc_dep, lc_pot, lc_pot], [y_min, y_max, y_max, y_min], [0, 0, 0, 0], 'FaceColor', [0.5 0 0.5]);
-
-%Low pot - High dep
-patch([lc_pot, lc_pot, hc_dep, hc_dep], [y_min, y_max, y_max, y_min], [0, 0, 0, 0], 'FaceColor', [0.5 0.5 0]);
-
-%High dep - High pot
-patch([hc_dep, hc_dep, hc_pot, hc_pot], [y_min, y_max, y_max, y_min], [0, 0, 0, 0], 'FaceColor', [0 0.5 0.5]);
-alpha(0.2)
-
-% if strcmp(mode, 'EPSPf')
-%     scatter3(data(:,1), data(:,3), STDP_naive(:,2).*data(:,3) + STDP_naive(:,3), 'r+')
-%     xlabel('dt')
-%     ylabel('Init EPSP ampl')
-%     zlabel('Final EPSP ampl')
-% elseif strcmp(mode, 'relSTDP')
-%     scatter3(data(:,1), data(:,3), STDP_naive(:,2) + STDP_naive(:,3) ./ data(:,3), 'r+')
-%     xlabel('dt')
-%     ylabel('Init EPSP ampl')
-%     zlabel('Rel var in EPSP ampl')
-% end
 
 hold off
 
 % figure(2)
-% plot(data(:,1), a, 'x')
+% plot(dt, a, 'x')
 % title('Slope as a fct of dt')
 % xlabel('dt')
 % ylabel('Slope')
 % 
 % figure(3)
-% plot(data(:,1), Ca_topTheta_rate(theta_pot, data(:,1)), 'x')
+% plot(dt, Ca_topTheta_rate(theta_pot, dt), 'x')
 % title('Rate pot as a fct of dt')
 % xlabel('dt')
 % ylabel('r_{pot}')
 % 
-% figure(4)
-% plot(data(:,1), b./(1-a), 'x')
-% title('Limit efficacy as a function of \delta_t')
-% xlabel('\delta_t')
-% ylabel('Limit efficacy')
+figure(4)
+plot(dt, b./(1-a), 'x')
+title('Limit efficacy as a function of \delta_t')
+xlabel('\delta_t')
+ylabel('Limit efficacy')
 
 %% Functions definition
 function r = Ca_topTheta_rate(theta, dt)
 
-    if C_pre<theta && C_post<theta
+    if C_pre<=theta && C_post<=theta
         r = tau_Ca * (freq/1000) * (...
             log((C_pre*exp(dt/tau_Ca)+C_post)/theta) .* (dt/tau_Ca > 0) .*(C_pre*exp(-dt)+C_post > theta) ...
             + log((C_post*exp(dt/tau_Ca)+C_pre)/theta) .* (dt/tau_Ca < 0) .*(C_pre*exp(-dt)+C_post > theta*exp(-dt)) ...
             );
 
-    elseif theta<C_pre && theta<C_post
+    elseif theta<=C_pre && theta<=C_post
         dt_crit_low = log(theta/C_post);
         dt_crit_high = log(C_pre/theta);
 
         r = tau_Ca * (freq/1000) * (...
-            log(C_pre*C_post/(theta^2)) .* (dt/tau_Ca > dt_crit_high) ...
-            +  log((C_post*exp(dt/tau_Ca)+C_pre)/theta) .* (dt/tau_Ca  > 0) .* (dt/tau_Ca  <= dt_crit_high) ...
-            +  (log(C_pre+C_post*exp(dt/tau_Ca))-(dt/tau_Ca)) .* (dt/tau_Ca  > dt_crit_low) .* (dt/tau_Ca  <= 0) ...
-            + log(C_pre*C_post/(theta^2)) .* (dt/tau_Ca  <= dt_crit_low) ...
+            ( log(C_pre/theta) + log((C_pre*exp(-dt/tau_Ca) + C_post)/theta) ) .* (dt/tau_Ca > dt_crit_high) ...
+            +  (log((C_pre+C_post*exp(dt/tau_Ca))/theta)-(dt/tau_Ca)) .* (dt/tau_Ca  > dt_crit_low) .* (dt/tau_Ca  <= dt_crit_high) ...
+            + ( log(C_post/theta) + log((C_post*exp(dt/tau_Ca) + C_pre)/theta) ) .* (dt/tau_Ca  <= dt_crit_low) ...
             );
 
     elseif C_pre<theta
@@ -174,7 +192,7 @@ end
 function rho_f = predict(rho_i, dt)
     [a,b] = STDP(dt);
     rho_lim = b./(1-a);
-    rho_f = rho_i*a.^n_iter + rho_lim;
+    rho_f = (rho_i-rho_lim)*a.^n_iter + rho_lim;
 end
 
 end

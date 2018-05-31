@@ -1,4 +1,4 @@
-function [STDP1, STDP2] = get_STDP(model, mode, params, int_scheme, int_step)
+function [STDP_an, STDP_sim] = get_STDP(model, mode, params, int_scheme, int_step)
 % STDP EXPERIMENT
 % - Runs a battery of model simulation with Calcium bumps
 % relfecting different temporal differences. Uses those simulation to build
@@ -88,18 +88,19 @@ freq = params(17);
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 n_points = 1 + (t_max - t_min)/dt;
-STDP1 = [];
-STDP2 = [];
+STDP_an = [];
+STDP_sim = [];
 
 perm_regime = (freq/1000 < 1/(t_max + 10*tau_Ca));
 
 function r = Ca_topTheta_rate(theta, dt)
 
     if C_pre<=theta && C_post<=theta
-        r = tau_Ca * (freq/1000) * (...
-            log((C_pre*exp(dt/tau_Ca)+C_post)/theta) .* (dt/tau_Ca > 0) .*(C_pre*exp(-dt)+C_post > theta) ...
-            + log((C_post*exp(dt/tau_Ca)+C_pre)/theta) .* (dt/tau_Ca < 0) .*(C_pre*exp(-dt)+C_post > theta*exp(-dt)) ...
-            );
+        dt_crit_low = log((theta-C_pre)/C_post);
+        dt_crit_high = log(C_pre/(theta-C_post));
+        r = tau_Ca * (freq/1000) * ...
+            (log((C_pre+C_post*exp(dt/tau_Ca))/theta)-(dt/tau_Ca))...
+            .* (dt/tau_Ca  > dt_crit_low) .* (dt/tau_Ca  <= dt_crit_high);
 
     elseif theta<=C_pre && theta<=C_post
         dt_crit_low = log(theta/C_post);
@@ -144,15 +145,17 @@ if perm_regime
     % ...then get the analytic STDP curve
     a = exp(-(r_dep*gamma_dep + r_pot*(gamma_dep+gamma_pot))/((freq/1000)*tau));
     b = (gamma_pot/(gamma_pot + gamma_dep)) * exp(-(r_dep*gamma_dep)/(tau*(freq/1000))) .* (1 - exp(-(r_pot*(gamma_pot+gamma_dep))/(tau*(freq/1000))));
+    
     rho_lim = b ./ (1-a);
+    rho_lim(isnan(rho_lim)) = rho_0;
     rho = (rho_0 - rho_lim).*(a.^n_iter) + rho_lim; % final EPSP amplitude
     
     if strcmp(mode, 'rel')
-        STDP1 = transpose(cat(1, dt, rho/rho_0));
+        STDP_an = transpose(cat(1, dt, rho/rho_0));
     elseif strcmp(mode, 'abs')
-        STDP1 = transpose(cat(1, dt, rho));
+        STDP_an = transpose(cat(1, dt, rho));
     elseif strcmp(mode, 'lim')
-        STDP1 = transpose(cat(1, dt, rho_lim));
+        STDP_an = transpose(cat(1, dt, rho_lim));
     else
         error('Unknown mode')
     end
@@ -181,16 +184,15 @@ if perm_regime
             q_rho = rho_hist(end)/rho_hist(1);
             
             if strcmp(mode, 'rel')
-                STDP2 = cat(1, STDP2, [dt, q_rho]);
+                STDP_sim = cat(1, STDP_sim, [dt, q_rho]);
             elseif strcmp(mode, 'abs')
-                STDP2 = cat(1, STDP2, [dt, rho_hist(end)]);
+                STDP_sim = cat(1, STDP_sim, [dt, rho_hist(end)]);
             elseif strcmp(mode, 'lim')
                 error('Limit mode not supported for transient mode of activity. Please lower frequency')
             else
                 error('Unknown mode')
             end
-            
-            STDP2 = cat(1, STDP2, [dt, q_rho]);
+           
         end
     end
     

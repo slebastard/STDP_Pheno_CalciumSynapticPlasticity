@@ -24,21 +24,21 @@ rho_0 = 0.3; % must be between 0 and 1
 C_pre = 1;
 C_post = 2;
 tau_Ca = 20;
-delay_pre = 5;
+delay_pre = 2.2;
 Ca_params = [C_pre, C_post, tau_Ca, delay_pre];
 
 theta_dep = 1;
-gamma_dep = 200;
+gamma_dep = 50;
 dep_params = [theta_dep, gamma_dep];
 
-theta_pot = 1.3;
-gamma_pot = 321;
+theta_pot = 2.5;
+gamma_pot = 600;
 pot_params = [theta_pot, gamma_pot];
 
 tau = 150000; % this is larger than I expected. Ask Brunel about this
 noise_lvl = 0.0;
 
-n_iter = 10;
+n_iter = 60;
 frequency = 1;
 
 model_params = [T, rho_0, Ca_params, dep_params, pot_params, tau, noise_lvl];
@@ -96,12 +96,12 @@ if strcmp(mode, 'STDP') || strcmp(mode, 'all')
     dt = 3;
 
     stdp_params = [model_params, t_min, t_max, dt, n_iter, frequency];
-    [STDP_an, STDP_num] = get_STDP(model, 'rel', stdp_params, int_scheme, scheme_step);
+    [STDP_an, STDP_sim] = get_STDP(model, 'rel', stdp_params, int_scheme, scheme_step);
 
     figure(3)
     plot(STDP_an(:,1), STDP_an(:,2), '+r');
     hold on
-    plot(STDP_num(:,1), STDP_num(:,2), 'ob')
+    plot(STDP_sim(:,1), STDP_sim(:,2), 'xb');
 
     title('Plasticity as a function of pre-post spike delay')
     xlabel('Pre-post spike delay (ms)')
@@ -110,9 +110,9 @@ if strcmp(mode, 'STDP') || strcmp(mode, 'all')
     neutral_hline = refline([0 1]);
     neutral_hline.Color = 'b';
     
-    YL = get(gca,'ylim');
-    YL(1) = 2 - YL(2);
-    set(gca, 'ylim', YL)
+%     YL = get(gca,'ylim');
+%     YL(1) = 2 - YL(2);
+%     set(gca, 'ylim', YL)
     
 end
 
