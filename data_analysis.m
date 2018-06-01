@@ -43,31 +43,42 @@ mode = 'EPSPf';
 
 figure(1)
 if strcmp(mode, 'EPSPf')
-    scatter3(dt, rho_i, rho_f)
+    N = size(dt,1);
+    colorMap = [zeros(N, 1), zeros(N, 1), ones(N,1)];
+    pos_dt = (dt >= 0);
+    colorMap(pos_dt, :) = repmat([1,0,0],nnz(pos_dt),1);
+    %scatter3(dt, rho_i, (rho_f-rho_i)./(rho_i.^1.5), 8, colorMap);
+    scatter3(dt, rho_i, rho_f, 8, colorMap);
     view(90,0)
 %     hold on
-%     [x,y] = meshgrid(-30:30, 0:600);
-%     surf(x,y,y)
+%     [x,y] = meshgrid(-30:30, 0:1);
+%     surf(x,y,0.85*y-0.18)
+%     zlim([0,1])
 %     shading interp;
 %     alpha(0.5)
 elseif strcmp(mode, 'relSTDP')
-    scatter3(dt, rho_i, r_rho)
+    N = size(dt,1);
+    colorMap = [zeros(N, 1), zeros(N, 1), ones(N,1)];
+    pos_dt = (dt >= 0);
+    colorMap(pos_dt, :) = repmat([1,0,0],nnz(pos_dt),1);
+    scatter3(dt, rho_i, r_rho, 8, colorMap); 
 end
 hold on
 
 %% Implementing the analytical formulation predicting STDP from naive model
 
-C_pre = 1;
-C_post = 2;
+C_pre = 1.1;
+C_post = 0.7;
 theta_dep = 1;
-gamma_dep = 200;
+gamma_dep = 2;
 theta_pot = 1.3;
-gamma_pot = 321;
+gamma_pot = 3.2;
 
 freq = 1;
 n_iter = 100;
 tau = 150000;
 tau_Ca = 20;
+delay_pre = 5;
 
 n_dt = 50;
 
@@ -77,55 +88,58 @@ dt_max = max(dt);
 [a, b] = STDP(dt);
 STDP_naive = cat(2, dt, a, b);
 
-% lc_pot = tau_Ca * log((theta_pot - C_pre)/C_post);
-% hc_pot = tau_Ca * log(theta_pot/C_post);
-% lc_dep = tau_Ca * log((theta_dep - C_pre)/C_post);
-% hc_dep = tau_Ca * log(theta_dep/C_post);
-% 
-% XL = get(gca, 'XLim');
-% x_min = XL(1);
-% 
-% YL = get(gca, 'YLim');
-% y_min = YL(1);
-% y_max = YL(2);
-% 
-% ZL = get(gca, 'ZLim');
-% z_min = ZL(1);
-% z_max = ZL(2);
-% 
-% %Low dep - Low pot
-% patch([lc_dep, lc_dep, lc_pot, lc_pot], [y_min, y_max, y_max, y_min], [0, 0, 0, 0], 'FaceColor', [0.5 0 0.5]);
-% 
-% %Low pot - High dep
-% patch([lc_pot, lc_pot, hc_dep, hc_dep], [y_min, y_max, y_max, y_min], [0, 0, 0, 0], 'FaceColor', [0.5 0.5 0]);
-% 
-% %High dep - High pot
-% patch([hc_dep, hc_dep, hc_pot, hc_pot], [y_min, y_max, y_max, y_min], [0, 0, 0, 0], 'FaceColor', [0 0.5 0.5]);
-% alpha(0.2)
+lc_pot = tau_Ca * log((theta_pot - C_pre)/C_post);
+hc_pot = tau_Ca * log(C_pre/(theta_pot-C_post));
+lc_dep = tau_Ca * log(C_pre/theta_dep);
+hc_dep = tau_Ca * log(C_pre/(theta_dep - C_post));
+
+XL = get(gca, 'XLim');
+x_min = XL(1);
+
+YL = get(gca, 'YLim');
+y_min = YL(1);
+y_max = YL(2);
+
+ZL = get(gca, 'ZLim');
+z_min = ZL(1);
+z_max = ZL(2);
+
+%Low dep - Low pot
+patch([lc_dep, lc_dep, lc_pot, lc_pot], [y_min, y_max, y_max, y_min], [0, 0, 0, 0], 'FaceColor', [0.5 0 0.5]);
+
+%Low pot - High dep
+patch([lc_pot, lc_pot, hc_dep, hc_dep], [y_min, y_max, y_max, y_min], [0, 0, 0, 0], 'FaceColor', [0.5 0.5 0]);
+
+%High dep - High pot
+patch([hc_dep, hc_dep, hc_pot, hc_pot], [y_min, y_max, y_max, y_min], [0, 0, 0, 0], 'FaceColor', [0 0.5 0.5]);
+alpha(0.2)
 
 rho_lim = STDP_naive(:,3) ./ (1-STDP_naive(:,2));
+rho_lim(isnan(rho_lim)) = rho_i(isnan(rho_lim));
 rho_f_model = (rho_i - rho_lim).*STDP_naive(:,2).^(n_iter) + rho_lim;
 r_rho_model = rho_f_model ./ rho_i;
 
 if strcmp(mode, 'EPSPf')
-    scatter3(dt, rho_i, rho_f_model, 'r+')
+    colorMap = [zeros(N, 1), ones(N, 1), zeros(N,1)];
+    %scatter3(dt, rho_i, (rho_f_model - rho_i)./rho_i, 8, colorMap)
+    scatter3(dt, rho_i, rho_f_model, 8, colorMap)
     xlabel('dt')
-    ylabel('Init EPSP ampl')
-    zlabel('Final EPSP ampl')
+    ylabel('Init EPSC ampl')
+    zlabel('Final EPSC ampl')
 elseif strcmp(mode, 'relSTDP')
-    scatter3(dt, rho_i, r_rho_model, 'r+')
+    scatter3(dt, rho_i, r_rho_model, 8, 'g')
     xlabel('dt')
-    ylabel('Init EPSP ampl')
-    zlabel('Rel var in EPSP ampl')
+    ylabel('Init EPSC ampl')
+    zlabel('Rel var in EPSC ampl')
 end
 
 hold off
 
-% figure(2)
-% plot(dt, a, 'x')
-% title('Slope as a fct of dt')
-% xlabel('dt')
-% ylabel('Slope')
+figure(2)
+plot(dt, a, 'x')
+title('Slope as a fct of dt')
+xlabel('dt')
+ylabel('Slope')
 % 
 % figure(3)
 % plot(dt, Ca_topTheta_rate(theta_pot, dt), 'x')
@@ -133,20 +147,22 @@ hold off
 % xlabel('dt')
 % ylabel('r_{pot}')
 % 
-figure(4)
-plot(dt, b./(1-a), 'x')
-title('Limit efficacy as a function of \delta_t')
-xlabel('\delta_t')
-ylabel('Limit efficacy')
+% figure(4)
+% plot(dt, b./(1-a), 'x')
+% title('Limit efficacy as a function of \delta_t')
+% xlabel('\delta_t')
+% ylabel('Limit efficacy')
 
 %% Functions definition
 function r = Ca_topTheta_rate(theta, dt)
 
     if C_pre<=theta && C_post<=theta
+        dt_crit_low = log((theta-C_pre)/C_post);
+        dt_crit_high = log(C_pre/(theta-C_post));
         r = tau_Ca * (freq/1000) * (...
-            log((C_pre*exp(dt/tau_Ca)+C_post)/theta) .* (dt/tau_Ca > 0) .*(C_pre*exp(-dt)+C_post > theta) ...
-            + log((C_post*exp(dt/tau_Ca)+C_pre)/theta) .* (dt/tau_Ca < 0) .*(C_pre*exp(-dt)+C_post > theta*exp(-dt)) ...
-            );
+            log((C_pre+C_post*exp(dt/tau_Ca))/theta) .* (dt/tau_Ca  > dt_crit_low) .* (dt/tau_Ca  <= 0) ...
+            + log((C_post+C_pre*exp(-dt/tau_Ca))/theta) .* (dt/tau_Ca  > 0) .* (dt/tau_Ca  <= dt_crit_high) ...
+        );
 
     elseif theta<=C_pre && theta<=C_post
         dt_crit_low = log(theta/C_post);
@@ -182,8 +198,8 @@ function r = Ca_topTheta_rate(theta, dt)
 end
 
 function [a, b] = STDP(dt)
-    r_pot= Ca_topTheta_rate(theta_pot, dt);
-    r_dep = Ca_topTheta_rate(theta_dep, dt) - r_pot;
+    r_pot= Ca_topTheta_rate(theta_pot, dt-delay_pre);
+    r_dep = Ca_topTheta_rate(theta_dep, dt-delay_pre) - r_pot;
     
     a = exp(-(r_dep*gamma_dep + r_pot*(gamma_dep+gamma_pot))/((freq/1000)*tau));
     b = (gamma_pot/(gamma_pot + gamma_dep)) * exp(-(r_dep*gamma_dep)/(tau*(freq/1000))) .* (1 - exp(-(r_pot*(gamma_pot+gamma_dep))/(tau*(freq/1000))));

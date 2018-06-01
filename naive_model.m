@@ -119,7 +119,7 @@ if strcmp(int_scheme, 'euler_expl')
         %%%%%%%%%%%%%%%%%%%%%%
         while t < T
             c_hist = [c_hist, c];
-            evt = find(abs(t - double(evts(:,1))) < simult_thr);
+            evt = find(and(t - double(evts(:,1)) <= int_step, t > double(evts(:,1))));
             if evt
                 C_bump = sum(evts(evt,2));
                 c = c + C_bump; 

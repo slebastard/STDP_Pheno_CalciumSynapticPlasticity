@@ -1,4 +1,4 @@
-function [STDP_an, STDP_sim] = get_STDP(model, mode, params, int_scheme, int_step)
+function STDP = get_STDP(model, mode, params, int_scheme, int_step)
 % STDP EXPERIMENT
 % - Runs a battery of model simulation with Calcium bumps
 % relfecting different temporal differences. Uses those simulation to build
@@ -88,8 +88,7 @@ freq = params(17);
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 n_points = 1 + (t_max - t_min)/dt;
-STDP_an = [];
-STDP_sim = [];
+STDP = [];
 
 perm_regime = (freq/1000 < 1/(t_max + 10*tau_Ca));
 
@@ -98,9 +97,10 @@ function r = Ca_topTheta_rate(theta, dt)
     if C_pre<=theta && C_post<=theta
         dt_crit_low = log((theta-C_pre)/C_post);
         dt_crit_high = log(C_pre/(theta-C_post));
-        r = tau_Ca * (freq/1000) * ...
-            (log((C_pre+C_post*exp(dt/tau_Ca))/theta)-(dt/tau_Ca))...
-            .* (dt/tau_Ca  > dt_crit_low) .* (dt/tau_Ca  <= dt_crit_high);
+        r = tau_Ca * (freq/1000) * (...
+            log((C_pre+C_post*exp(dt/tau_Ca))/theta) .* (dt/tau_Ca  > dt_crit_low) .* (dt/tau_Ca  <= 0) ...
+            + log((C_post+C_pre*exp(-dt/tau_Ca))/theta) .* (dt/tau_Ca  > 0) .* (dt/tau_Ca  <= dt_crit_high) ...
+        );
 
     elseif theta<=C_pre && theta<=C_post
         dt_crit_low = log(theta/C_post);
@@ -140,8 +140,8 @@ if perm_regime
     
     % If so, compute rate of time spent above thresholds...
     dt = linspace(t_min, t_max, n_points);
-    r_pot = Ca_topTheta_rate(theta_pot, dt);
-    r_dep = Ca_topTheta_rate(theta_dep, dt) - r_pot;
+    r_pot = Ca_topTheta_rate(theta_pot, dt-delay_pre);
+    r_dep = Ca_topTheta_rate(theta_dep, dt-delay_pre) - r_pot;
     % ...then get the analytic STDP curve
     a = exp(-(r_dep*gamma_dep + r_pot*(gamma_dep+gamma_pot))/((freq/1000)*tau));
     b = (gamma_pot/(gamma_pot + gamma_dep)) * exp(-(r_dep*gamma_dep)/(tau*(freq/1000))) .* (1 - exp(-(r_pot*(gamma_pot+gamma_dep))/(tau*(freq/1000))));
@@ -151,18 +151,16 @@ if perm_regime
     rho = (rho_0 - rho_lim).*(a.^n_iter) + rho_lim; % final EPSP amplitude
     
     if strcmp(mode, 'rel')
-        STDP_an = transpose(cat(1, dt, rho/rho_0));
+        STDP = transpose(cat(1, dt, rho/rho_0));
     elseif strcmp(mode, 'abs')
-        STDP_an = transpose(cat(1, dt, rho));
+        STDP = transpose(cat(1, dt, rho));
     elseif strcmp(mode, 'lim')
-        STDP_an = transpose(cat(1, dt, rho_lim));
+        STDP = transpose(cat(1, dt, rho_lim));
     else
         error('Unknown mode')
     end
  
-end
-if perm_regime
-%else
+else
     
     % When we cannot consider that pairs of spikes are independent, we
     % compute the curve by individual simulations...
@@ -184,9 +182,9 @@ if perm_regime
             q_rho = rho_hist(end)/rho_hist(1);
             
             if strcmp(mode, 'rel')
-                STDP_sim = cat(1, STDP_sim, [dt, q_rho]);
+                STDP = cat(1, STDP, [dt, q_rho]);
             elseif strcmp(mode, 'abs')
-                STDP_sim = cat(1, STDP_sim, [dt, rho_hist(end)]);
+                STDP = cat(1, STDP, [dt, rho_hist(end)]);
             elseif strcmp(mode, 'lim')
                 error('Limit mode not supported for transient mode of activity. Please lower frequency')
             else
