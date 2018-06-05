@@ -146,10 +146,13 @@ if perm_regime
     % ...then get the analytic STDP curve
     a = exp(-(r_dep*gamma_dep + r_pot*(gamma_dep+gamma_pot))/((freq/1000)*tau));
     b = (gamma_pot/(gamma_pot + gamma_dep)) * exp(-(r_dep*gamma_dep)/(tau*(freq/1000))) .* (1 - exp(-(r_pot*(gamma_pot+gamma_dep))/(tau*(freq/1000))));
+    c = sigma * sqrt((r_pot + r_dep)./(tau*freq));
     
     rho_lim = b ./ (1-a);
     rho_lim(isnan(rho_lim)) = rho_0;
-    rho = (rho_0 - rho_lim).*(a.^n_iter) + rho_lim; % final EPSP amplitude
+    rho = (rho_0 - rho_lim).*(a.^n_iter)...
+        + rho_lim...
+        + c .* sqrt((1 - a.^(2*n_iter + 2))./(1 - a.^2)) .* randn(1,n_points); % final EPSP amplitude
     
     if strcmp(mode, 'rel')
         STDP_an = transpose(cat(1, dt, rho/rho_0));

@@ -4,15 +4,18 @@ function data_analysis()
 data = csvread('data_MSN.csv',1,0);
 
 % CSV col   Array col   Field               Unit
-% 1         1           sourceID            Laurent=1, Elodie=2, Hao=3, Yihui=4
-% 2         2           dt                  ms
-% 3                     n_pairs
-% 4                     frequency
-% 5         3           STDP                %rel%
-% 6         4           Init EPSP ampl      mV
-% 7         5           Final EPSP ampl     mV
+% 1                     ID
+% 2         1           sourceID            Laurent=1, Elodie=2, Hao=3, Yihui=4
+% 3         2           dt                  ms
+% 4                     n_pairs
+% 5                     frequency
+% 6         3           STDP                %rel%
+% 7         4           Init EPSP ampl      mV
+% 8         5           Final EPSP ampl     mV
+% 9                     R                   Ohm
+% 10         6           Jitter              ms
 
-data = data(:,[1 2 5 6 7]);
+data = data(:,[2 3 6 7 8 10]);
 
 % Data mapping
 source = data(:,1);
@@ -20,6 +23,9 @@ dt = data(:,2);
 r_rho = data(:,3);
 w_i = data(:,4);
 w_f = data(:,5);
+std_jitter = data(:,6);
+
+n_data = size(data, 1);
 
 % Experimental values of efficacy need to be normalized first
 
@@ -70,23 +76,27 @@ hold on
 C_pre = 1.1;
 C_post = 0.7;
 theta_dep = 1;
-gamma_dep = 2;
+gamma_dep = 50;
 theta_pot = 1.3;
-gamma_pot = 3.2;
+gamma_pot = 320;
 
 freq = 1;
 n_iter = 100;
 tau = 150000;
+noise_lvl = 20.0;
 tau_Ca = 20;
 delay_pre = 5;
 
 n_dt = 50;
 
+def_jter_rate = 0.1;
+std_jitter(std_jitter==0) = def_jter_rate * dt(std_jitter==0);
+
 dt_min = min(dt);
 dt_max = max(dt);
 
-[a, b] = STDP(dt);
-STDP_naive = cat(2, dt, a, b);
+[a, b, c] = STDP(dt, std_jitter);
+STDP_naive = cat(2, dt, a, b, c);
 
 lc_pot = tau_Ca * log((theta_pot - C_pre)/C_post);
 hc_pot = tau_Ca * log(C_pre/(theta_pot-C_post));
@@ -116,7 +126,7 @@ alpha(0.2)
 
 rho_lim = STDP_naive(:,3) ./ (1-STDP_naive(:,2));
 rho_lim(isnan(rho_lim)) = rho_i(isnan(rho_lim));
-rho_f_model = (rho_i - rho_lim).*STDP_naive(:,2).^(n_iter) + rho_lim;
+rho_f_model = (rho_i - rho_lim).*STDP_naive(:,2).^(n_iter) + rho_lim + STDP_naive(:,4) .* sqrt((1 - STDP_naive(:,2).^(2*n_iter + 2))./(1 - STDP_naive(:,2).^2)) .* randn(n_data,1);
 r_rho_model = rho_f_model ./ rho_i;
 
 if strcmp(mode, 'EPSPf')
@@ -140,18 +150,30 @@ plot(dt, a, 'x')
 title('Slope as a fct of dt')
 xlabel('dt')
 ylabel('Slope')
-% 
-% figure(3)
+
+figure(3)
+plot(dt, b.*(1-a.^n_iter)./(1-a), 'x')
+title('Base value as a fct of dt')
+xlabel('dt')
+ylabel('Base value')
+
+% figure(4)
 % plot(dt, Ca_topTheta_rate(theta_pot, dt), 'x')
 % title('Rate pot as a fct of dt')
 % xlabel('dt')
 % ylabel('r_{pot}')
 % 
-% figure(4)
-% plot(dt, b./(1-a), 'x')
+% figure(5)
+% plot(dt, STDP_naive(:,3)./(1-STDP_naive(:,2)), 'x')
 % title('Limit efficacy as a function of \delta_t')
 % xlabel('\delta_t')
 % ylabel('Limit efficacy')
+
+figure(6)
+plot(dt, STDP_naive(:,4) .* sqrt((1 - STDP_naive(:,2).^(2*n_iter + 2))./(1 - STDP_naive(:,2).^2)), 'x')
+title('Noise level as function of \delta_t')
+xlabel('\delta_t')
+ylabel('Additive noise level')
 
 %% Functions definition
 function r = Ca_topTheta_rate(theta, dt)
@@ -197,12 +219,15 @@ function r = Ca_topTheta_rate(theta, dt)
     end
 end
 
-function [a, b] = STDP(dt)
+function [a, b, c] = STDP(dt, std_jter)
+    dt = dt + std_jter*randn();
+    
     r_pot= Ca_topTheta_rate(theta_pot, dt-delay_pre);
     r_dep = Ca_topTheta_rate(theta_dep, dt-delay_pre) - r_pot;
     
     a = exp(-(r_dep*gamma_dep + r_pot*(gamma_dep+gamma_pot))/((freq/1000)*tau));
     b = (gamma_pot/(gamma_pot + gamma_dep)) * exp(-(r_dep*gamma_dep)/(tau*(freq/1000))) .* (1 - exp(-(r_pot*(gamma_pot+gamma_dep))/(tau*(freq/1000))));
+    c = noise_lvl * sqrt((r_pot + r_dep)./(tau*freq));
 end
 
 function rho_f = predict(rho_i, dt)

@@ -125,7 +125,7 @@ if strcmp(int_scheme, 'euler_expl')
                 c = c + C_bump; 
             end
             
-            rho = rho + step/tau * (gamma_pot*(1-rho)*(c > theta_pot) - gamma_dep*rho*(c > theta_dep)) + sigma*step*sqrt(tau)*randn();
+            rho = rho + step/tau * (gamma_pot*(1-rho)*(c > theta_pot) - gamma_dep*rho*(c > theta_dep)) + sigma*step*sqrt(1/tau)*sqrt((c > theta_dep)+(c > theta_pot))*randn();
             
             rho_hist = [rho_hist, rho];
             c = c * exp(-step/tau_Ca);
