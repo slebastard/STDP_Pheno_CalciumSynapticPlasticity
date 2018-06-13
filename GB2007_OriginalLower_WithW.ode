@@ -3,13 +3,13 @@
 # Graupner, M. and Brunel, N., STDP in a bistable synapse model based on CaMKII and associated signaling pathways, PLoS Comput Biol, 3(11), e221, 2299-2323 (2007). 
 #
 #   Please note that this file allows to compute the steady-states of the CaMKII 
-#   phosphorylation level with respect to calcium. The parameter used here allow 
+#   phosphorylation level with respect to calicum. The parameter used here allow 
 #   to reproduce the data shown in Fig.3C by the blue line (p.2303) in the above 
-#	mentioned paper. 
-#   The steady-state diagram consists of two separate branches which have to be computed
+#	menioned paper. 
+#   The steady-state diagram consits of two separate branches which have to be computed
 #   separately. This is the case since the initial point (specified by 'init') has to 
-#   be a fixed point on the respective branch. This file allows to compute the upper branch 
-#   including the UP state. The computation starts at Ca_0 = 0.2 \mu M.
+#   be a fixed point on the respective branch. This file allows to compute the lower branch 
+#   including the DOWN state. The computation starts at Ca_0 = 0.01 \mu M.
 #   
 #   Note however that all the dynamic simulations of the model were not done with xppaut. 
 #   The dynamics of the CaMKII-system has been implemented in a C++ code. Please contact
@@ -24,6 +24,7 @@
 #     click -> Run -> Steady State 
 #  and you will get the fix-points of the system with the bistability
 #
+# 
 # auto parameters
 @ NPR=400, NMAX=40000, DSMAX=0.01, DS=.01, PARMIN=0, PARMAX=2
 @ AUTOXMIN=0, AUTOXMAX=2, AUTOYMIN=0, AUTOYMAX=210, AUTOVAR=Ta
@@ -35,27 +36,14 @@
 # this allows AUTO to do its thing without 
 # choking
 #
-# initial conditions to start at Ca=0.2
-# required to compute the fix-point island including the UP state
-
-###### VARIABLES ######
-init Ca=2
-init B1=0.0,B2=0.0,B3=0.0,B4=0.0
-init B5=0.0,B6=0.0,B7=0.0
-init B8=0.0,B9=0.0,B10=0.0
-init B11=0.0,B12=0.0,B13=0.0
-init PP1=0.0, I1P=0.0
-init TA=132.3964
-# init n=100 and w=n*g with g conductance of one AMPAr
-init W=0.3
-
-
-###### PARAMS ######
-
-# CALCIUM PARAMETERS
-param tauCa=12, CaBas=0.2
-
-# CaMKII PATHWAY PARAMETERS
+#
+# inital conditions to start at Ca=0.01
+# required to compuate the fix-points including the DOWN state
+init B1=0,B2=0,B3=0
+init PP1=0.001108,I1P=0.0359
+# 
+# parameters
+param Ca=0.01
 param b0i=33.3
 param K5=0.1, CaM=0.1
 param L1=0.1, L2=0.025, L3=0.32, L4=0.40
@@ -65,55 +53,31 @@ param k12=6000
 param KM=0.4
 param k11=500, km11=0.1
 param I10=1
-
-param Kdcan=0.053, ncan=3
-param kcan0_I1=0.1, kcan_I1=18
-param kcan0_endo=0.1, kcan_endo=18
-
-param Kdpka=0.11, npka=8
-param kpka0_I1=0.00359, kpka_I1=100
-
-param kCK2=0.005
-
-# AMPA TRAFFICKING PARAMETERS
-# conductance of one channel is assumed to be 20pS, and we assume a total of 1000 AMPAr
-param N=1000
-param g=0.0020
+param Kdcan=0.053, ncan=3, kcan0=0.1, kcan=18
+param Kdpka=0.11, npka=8, kpka0=0.00359, kpka=100
 
 
-####### CONSTRAINTS & DEFINITIONS #######
-
-# CaMKII CONSERVATION
+# occupied receptors
 rr=sum(0,12)of(shift(B1,i'))
 # p0 is whats left from total
 B0=b0i-rr
 
+# total activated and inactivated subunit concentrations
+tact= B1 + 2*(B2 + B3 + B4) + 3*(B5 + B6 + B7 + B8) + 4*(B9 + B10 + B11) + 5*B12 + 6*B13
+
+# kinetic equations
 phossum=B1 + 2*(B2 + B3 + B4) + 3*(B5 + B6 + B7 + B8) + 4*(B9 + B10 + B11) + 5*B12 + 6*B13
-
-
-###### KINETICS ######
-
+#PP1=Ca^3/(KL^3 + Ca^3)
+#PP1=base + kpp1*Ca^3/(KL^3 +  Ca^3)*KH^4/(KH^4 + Ca^4)
 k10=k12*PP1/(KM + phossum)
+#
 C=CaM/(1 + L4/Ca + L3*L4/(Ca^2) + L2*L3*L4/(Ca^3) + L1*L2*L3*L4/(Ca^4))
-gamma=C/(K5+C)
+gamma=C/(K5+C) 
+vPKA=kpka0 + kpka/(1 + (Kdpka/C)^npka)
+vCaN=kcan0 + kcan/(1 + (Kdcan/C)^ncan)
 
-# PKA activity
-vPKA_I1=kpka0_I1 + kpka_I1/(1 + (Kdpka/C)^npka)
+# at last the equations
 
-# CaN activity
-vCaN_I1=kcan0_I1 + kcan_I1/(1 + (Kdcan/C)^ncan)
-vCaN_endo=kcan0_endo + kcan_endo/(1 + (Kdcan/C)^ncan)
-
-# CaMKII activity
-vCaMKII=kCK2*phossum
-
-
-###### DYNAMICS ######
-
-# Ca2+ equation
-Ca'=(CaBas-Ca)/tauCa
-
-# CaMKII concentration equations
 B1' = 6*k6*gamma^2*B0 - 4*k6*gamma^2*B1 - k7*gamma*B1 - k10*B1 + 2*k10*(B2 + B3 + B4)
 #
 B2' = k7*gamma*B1 + k6*gamma^2*B1 - 3*k6*gamma^2*B2 - k7*gamma*B2 - 2*k10*B2 + k10*(2*B5 + B6 + B7)
@@ -132,30 +96,20 @@ B11'= k7*gamma*B6 +  k6*gamma^2*B7 - 2*k7*gamma*B11 - 4*k10*B11 + k10*B12
 B12'= k7*gamma*B9 + k6*gamma^2*B9 + 2*k7*gamma*B10 + 2*k7*gamma*B11 - k7*gamma*B12 - 5*k10*B12 + 6*k10*B13
 #
 B13'= k7*gamma*B12 - 6*k10*B13
-
-# Phosphatase dynamics
+#
 PP1'= -k11*I1P*PP1 + km11*(PP10 - PP1)
-# ORIGINAL: I1P'= -k11*I1P*PP1 + km11*(PP10 - PP1) + vPKA_I1*I10 - vCaN_I1*I1P
-I1P'= -k11*I1P*PP1 + km11*(PP10 - PP1) + vPKA_I1*(I10-I1P) - vCaN_I1*I1P
-
-# Synaptic strength dynamics
-w'= vCaMKII*(N*g-w) - vCaN_endo*w
+I1P'= -k11*I1P*PP1 + km11*(PP10 - PP1) + vPKA*I10 - vCaN*I1P
 
 
-###### AUXILIARIES ######
-
-ta'=-ta+phossum
-aux act=phossum
-aux auxB0=B0
-aux auxC=C
-aux auxW=W
-
-
-###### CONTROLS ######
-
-@ total=300,dt=0.002
+# dummy to get steady-state value of total phosphate - this can be plotted now
+# in AUTO!
+ta'=-ta+tact
+aux act=tact
+#@ total=2000,dt=5,meth=cvode
+#@ total=100,dt=0.001
+@ total=1000,dt=0.001
 @ bound=100000
-@ maxstor=100000 
+@ maxstor=100000
 @ njmp=10
 
-done	
+done
