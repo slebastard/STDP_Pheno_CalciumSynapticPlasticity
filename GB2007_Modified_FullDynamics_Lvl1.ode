@@ -23,10 +23,20 @@ param tauCa=12, CaBas=0.2
 param b0i=33.3
 param K5=0.1, CaM=0.1
 param L1=0.1, L2=0.025, L3=0.32, L4=0.40
-param k6=6, k7=6
+param k6=6, k7=6, k8=6, k19=6
 param PP10=0.2
+
 param k12=6000
-param KM=0.4
+param k14=6000
+param k_antidephos_305=
+
+param KM_Dpu=0.4
+param KM_Dpp=0.4
+param KM_Dup=0.4
+param KM_305=
+param Kdephos_cal=
+param Kdephos_phos305=
+
 param k11=500, km11=0.1
 param I10=1
 
@@ -55,13 +65,19 @@ rr=sum(0,12)of(shift(B1,i'))
 B0=b0i-rr
 
 phossum=B1 + 2*(B2 + B3 + B4) + 3*(B5 + B6 + B7 + B8) + 4*(B9 + B10 + B11) + 5*B12 + 6*B13
-
+AMPA_binder=2*(B2+B3+B4) + 6*(B5+B6+B7+B8) + 12*(B9+B10+B11) + 20*B12 + 30*B13
 
 ###### KINETICS ######
 
-k10=k12*PP1/(KM + phossum)
 C=CaM/(1 + L4/Ca + L3*L4/(Ca^2) + L2*L3*L4/(Ca^3) + L1*L2*L3*L4/(Ca^4))
-gamma=C/(K5+C)
+
+gamma=1-(K5)/((C-phossum)*KM_305)
+gamma_star=Kdephos_cal*(6*rr/phossum)*gamma
+zeta=(K5*k_antidephos_305)/((C-phossum)*KM_305)
+zeta_star=Kdephos_phos305*(6*rr/phossum)*zeta
+
+k10=k12*PP1/(KM_Dpu + (1+(KM_Dpu/KM_Dpp)*zeta_star+(KM_Dpu/KM_Dup)*(1-gamma-zeta))*(6*rr-phossum))
+k20=k14*PP1/(KM_Dpp + ((KM_Dpp/KM_Dpu)+zeta_star+(KM_Dpp/KM_Dup)*(1-gamma-zeta))*(6*rr-phossum))
 
 # PKA activity
 vPKA_I1=kpka0_I1 + kpka_I1/(1 + (Kdpka/C)^npka)
@@ -70,7 +86,9 @@ vPKA_phos=kpka0_phos + kpka_phos/(1 + (Kdpka/C)^npka)
 # CaN activity
 vCaN_I1=kcan0_I1 + kcan_I1/(1 + (Kdcan/C)^ncan)
 vCaN_endo=kcan0_endo + kcan_endo/(1 + (Kdcan/C)^ncan)
-vCan_pase=kcan0_pase + kcan_pase/(1 + (Kdcan/C)^ncan)
+
+# PP1 activity
+vPP1_pase=kcan0_pase + kcan_pase/(1 + (Kdcan/C)^ncan)
 
 # CaMKII activity
 vCK2_exo=kCK2_exo*phossum
@@ -81,37 +99,45 @@ vCK2_exo=kCK2_exo*phossum
 # Ca2+ equation
 Ca'=(CaBas-Ca)/tauCa
 
+
+# Useful qties for following equations
+chi=k7*gamma_star + k8*(1-gamma_star-zeta_star) + k19*zeta_star
+nu=k10+k20*zeta_star
+
 # CaMKII concentration equations
-B1' = 6*k6*gamma^2*B0 - 4*k6*gamma^2*B1 - k7*gamma*B1 - k10*B1 + 2*k10*(B2 + B3 + B4)
+B1' = 6*k6*gamma^2*B0 - 4*k6*gamma^2*B1 - chi*gamma*B1 + nu*(2*(B2+B3+B4)-B1)
 #
-B2' = k7*gamma*B1 + k6*gamma^2*B1 - 3*k6*gamma^2*B2 - k7*gamma*B2 - 2*k10*B2 + k10*(2*B5 + B6 + B7)
-B3' = 2*k6*gamma^2*B1 - 2*k7*gamma*B3 - 2*k6*gamma^2*B3 - 2*k10*B3 + k10*(B5 + B6 + B7 + 3*B8) 
-B4' = k6*gamma^2*B1 - 2*k7*gamma*B4 - 2*k6*gamma^2*B4 - 2*k10*B4 + k10*(B6 + B7)
+B2' = k6*gamma^2*B1 + chi*gamma*B1 + nu*(3*(B5+B6+B7+B8)-2*B2) - *k6*gamma^2*B2 - chi*gamma*B2
+B3' = 2*k6*gamma^2*B1 + nu*(3*(B5+B6+B7+B8)-2*B3) - 3*k6*gamma^2*B3 - chi*gamma*B3
+B4' = k6*gamma^2*B1 + nu*(3*(B5+B6+B7+B8)-2*B4) - 2*k6*gamma^2*B4 - 2*chi*gamma*B4
 #
-B5' = k7*gamma*B2 + k7*gamma*B3 + k6*gamma^2*B2 - k7*gamma*B5 - 2*k6*gamma^2*B5 - 3*k10*B5 + k10*(2*B9 + B10)
-B6' = k6*gamma^2*B2 + k6*gamma^2*B3  + 2*k7*gamma*B4 - k6*gamma^2*B6 - 2*k7*gamma*B6 - 3*k10*B6 + k10*(B9 + B10 + 2*B11)
-B7' = k6*gamma^2*B2 + k7*gamma*B3 + 2*k6*gamma^2*B4 - k6*gamma^2*B7 - 2*k7*gamma*B7 - 3*k10*B7 + k10*(B9 + B10 + 2*B11)
-B8' = k6*gamma^2*B3 - 3*k7*gamma*B8 - 3*k10*B8 + k10*B10
+B5' = k6*gamma^2*(B2+B3) + chi*gamma*B2 + nu*(4*(B9+B10+B11)-3*B5) - 2*k6*gamma^2*B5 - chi*gamma*B5
+B6' = k6*gamma^2*(B2+B3) + 2*chi*gamma*B4 + nu*(4*(B9+B10+B11)-3*B6) - k6*gamma^2*B6 - 2*chi*gamma*B6
+B7' = k6*gamma^2*(B2+2*B4) + chi*gamma*B3 + nu*(4*(B9+B10+B11)-3*B7) - k6*gamma^2*B7 - 2*chi*gamma*B7
+B8' = k6*gamma^2*B3 + nu*(4*(B9+B10+B11)-3*B8) - 3*chi*gamma*B8
 #
-B9' = k7*gamma*B5 + k6*gamma^2*B5 + k7*gamma*B6 + k7*gamma*B7 - k6*gamma^2*B9 - k7*gamma*B9 - 4*k10*B9 + 2*k10*B12
-B10'= k6*gamma^2*B5 + k6*gamma^2*B6 + k7*gamma*B7 + 3*k7*gamma*B8 - 2*k7*gamma*B10 - 4*k10*B10 + 2*k10*B12
-B11'= k7*gamma*B6 +  k6*gamma^2*B7 - 2*k7*gamma*B11 - 4*k10*B11 + k10*B12
+B9' = k6*gamma^2*B5 + chi*gamma*(B6+B7) + nu*(5*B12-4*B9) - k6*gamma^2*B9 - chi*gamma*B9
+B10'= k6*gamma^2*(B5+B6) + chi*gamma*(B7+B8) + nu*(5*B12-4*B10) - 2*chi*gamma*B10
+B11'= k6*gamma^2*B7 + chi*gamma*B6 + nu*(5*B12-4*B11) - 2*chi*gamma*B11
 #
-B12'= k7*gamma*B9 + k6*gamma^2*B9 + 2*k7*gamma*B10 + 2*k7*gamma*B11 - k7*gamma*B12 - 5*k10*B12 + 6*k10*B13
+B12'= k6*gamma^2*B9 + chi*gamma*(B9+2*B10+2*B11) + nu*(6*B13-5*B12) - chi*gamma*B12
 #
-B13'= k7*gamma*B12 - 6*k10*B13
+B13'= chi*gamma*B12 - nu*6*B13
 
 # Phosphatase dynamics
 PP1'= -k11*I1P*PP1 + km11*(PP10 - PP1)
 # ORIGINAL: I1P'= -k11*I1P*PP1 + km11*(PP10 - PP1) + vPKA*I10 - vCaN*I1P
 I1P'= -k11*I1P*PP1 + km11*(PP10 - PP1) + vPKA*(I10-I1P) - vCaN*I1P
 
-# Membrane AMPA dynamics
-n0'= vCaMKII_exo*(N-n0) - vCaN_endo*n0 - vPKA_phos*((phossum/b0i)-1)*(2*n0) + vCaN_pase*n1
-n1'= vPKA_phos*((phossum/b0i)-1)*(2*n0-n1) - vCaN_pase*(n1-2*n2)
-n2'= vPKA_phos*((phossum/b0i)-1)*(n1) - vCaN_pase*(2*n2)
+# NMDA binding dynamics - Version 1
+mu'=kNMDA_bind*(M-mu)*phossum
+U'=kNMDA_bind*(M-mu)*AMPA_binder
 
-W= g0*n0 + g1*n1 + g2*n2
+# Membrane AMPA dynamics
+n0'= vCK2_exo*(N-n0) - vCaN_endo*n0 - vPKA_phos*n0*U + vPP1_pase*n1*PP1
+n1'= vPKA_phos*n0*U - vPP1_pase*n1*PP1
+
+W= g0*n0 + g1*n1
 
 ###### AUXILIARIES ######
 
