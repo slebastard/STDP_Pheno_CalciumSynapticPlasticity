@@ -39,7 +39,7 @@
 # required to compute the fix-point island including the UP state
 
 ###### VARIABLES ######
-init Ca=2
+init Ca=0.2
 init B1=0.0,B2=0.0,B3=0.0,B4=0.0
 init B5=0.0,B6=0.0,B7=0.0
 init B8=0.0,B9=0.0,B10=0.0
@@ -53,7 +53,7 @@ init W=0.3
 ###### PARAMS ######
 
 # CALCIUM PARAMETERS
-param tauCa=12, CaBas=0.2
+param tauCa=12, CaBas=0.2, cazero=2, t0=0.3
 
 # CaMKII PATHWAY PARAMETERS
 param b0i=33.3
@@ -84,7 +84,9 @@ param g=0.0020
 ####### CONSTRAINTS & DEFINITIONS #######
 
 # CaMKII CONSERVATION
-rr=sum(0,12)of(shift(B1,i'))
+#rr=sum(0,12)of(shift(B1,i'))
+rr=B1 + B2 + B3 + B4 + B5 + B6 + B7 + B8 + B9 + B10 + B11 + B12 + B13
+
 # p0 is whats left from total
 B0=b0i-rr
 
@@ -111,7 +113,7 @@ vCaMKII=kCK2*phossum
 ###### DYNAMICS ######
 
 # Ca2+ equation
-Ca'=(CaBas-Ca)/tauCa
+Ca'=(CaBas-Ca + cazero*heav(t0-t)/(t0))/tauCa
 
 # CaMKII concentration equations
 B1' = 6*k6*gamma^2*B0 - 4*k6*gamma^2*B1 - k7*gamma*B1 - k10*B1 + 2*k10*(B2 + B3 + B4)
