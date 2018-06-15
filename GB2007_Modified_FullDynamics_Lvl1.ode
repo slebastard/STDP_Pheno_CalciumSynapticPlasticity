@@ -3,16 +3,25 @@
 @ AUTOXMIN=0, AUTOXMAX=2, AUTOYMIN=0, AUTOYMAX=210, AUTOVAR=Ta
 
 ###### VARIABLES ######
-init Ca=2
-init B1=0.0,B2=0.0,B3=0.0,B4=0.0
-init B5=0.0,B6=0.0,B7=0.0
-init B8=0.0,B9=0.0,B10=0.0
-init B11=0.0,B12=0.0,B13=0.0
-init PP1=0.0, I1P=0.0
-init TA=132.3964
-# AMPA populations
-init n0=100, n1=0, n2=0
+init Ca=1
 
+init B1=0.0
+init B2=0.0,B3=0.0,B4=0.0
+init B5=0.0,B6=0.0,B7=0.0, B8=0.0
+init B9=0.0,B10=0.0, B11=0.0
+init B12=0.0
+init B13=0.0
+
+init PP1=0.0, I1P=0.0
+
+init TA=132.3964
+
+# CaMKII-NR2B variables
+init mu = 0
+init U = 0
+
+# AMPA populations
+init n0=100, n1=0
 
 ####### PARAMS #######
 
@@ -20,25 +29,29 @@ init n0=100, n1=0, n2=0
 param tauCa=12, CaBas=0.2
 
 # CaMKII PATHWAY PARAMETERS
-param b0i=33.3
-param K5=0.1, CaM=0.1
-param L1=0.1, L2=0.025, L3=0.32, L4=0.40
-param k6=6, k7=6, k8=6, k19=6
-param PP10=0.2
+param b0i=33.3  # total CaMKII conc
+param CaM=0.1  # total CaM conc
 
-param k12=6000
-param k14=6000
-param k_antidephos_305=
+param K5=0.1  # Ca2+/CaM binding dissociation const
 
-param KM_Dpu=0.4
-param KM_Dpp=0.4
-param KM_Dup=0.4
-param KM_305=
-param Kdephos_cal=
-param Kdephos_phos305=
+param L1=0.1, L2=0.025, L3=0.32, L4=0.40  # intermediate Ca to CaM association rates
+param k6=6  # autophosphorilation by unphosphorilated subunit - reaction constant
+param k7=6, k8=6, k19=6  # autophosphorylation by phosphorylated subunit: CaM-bound, free, T305-phosphorylated - reaction constants
+param PP10=0.2  # total PP1 conc
 
-param k11=500, km11=0.1
-param I10=1
+param k12=6000  #
+param k14=6000  #
+param k_antidephos_305=  #
+
+param KM_Dpu=0.4  #
+param KM_Dpp=0.4  #
+param KM_Dup=0.4  #
+param KM_305=  #
+param Kdephos_cal=  #
+param Kdephos_phos305=  #
+
+param k11=500, km11=0.1  #
+param I10=1  #
 
 param Kdcan=0.053, ncan=3
 param kcan0_I1=0.1, kcan_I1=18
@@ -72,12 +85,12 @@ AMPA_binder=2*(B2+B3+B4) + 6*(B5+B6+B7+B8) + 12*(B9+B10+B11) + 20*B12 + 30*B13
 C=CaM/(1 + L4/Ca + L3*L4/(Ca^2) + L2*L3*L4/(Ca^3) + L1*L2*L3*L4/(Ca^4))
 
 gamma=1-(K5)/((C-phossum)*KM_305)
-gamma_star=Kdephos_cal*(6*rr/phossum)*gamma
+gamma_star=Kdephos_cal*(6*b0i/phossum)*gamma
 zeta=(K5*k_antidephos_305)/((C-phossum)*KM_305)
-zeta_star=Kdephos_phos305*(6*rr/phossum)*zeta
+zeta_star=Kdephos_phos305*(6*b0i/phossum)*zeta
 
-k10=k12*PP1/(KM_Dpu + (1+(KM_Dpu/KM_Dpp)*zeta_star+(KM_Dpu/KM_Dup)*(1-gamma-zeta))*(6*rr-phossum))
-k20=k14*PP1/(KM_Dpp + ((KM_Dpp/KM_Dpu)+zeta_star+(KM_Dpp/KM_Dup)*(1-gamma-zeta))*(6*rr-phossum))
+k10=k12*PP1/(KM_Dpu + (1+(KM_Dpu/KM_Dpp)*zeta_star+(KM_Dpu/KM_Dup)*(1-gamma-zeta))*(6*b0i-phossum))
+k20=k14*PP1/(KM_Dpp + ((KM_Dpp/KM_Dpu)+zeta_star+(KM_Dpp/KM_Dup)*(1-gamma-zeta))*(6*b0i-phossum))
 
 # PKA activity
 vPKA_I1=kpka0_I1 + kpka_I1/(1 + (Kdpka/C)^npka)
