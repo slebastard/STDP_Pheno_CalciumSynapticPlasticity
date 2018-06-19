@@ -177,7 +177,10 @@ aux act=phossum
 aux auxB0=B0
 aux auxC=C
 aux auxW=W
-
+aux auxgam=gamma
+aux auxgamst=gamma_star
+aux auxzet=zeta
+aux auxzetst=zeta_star
 
 ###### CONTROLS ######
 
