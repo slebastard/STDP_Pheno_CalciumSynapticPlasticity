@@ -39,8 +39,8 @@ param tauCa=12, CaBas=0.2
 param b0i=33.3
 # total CaM conc
 param CaM=0.1  
-# Ca2+/CaM binding dissociation const, from G&B 2007
-param K5=0.1  
+# Ca2+/CaM binding dissociation const, from G&B 2007. Assume K9=K5
+param K5=0.1, K9=0.0001
 
 # Intermediate Ca to CaM association rates, from G&B 2007
 param L1=0.1, L2=0.025, L3=0.32, L4=0.40
@@ -82,6 +82,8 @@ param kNMDA_bind=0.1
 param N=1000
 param g0=0.0010, g1=0.0017, g2=0.0024
 
+# NMDA PARAMETERS
+M = 100
 
 ####### CONSTRAINTS & DEFINITIONS #######
 
@@ -91,19 +93,21 @@ rr=sum(0,12)of(shift(B1,i'))
 B0=b0i-rr
 
 phossum=B1 + 2*(B2 + B3 + B4) + 3*(B5 + B6 + B7 + B8) + 4*(B9 + B10 + B11) + 5*B12 + 6*B13
-AMPA_binder=2*(B2+B3+B4) + 6*(B5+B6+B7+B8) + 12*(B9+B10+B11) + 20*B12 + 30*B13
+AMPA_bnd=2*(B2+B3+B4) + 6*(B5+B6+B7+B8) + 12*(B9+B10+B11) + 20*B12 + 30*B13
 
 ###### KINETICS ######
 
 C=CaM/(1 + L4/Ca + L3*L4/(Ca^2) + L2*L3*L4/(Ca^3) + L1*L2*L3*L4/(Ca^4))
 
-# THE FOLLOWING COEFS ARE FOUND BY SOLVING A THIRD ORDER EQUATION
-eps = K9*k17*(C-phossum+K5)/(K5*k18*(C-phossum+K9))
+# SOLVING THIRD ORDER EQUATION LEADS TO zeta, other rates are computed from zeta
+eps1=K9*k17*(C-phossum+K5)/(K5*k18*(C-phossum+K9))
+eps2=k18*K5/(C-phossum+K5)
+P(x)=(KM+phossum) + (eps1*phossum + (eps1-1)*(KM+phossum)+(6*b0i-phossum))*x + (6*b0i-phossum)*(eps1-1)*x^2
+0= (1-zeta)*P(zeta) - (k12/eps2)*PP1*zeta*(1+(eps1-1)*zeta)
+solv zeta
 
-zeta=SOLVE EQUATION
 gamma=(C-phossum)*(1-zeta)/(C-phossum+K5)
-
-zeta_star=eps*zeta/(1-(eps-1)*zeta)
+zeta_star=eps1*zeta/(1-(eps1-1)*zeta)
 gamma_star=(C-phossum)*(1-zeta_star)/(C-phossum+K9)
 
 k10=k12*PP1/(KM + (1+zeta_star)*phossum + zeta*(6*b0i-phossum))
@@ -129,12 +133,12 @@ Ca'=(CaBas-Ca)/tauCa
 
 # Useful qties for following equations
 chi=k7*gamma_star + k8*(1-gamma_star-zeta_star) + k19*zeta_star
-nu=k10(1+zeta_star)
+nu=k10*(1+zeta_star)
 
 # CaMKII concentration equations
 B1' = 6*k6*gamma^2*B0 - 4*k6*gamma^2*B1 - chi*gamma*B1 + nu*(2*(B2+B3+B4)-B1) - kNMDA_bind*(M-mu)*B1
 #
-B2' = k6*gamma^2*B1 + chi*gamma*B1 + nu*(3*(B5+B6+B7+B8)-2*B2) - *k6*gamma^2*B2 - chi*gamma*B2 - 2*kNMDA_bind*(M-mu)*B2
+B2' = k6*gamma^2*B1 + chi*gamma*B1 + nu*(3*(B5+B6+B7+B8)-2*B2) - 3*k6*gamma^2*B2 - chi*gamma*B2 - 2*kNMDA_bind*(M-mu)*B2
 B3' = 2*k6*gamma^2*B1 + nu*(3*(B5+B6+B7+B8)-2*B3) - 3*k6*gamma^2*B3 - chi*gamma*B3 - 2*kNMDA_bind*(M-mu)*B3
 B4' = k6*gamma^2*B1 + nu*(3*(B5+B6+B7+B8)-2*B4) - 2*k6*gamma^2*B4 - 2*chi*gamma*B4 - 2*kNMDA_bind*(M-mu)*B4
 #
@@ -154,11 +158,11 @@ B13'= chi*gamma*B12 - nu*6*B13 - 6*kNMDA_bind*(M-mu)*B13
 # Phosphatase dynamics
 PP1'= -k11*I1P*PP1 + km11*(PP10 - PP1)
 # ORIGINAL: I1P'= -k11*I1P*PP1 + km11*(PP10 - PP1) + vPKA*I10 - vCaN*I1P
-I1P'= -k11*I1P*PP1 + km11*(PP10 - PP1) + vPKA*(I10-I1P) - vCaN*I1P
+I1P'= -k11*I1P*PP1 + km11*(PP10 - PP1) + vPKA_I1*(I10-I1P) - vCaN_I1*I1P
 
 # NMDA binding dynamics - Version 1
 mu'=kNMDA_bind*(M-mu)*phossum
-U'=kNMDA_bind*(M-mu)*AMPA_binder
+U'=kNMDA_bind*(M-mu)*AMPA_bnd
 
 # Membrane AMPA dynamics
 n0'= vCK2_exo*(N-n0) - vCaN_endo*n0 - vPKA_phos*n0*U + vPP1_pase*n1*PP1
