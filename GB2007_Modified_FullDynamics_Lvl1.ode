@@ -11,6 +11,8 @@
 ###### VARIABLES ######
 init Ca=1
 
+init zeta=0.2
+
 init B1=0.0
 init B2=0.0,B3=0.0,B4=0.0
 init B5=0.0,B6=0.0,B7=0.0, B8=0.0
@@ -38,7 +40,7 @@ param tauCa=12, CaBas=0.2
 # total CaMKII conc
 param b0i=33.3
 # total CaM conc
-param CaM=0.1
+param CaM=10
 # Ca2+/CaM binding dissociation const, from G&B 2007. Assume K9=K5
 param K5=0.1, K9=0.0001
 
@@ -56,6 +58,8 @@ param k17=10, k18=0.0005
 # PP1-CaMKII to dephosCaMKII constants + Michaelis: Dpu -> Duu (G&B 2007), Dpp -> Dpu, Dup -> Du
 param KM=0.4
 param k12=6000
+
+param tauZeta=0.5
 
 # I1-PP1 kinetics
 param k11=500, km11=0.1
@@ -103,8 +107,9 @@ C=CaM/(1 + L4/Ca + L3*L4/(Ca^2) + L2*L3*L4/(Ca^3) + L1*L2*L3*L4/(Ca^4))
 eps1=K9*k17*(C-phossum+K5)/(K5*k18*(C-phossum+K9))
 eps2=k18*K5/(C-phossum+K5)
 P(x)=(KM+phossum) + (eps1*phossum + (eps1-1)*(KM+phossum)+(6*b0i-phossum))*x + (6*b0i-phossum)*(eps1-1)*x^2
-0= (1-zeta)*P(zeta) - (k12/eps2)*PP1*zeta*(1+(eps1-1)*zeta)
-solv zeta
+energy(x)= (1-x)*P(x) - (k12/eps2)*PP1*x*(1+(eps1-1)*x)
+zeta'=0
+#zeta'=-(1/tauZeta)*energy(zeta)^2
 
 gamma=(C-phossum)*(1-zeta)/(C-phossum+K5)
 zeta_star=eps1*zeta/(1-(eps1-1)*zeta)
@@ -181,7 +186,10 @@ aux auxgam=gamma
 aux auxgamst=gamma_star
 aux auxzet=zeta
 aux auxzetst=zeta_star
-
+aux nrg=energy(zeta)
+aux poly=P(zeta)
+aux eps=eps1
+aux freeC=C-phossum
 ###### CONTROLS ######
 
 @ total=300,dt=0.002
