@@ -8,10 +8,10 @@ KM=0.4
 {K5,K9}={0.1,0.0001}
 
 Stot=33.3
-Sp=2
+Sp=5
 Su=Stot-Sp
 
-Ca=1
+Ca=0.5
 CaMtot=10
 {L1,L2,L3,L4}={0.1,0.025,0.32,0.40}
 
@@ -33,11 +33,20 @@ nrg[x_]:=k18*K5*x*((KM+Su+Su*(1-x)+Sp*(1-q[x]))*(CaM-x*Su-q[x]*Sp)-K5*Su*x-K9*Sp
 Plot[q[x],{x,0,1}]
 
 
-Plot[nrg[x],{x,0,.15}]
+Plot[nrg[x],{x,0,0.15}]
 
 
 (* ::InheritFromParent:: *)
 (**)
 
 
-Solve[nrg[x]==0,x]
+
+
+
+gamma=x/.Solve[nrg[x]==0,x][[4]]
+gammaSt=q[gam]
+zeta=1-gamma-K5*gamma/(CaM-gamma*Su-gammaSt*Sp)
+zetaSt=1-gammaSt-K9*gammaSt/(CaM-gamma*Su-gammaSt*Sp)
+
+
+
