@@ -11,7 +11,7 @@
 ###### VARIABLES ######
 init Ca=1
 
-init gamma=0
+init gamma=0.05
 
 init B1=0.0
 init B2=0.0,B3=0.0,B4=0.0
@@ -34,7 +34,7 @@ init U=0
 ####### PARAMS #######
 
 ## CALCIUM PARAMETERS
-param tauCa=12, CaBas=0.2
+param tauCa=0.012, CaBas=0.2
 
 ## CaMKII PATHWAY PARAMETERS
 # total CaMKII conc
@@ -50,6 +50,7 @@ param L1=0.1, L2=0.025, L3=0.32, L4=0.40
 param k6=6
 
 # Autophosphorylation by phosphorylated subunit: CaM-bound, free, T305-phosphorylated - from G&B 2007
+# Let's settle on these values
 param k7=6, k8=6, k19=6
 
 # T-305 autophosphorylation kinetics
@@ -59,8 +60,8 @@ param k17=10, k18=0.0005
 param KM=0.4
 param k12=6000
 
-param tauNRG=0.05
-param gamma0=0.05
+param tauNRG=0.01
+
 
 # I1-PP1 kinetics
 param k11=500, km11=0.1
@@ -113,12 +114,12 @@ zeta_star=0
 quad_a(x)=k12*k17*K9*Sp*(1-x)
 quad_b(x)=-C*k12*k17*K9 + C*k12*k17*K9*x + k17*K5*K9*x - k12*k18*K5*Sp*x + k12*k17*K9*Su*x - k12*k17*K9*Su*x^2
 quad_c(x)=k12*k18*K5*x*(C-x*Sp)
-quad(x)=(-quad_b(x)+sqrt(quad_b(x)^2-4*quad_a(x)*quad_c(x)))/(2*quad_a(x))
+quad(x)=(-quad_b(x)-sqrt(quad_b(x)^2-4*quad_a(x)*quad_c(x)))/(2*quad_a(x))
 #gamma_star=quad(gamma)
 gamma_star=0
 
-energy(x)=0.000001*(k18*K5*x*((KM+Su+Su*(1-x)+Sp*(1-quad(x)))*(C-x*Su-quad(x)*Sp)-K5*Su*x-K9*Sp*quad(x))+K5*x*(C-x*Su-quad(x)*Sp)-k12*(1-x)*(C-x*Su-quad(x)*Sp)^2)
-gamma'=-(1/tauNRG)*energy(gamma)^2+gamma0*0.002*(heav(t)-heav(0.004-t))
+energy(x)=k18*K5*x*((KM+Su+Su*(1-x)+Sp*(1-quad(x)))*(C-x*Su-quad(x)*Sp)-K5*Su*x-K9*Sp*quad(x))+k12*PP1*(C-x*Su-quad(x)*Sp)*(K5*x-(1-x)*(C-x*Su-quad(x)*Sp))
+gamma'=(1/tauNRG)*energy(gamma)
 
 k10=k12*PP1/(KM + (1+zeta_star)*Sp + zeta*(Su))
 
@@ -139,7 +140,8 @@ vCK2_exo=kCK2_exo*Sp
 ###### DYNAMICS ######
 
 # Ca2+ equation
-Ca'=(CaBas-Ca)/tauCa
+# Ca'=(CaBas-Ca)/tauCa
+Ca'=0
 
 # Useful qties for following equations
 chi=k7*gamma_star + k8*(1-gamma_star-zeta_star) + k19*zeta_star
