@@ -118,18 +118,18 @@ ode_Ca = diff(Ca(t),t)==(CaBas-Ca(t))/tauCa;
 % CaMKII concentration equations
 ode_B1 = diff(B1(t), t) == 6*k6*gam_u(t)^2*B0(t) - 4*k6*gam_u(t)^2*B1(t) - chi(t)*gam_u(t)*B1(t) + nu(t)*(2*(B2(t)+B3(t)+B4(t))-B1(t)) - kNMDA_bind*(M-mu(t))*B1(t);
 %
-ode_B2 = diff(B2(t), t) == k6*gam_u(t)^2*B1(t) + chi(t)*gam_u(t)*B1(t) + nu*(3*(B5(t)+B6(t)+B7(t)+B8(t))-2*B2(t)) - 3*k6*gam_u(t)^2*B2(t) - chi(t)*gam_u(t)*B2(t) - 2*kNMDA_bind*(M-mu(t))*B2(t);
+ode_B2 = diff(B2(t), t) == k6*gam_u(t)^2*B1(t) + chi(t)*gam_u(t)*B1(t) + nu(t)*(3*(B5(t)+B6(t)+B7(t)+B8(t))-2*B2(t)) - 3*k6*gam_u(t)^2*B2(t) - chi(t)*gam_u(t)*B2(t) - 2*kNMDA_bind*(M-mu(t))*B2(t);
 ode_B3 = diff(B3(t), t) == 2*k6*gam_u(t)^2*B1(t) + nu(t)*(3*(B5(t)+B6(t)+B7(t)+B8(t))-2*B3(t)) - 3*k6*gam_u(t)^2*B3(t) - chi(t)*gam_u(t)*B3(t) - 2*kNMDA_bind*(M-mu(t))*B3(t);
 ode_B4 = diff(B4(t), t) == k6*gam_u(t)^2*B1(t) + nu(t)*(3*(B5(t)+B6(t)+B7(t)+B8(t))-2*B4(t)) - 2*k6*gam_u(t)^2*B4(t) - 2*chi(t)*gam_u(t)*B4(t) - 2*kNMDA_bind*(M-mu(t))*B4(t);
 %
 ode_B5 = diff(B5(t), t) == k6*gam_u(t)^2*(B2(t)+B3(t)) + chi(t)*gam_u(t)*B2(t) + nu(t)*(4*(B9(t)+B10(t)+B11(t))-3*B5(t)) - 2*k6*gam_u(t)^2*B5(t) - chi(t)*gam_u(t)*B5(t) - 3*kNMDA_bind*(M-mu(t))*B5(t);
 ode_B6 = diff(B6(t), t) == k6*gam_u(t)^2*(B2(t)+B3(t)) + 2*chi(t)*gam_u(t)*B4(t) + nu(t)*(4*(B9(t)+B10(t)+B11(t))-3*B6(t)) - k6*gam_u(t)^2*B6(t) - 2*chi(t)*gam_u(t)*B6(t) - 3*kNMDA_bind*(M-mu(t))*B6(t);
 ode_B7 = diff(B7(t), t) == k6*gam_u(t)^2*(B2(t)+2*B4(t)) + chi(t)*gam_u(t)*B3(t) + nu(t)*(4*(B9(t)+B10(t)+B11(t))-3*B7(t)) - k6*gam_u(t)^2*B7(t) - 2*chi(t)*gam_u(t)*B7(t) - 3*kNMDA_bind*(M-mu(t))*B7(t);
-ode_B8 = diff(B8(t), t) == k6*gam_u(t)^2*B3(t) + nu*(4*(B9(t)+B10(t)+B11(t))-3*B8(t)) - 3*chi(t)*gam_u(t)*B8(t) - 3*kNMDA_bind*(M-mu(t))*B8(t);
+ode_B8 = diff(B8(t), t) == k6*gam_u(t)^2*B3(t) + nu(t)*(4*(B9(t)+B10(t)+B11(t))-3*B8(t)) - 3*chi(t)*gam_u(t)*B8(t) - 3*kNMDA_bind*(M-mu(t))*B8(t);
 %
 ode_B9 = diff(B9(t), t) == k6*gam_u(t)^2*B5(t) + chi(t)*gam_u(t)*(B6(t)+B7(t)) + nu(t)*(5*B12(t)-4*B9(t)) - k6*gam_u(t)^2*B9(t) - chi(t)*gam_u(t)*B9(t) - 4*kNMDA_bind*(M-mu(t))*B9(t);
 ode_B10 = diff(B10(t), t) == k6*gam_u(t)^2*(B5(t)+B6(t)) + chi(t)*gam_u(t)*(B7(t)+B8(t)) + nu(t)*(5*B12(t)-4*B10(t)) - 2*chi(t)*gam_u(t)*B10(t) - 4*kNMDA_bind*(M-mu(t))*B10(t);
-ode_B11 = diff(B11(t), t) == k6*gam_u(t)^2*B7(t) + chi(t)*gam_u(t)*B6(t) + nu*(5*B12(t)-4*B11(t)) - 2*chi(t)*gam_u(t)*B11(t) - 4*kNMDA_bind*(M-mu(t))*B11(t);
+ode_B11 = diff(B11(t), t) == k6*gam_u(t)^2*B7(t) + chi(t)*gam_u(t)*B6(t) + nu(t)*(5*B12(t)-4*B11(t)) - 2*chi(t)*gam_u(t)*B11(t) - 4*kNMDA_bind*(M-mu(t))*B11(t);
 %
 ode_B12 = diff(B12(t), t) == k6*gam_u(t)^2*B9(t) + chi(t)*gam_u(t)*(B9(t)+2*B10(t)+2*B11(t)) + nu(t)*(6*B13(t)-5*B12(t)) - chi(t)*gam_u(t)*B12(t) - 5*kNMDA_bind*(M-mu(t))*B11(t);
 %
@@ -167,7 +167,7 @@ vars = [
 ];
 
 initCond = [
-	1; 0;
+	0.5; 0;
 	0; 0; 0; 0; 0;
 	0; 0; 0; 0; 0; 0; 0; 0; 0;
     0; 0; 0; 0; 0; 0; 0; 0;
@@ -247,7 +247,8 @@ F = daeFunction(eqs, vars, params);
 f = @(t, y, yp)  F(t, y, yp, paramVals);
 t0 = 0;
 tfinal = 300;
-[y0,yp0] = decic(f, t0, initCond, initCondFixed, zeros(37,1), zeros(37,1));
-
+opt = odeset('NonNegative',1);
+[y0,yp0] = decic(f, t0, initCond, initCondFixed, zeros(37,1), zeros(37,1), opt);
 f(t0, y0, yp0)
-[t,y] = ode15i(f, [t0, tfinal], y0, yp0);
+%[t,y] = ode15i(f, [t0, tfinal], y0, yp0);
+[t,y] = ode15s(f, [t0, tfinal], y0);
