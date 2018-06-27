@@ -51,29 +51,6 @@ syms kCK2_exo kNMDA_bind N g0 g1 g2 M
 
 % QUANTITIES AND EQUATIONS
 
-% Intermediate quantities
-% rr(t) = B1(t) + B2(t) + B3(t) + B4(t) + B5(t) + B6(t) + B7(t) + B8(t) + B9(t) + B10(t) + B11(t) + B12(t) + B13(t);
-% B0(t) = Stot - rr(t);
-% 
-% Sp(t) = B1(t) + 2*(B2(t) + B3(t) + B4(t)) + 3*(B5(t) + B6(t) + B7(t) + B8(t)) + 4*(B9(t) + B10(t) + B11(t)) + 5*B12(t) + 6*B13(t);
-% Su(t) = 6*Stot - Sp(t);
-% 
-% k10(t) = k12*PP1(t)/(KM + (1+zet_p(t))*Sp(t) + zet_u(t)*Su(t));
-% C(t) = CaM/(1 + L4/Ca(t) + L3*L4/(Ca(t)^2) + L2*L3*L4/(Ca(t)^3) + L1*L2*L3*L4/(Ca(t)^4));
-% 
-% AMPA_bnd(t) = 2*(B2(t)+B3(t)+B4(t)) + 6*(B5(t)+B6(t)+B7(t)+B8(t)) + 12*(B9(t)+B10(t)+B11(t)) + 20*B12(t) + 30*B13(t);
-% 
-% vPKA_I1(t) = kpka0_I1 + kpka_I1/(1 + (Kdpka/C(t))^npka);
-% vPKA_phos(t) = kpka0_phos + kpka_phos/(1 + (Kdpka/C(t))^npka);
-% 
-% vCaN_I1(t) = kcan0_I1 + kcan_I1/(1 + (Kdcan/C(t))^ncan);
-% vCaN_endo(t) = kcan0_endo + kcan_endo/(1 + (Kdcan/C(t))^ncan);
-% 
-% vPP1_pase(t) = kPP10_pase + kPP1_pase/(1 + (Kdcan/C(t))^ncan);
-% 
-% vCK2_exo(t) = kCK2_exo*Sp(t);
-
-
 % DAEs
 daes = [
 	(1-gam_u(t)-zet_u(t))*(C(t) - gam_u(t)*Su(t) - gam_p(t)*Sp(t)) - K5*gam_u(t) == 0;
@@ -111,10 +88,6 @@ daes = [
 % Ca2+ equation
 ode_Ca = diff(Ca(t),t)==(CaBas-Ca(t))/tauCa;
 
-% Useful qties for following equations
-% chi(t) = k7*gam_p(t) + k8*(1 - gam_p(t) - zet_p(t)) + k19*zet_p(t);
-% nu(t) = k10(t)*(1+zet_p(t));
-
 % CaMKII concentration equations
 ode_B1 = diff(B1(t), t) == 6*k6*gam_u(t)^2*B0(t) - 4*k6*gam_u(t)^2*B1(t) - chi(t)*gam_u(t)*B1(t) + nu(t)*(2*(B2(t)+B3(t)+B4(t))-B1(t)) - kNMDA_bind*(M-mu(t))*B1(t);
 %
@@ -137,7 +110,6 @@ ode_B13 = diff(B13(t), t) == chi(t)*gam_u(t)*B12(t) - nu(t)*6*B13(t) - 6*kNMDA_b
 
 % Phosphatase dynamics
 ode_PP1 = diff(PP1(t), t) == -k11*I1P(t)*PP1(t) + km11*(PP10 - PP1(t));
-% ORIGINAL: I1P'= -k11*I1P*PP1 + km11*(PP10 - PP1) + vPKA*I10 - vCaN*I1P
 ode_I1P = diff(I1P(t), t) == -k11*I1P(t)*PP1(t) + km11*(PP10 - PP1(t)) + vPKA_I1(t)*(I10-I1P(t)) - vCaN_I1(t)*I1P(t);
 
 % NMDA binding dynamics - Version 1
@@ -162,12 +134,11 @@ vars = [
 	Sp(t); Su(t); AMPA_bnd(t);
 	vPKA_I1(t); vPKA_phos(t); vCaN_I1(t); vCaN_endo(t); vPP1_pase(t); vCK2_exo(t);
 	PP1(t); I1P(t);
-    mu(t); U(t)
-                                                            
+    mu(t); U(t)                                                     
 ];
 
 initCond = [
-	0.5; 0;
+	1; 0;
 	0; 0; 0; 0; 0;
 	0; 0; 0; 0; 0; 0; 0; 0; 0;
     0; 0; 0; 0; 0; 0; 0; 0;
@@ -247,8 +218,17 @@ F = daeFunction(eqs, vars, params);
 f = @(t, y, yp)  F(t, y, yp, paramVals);
 t0 = 0;
 tfinal = 300;
-opt = odeset('NonNegative',1);
+opt = odeset('AbsTol', 3e-8, 'RelTol', 1e-5);
 [y0,yp0] = decic(f, t0, initCond, initCondFixed, zeros(37,1), zeros(37,1), opt);
-f(t0, y0, yp0)
-%[t,y] = ode15i(f, [t0, tfinal], y0, yp0);
-[t,y] = ode15s(f, [t0, tfinal], y0);
+[t,y] = ode15i(f, [t0, tfinal], y0, yp0);
+
+plt_h=4; plt_l=4;
+for idx = 1:length(vars)
+    if mod(idx,plt_h*plt_l)==1
+        figure(1 + fix(idx/(plt_h*plt_l)))
+        set(gcf, 'Position', get(0, 'Screensize'));
+    end
+    subplot(plt_h,plt_l,1+mod(idx-1,plt_h*plt_l))
+    plot(t(:,1),y(:,idx), 'x')
+    title(char(vars(idx)))
+end
