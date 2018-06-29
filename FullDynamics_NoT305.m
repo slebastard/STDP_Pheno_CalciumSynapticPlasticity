@@ -54,14 +54,14 @@ clear all;
 % VARIABLES AND PARAMETERS
 
 %Variables
-syms Ca(t) C(t)
-syms gam_u(t) gam_p(t) zet_u(t) zet_p(t) k10(t)
+syms C(t)
+syms gam_u(t) gam_p(t) k10(t)
 syms B0(t) B1(t) B2(t) B3(t) B4(t) B5(t) B6(t) B7(t) B8(t) B9(t) B10(t) B11(t) B12(t) B13(t) chi(t) nu(t) rr(t)
 syms Sp(t) Su(t) AMPA_bnd(t) Cb(t) 
 syms vPKA_I1(t) vPKA_phos(t) vCaN_I1(t) vCaN_endo(t) vPP1_pase(t) vCK2_exo(t)
 syms PP1(t) I1P(t) mu(t) U(t)
 %Params
-syms tauCa CaBas Stot CaM K5 K9 L1 L2 L3 L4 k6 k7 k8 k19 k17 k18 KM k12 k11 km11 I10 PP10 Kdcan ncan
+syms tauCa CaBas Stot CaM K5 K9 L1 L2 L3 L4 k6 k7 k8 KM k12 k11 km11 I10 PP10 Kdcan ncan
 syms kcan0_I1 kcan_I1 kcan0_endo kcan_endo kPP10_pase kPP1_pase Kdpka npka kpka0_I1 kpka_I1 kpka0_phos kpka_phos
 syms kCK2_exo kNMDA_bind N g0 g1 g2 M
 
@@ -74,10 +74,8 @@ syms kCK2_exo kNMDA_bind N g0 g1 g2 M
 % W = g0*n0 + g1*n1;
 
 daes = [
-	(1-gam_u(t)-zet_u(t))*(C(t) - gam_u(t)*Su(t) - gam_p(t)*Sp(t)) - K5*gam_u(t) == 0;
-	(1-gam_p(t)-zet_p(t))*(C(t) - gam_u(t)*Su(t) - gam_p(t)*Sp(t)) - K9*gam_p(t) == 0;
-	k18*(1-gam_u(t)-zet_u(t)) - k10(t)*zet_u(t)*PP1(t) == 0;
-	k17*(1-gam_p(t)-zet_p(t)) - k10(t)*zet_p(t)*PP1(t) == 0;
+	(1-gam_u(t))*(C(t) - gam_u(t)*Su(t) - gam_p(t)*Sp(t)) - K5*gam_u(t) == 0;
+	(1-gam_p(t))*(C(t) - gam_u(t)*Su(t) - gam_p(t)*Sp(t)) - K9*gam_p(t) == 0;
     
     rr(t) == B1(t) + B2(t) + B3(t) + B4(t) + B5(t) + B6(t) + B7(t) + B8(t) + B9(t) + B10(t) + B11(t) + B12(t) + B13(t);
     B0(t) == Stot - rr(t);
@@ -85,12 +83,12 @@ daes = [
     Sp(t) == B1(t) + 2*(B2(t) + B3(t) + B4(t)) + 3*(B5(t) + B6(t) + B7(t) + B8(t)) + 4*(B9(t) + B10(t) + B11(t)) + 5*B12(t) + 6*B13(t);
     Su(t) == 6*Stot - Sp(t);
 
-    k10(t) == k12*PP1(t)/(KM + (1+zet_p(t))*Sp(t) + zet_u(t)*Su(t));
-    C(t) == CaM/(1 + L4/Ca(t) + L3*L4/(Ca(t)^2) + L2*L3*L4/(Ca(t)^3) + L1*L2*L3*L4/(Ca(t)^4));
+    k10(t) == k12*PP1(t)/(KM + Sp(t));
+    C(t) == CaM/(1 + L4/CaBas + L3*L4/(CaBas^2) + L2*L3*L4/(CaBas^3) + L1*L2*L3*L4/(CaBas^4));
     Cb(t) == gam_u(t)*Su(t) + gam_p(t)*Sp(t);
 
-    chi(t) == k7*gam_p(t) + k8*(1 - gam_p(t) - zet_p(t)) + k19*zet_p(t);
-    nu(t) == k10(t)*(1+zet_p(t));
+    chi(t) == k7*gam_p(t) + k8*(1 - gam_p(t));
+    nu(t) == k10(t);
     
     AMPA_bnd(t) == 2*(B2(t)+B3(t)+B4(t)) + 6*(B5(t)+B6(t)+B7(t)+B8(t)) + 12*(B9(t)+B10(t)+B11(t)) + 20*B12(t) + 30*B13(t);
 
@@ -106,7 +104,6 @@ daes = [
 ];
 
 odes = [
-	diff(Ca(t),t)==(CaBas-Ca(t))/tauCa;
 	diff(B1(t), t) == 6*k6*gam_u(t)^2*B0(t) - 4*k6*gam_u(t)^2*B1(t) - chi(t)*gam_u(t)*B1(t) + nu(t)*(2*(B2(t)+B3(t)+B4(t))-B1(t)) - kNMDA_bind*(M-mu(t))*B1(t);
 	diff(B2(t), t) == k6*gam_u(t)^2*B1(t) + chi(t)*gam_u(t)*B1(t) + nu(t)*(3*(B5(t)+B6(t)+B7(t)+B8(t))-2*B2(t)) - 3*k6*gam_u(t)^2*B2(t) - chi(t)*gam_u(t)*B2(t) - 2*kNMDA_bind*(M-mu(t))*B2(t);
 	diff(B3(t), t) == 2*k6*gam_u(t)^2*B1(t) + nu(t)*(3*(B5(t)+B6(t)+B7(t)+B8(t))-2*B3(t)) - 3*k6*gam_u(t)^2*B3(t) - chi(t)*gam_u(t)*B3(t) - 2*kNMDA_bind*(M-mu(t))*B3(t);
@@ -130,8 +127,8 @@ odes = [
 eqs = [odes;daes];
 
 vars = [
-	Ca(t); C(t);
-	gam_u(t); gam_p(t); zet_u(t); zet_p(t); k10(t);
+	C(t);
+	gam_u(t); gam_p(t); k10(t);
 	B0(t); B1(t); B2(t); B3(t); B4(t); B5(t); B6(t); B7(t); B8(t);
     B9(t); B10(t); B11(t); B12(t); B13(t); chi(t); nu(t); rr(t);
 	Sp(t); Su(t); AMPA_bnd(t); Cb(t);
@@ -141,9 +138,9 @@ vars = [
 ];
 
 y0est = [
-	5; 0;
-	0; 0; 0; 0; 0;
-	0; 0; 0; 0; 0; 0; 0; 0; 0;
+	0.41;
+	0.00206; 0.674; 0;
+	33.3; 0; 0; 0; 0; 0; 0; 0; 0;
     0; 0; 0; 0; 0; 0; 0; 0;
 	0; 0; 0; 0;
 	0; 0; 0; 0; 0; 0;
@@ -152,10 +149,10 @@ y0est = [
 ];
 
 y0fix = [
-	1; 0;
-	0; 0; 0; 0; 0;
-	0; 0; 0; 0; 0; 0; 0; 0; 0;
-    0; 0; 0; 0; 0; 0; 0; 0;
+	0;
+	0; 0; 0;
+	0; 1; 1; 1; 1; 1; 1; 1; 1;
+    1; 1; 1; 1; 1; 0; 0; 0;
 	0; 0; 0; 0;
 	0; 0; 0; 0; 0; 0;
 	0; 0;
@@ -167,7 +164,7 @@ params = [
 	Stot; CaM;
 	K5; K9;
 	L1; L2; L3; L4;
-	k6; k7; k8; k19; k17; k18;
+	k6; k7; k8;
 	KM; k12;
 	k11; km11; I10; PP10;
 	Kdcan; ncan; kcan0_I1; kcan_I1; kcan0_endo; kcan_endo;
@@ -182,8 +179,7 @@ paramVals = [
 	33.3; 10;
 	0.1; 0.0001;
 	0.1; 0.025; 0.32; 0.40;
-	6; 6; 6; 6;
-	10; 0.0005;
+	6; 6; 6;
 	0.4; 6000;
 	500; 0.1; 1; 0.2;
 	0.053; 3; 0.1; 18; 0.1; 18;
@@ -198,31 +194,22 @@ mass = odeFunction(mass, vars);
 F = odeFunction(F, vars, params);
 f = @(t, y) F(t, y, paramVals);
 
-t0=0; tfinal=3000;
+t0=0; tfinal=5;
 
 opt = odeset('Mass', mass,...
-'AbsTol',2e-4,...
+'AbsTol',1e-6,...
 'RelTol',1e-3);
 
 implicitDAE = @(t,y,yp) mass(t,y)*yp - f(t,y);
-[y0, yp0] = decic(implicitDAE, t0, y0est, y0fix, zeros(38,1), [], opt);
-y0 = [
-	y0(1); y0(2);
-	0.0000; 0.0000; 1.0000; 1.0000; 0.0000;
-	33.3; 0; 0; 0; 0; 0; 0; 0; 0;
-    0; 0; 0; 0; 0; 6.0000; 0; 0;
-    0; 199.8; 0; 0;
-    100.0036; 100.0036; 18.1000; 18.1000; 18.1000; 0.0001;
-    0.0000; 0;
-	0; 0
-];
+[y0, yp0] = decic(implicitDAE, t0, y0est, y0fix, zeros(35,1), [], opt);
+%opt = odeset(opt, 'InitialSlope', yp0);
 
 [t,y] = ode15s(f, [t0, tfinal], y0, opt);
 
 plt_h=4; plt_l=4;
 for idx = 1:length(vars)
     if mod(idx,plt_h*plt_l)==1
-        figure(1 + fix(idx/(plt_h*plt_l)))
+        figure(4 + fix(idx/(plt_h*plt_l)))
         set(gcf, 'Position', get(0, 'Screensize'));
     end
     subplot(plt_h,plt_l,1+mod(idx-1,plt_h*plt_l))
