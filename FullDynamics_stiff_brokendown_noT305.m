@@ -81,12 +81,12 @@ daes = [
     Sp(t) == B1(t) + 2*(B2(t) + B3(t) + B4(t)) + 3*(B5(t) + B6(t) + B7(t) + B8(t)) + 4*(B9(t) + B10(t) + B11(t)) + 5*B12(t) + 6*B13(t);
     Su(t) == 6*Stot - Sp(t);
 
-    k10(t) == k12*PP1(t)/(KM + Sp(t));
+    k10(t) == k12/(KM + Sp(t));
     C(t) == CaM/(1 + L4/CaBas + L3*L4/(CaBas^2) + L2*L3*L4/(CaBas^3) + L1*L2*L3*L4/(CaBas^4));
     Cb(t) == gam_u*Su(t) + gam_p*Sp(t);
 
     chi(t) == k7*gam_p + k8*(1 - gam_p);
-    nu(t) == k10(t);
+    nu(t) == k10(t)*PP1(t);
     
     AMPA_bnd(t) == 2*(B2(t)+B3(t)+B4(t)) + 6*(B5(t)+B6(t)+B7(t)+B8(t)) + 12*(B9(t)+B10(t)+B11(t)) + 20*B12(t) + 30*B13(t);
 
@@ -124,39 +124,6 @@ odes = [
 
 eqs = [odes;daes];
 
-vars = [
-	C(t);
-	k10(t);
-	B0(t); B1(t); B2(t); B3(t); B4(t); B5(t); B6(t); B7(t); B8(t);
-    B9(t); B10(t); B11(t); B12(t); B13(t); chi(t); nu(t); rr(t);
-	Sp(t); Su(t); AMPA_bnd(t); Cb(t);
-	vPKA_I1(t); vPKA_phos(t); vCaN_I1(t); vCaN_endo(t); vPP1_pase(t); vCK2_exo(t);
-	PP1(t); I1P(t);
-    mu(t); U(t)                                                     
-];
-
-y0est = [
-	0.41;
-	0;
-	33.3; 0; 0; 0; 0; 0; 0; 0; 0;
-    0; 0; 0; 0; 0; 0; 0; 0;
-	0; 199.8; 0; 0;
-	0; 0; 0; 0; 0; 0;
-	0; 0;
-    0; 0
-];
-
-y0fix = [
-	0;
-	0;
-	0; 1; 1; 1; 1; 1; 1; 1; 1;
-    1; 1; 1; 1; 1; 0; 0; 0;
-	0; 0; 0; 0;
-	0; 0; 0; 0; 0; 0;
-	0; 0;
-    0; 0
-];
-
 params = [
 	tauCa; CaBas;
 	Stot; CaM;
@@ -178,16 +145,54 @@ paramVals = [
 	33.3; 10;
 	0.1; 0.0001;
 	0.1; 0.025; 0.32; 0.40;
-	6; 6; 6; 6;
-	10; 0.0005;
+	6; 6; 6; 6; 10; 0.0005;
 	0.4; 6000;
 	500; 0.1; 1; 0.2;
 	0.053; 3; 0.1; 18; 0.1; 18;
 	0.1; 18;
 	0.11; 8; 0.00359; 100; 0.00359; 100;
 	0.0005; 0; %kNMDA_bind temporarilly set to 0
-	1000; 0.0010; 0.0017; 0.0024; 100;
-    0.00206; 0.674
+	1000; 0.0010; 0.0017; 0.0024; 100
+];
+
+[gu,gp] = getRates(getC(paramVals(4),paramVals(2),paramVals(7),paramVals(8),paramVals(9),paramVals(10)), 199.8, 0, paramVals(5), paramVals(6));
+
+paramVals = [
+    paramVals;
+    gu; gp
+];
+
+vars = [
+	C(t);
+	k10(t);
+	B0(t); B1(t); B2(t); B3(t); B4(t); B5(t); B6(t); B7(t); B8(t);
+    B9(t); B10(t); B11(t); B12(t); B13(t); chi(t); nu(t); rr(t);
+	Sp(t); Su(t); AMPA_bnd(t); Cb(t);
+	vPKA_I1(t); vPKA_phos(t); vCaN_I1(t); vCaN_endo(t); vPP1_pase(t); vCK2_exo(t);
+	PP1(t); I1P(t);
+    mu(t); U(t)                                                     
+];
+
+y0est = [
+	getC(paramVals(4),paramVals(2),paramVals(7),paramVals(8),paramVals(9),paramVals(10));
+	0;
+	33.3; 0; 0; 0; 0; 0; 0; 0; 0;
+    0; 0; 0; 0; 0; 0; 0; 0;
+	0; 199.8; 0; 0;
+	0; 0; 0; 0; 0; 0;
+	0; 0;
+    0; 0
+];
+
+y0fix = [
+	0;
+	0;
+	0; 1; 1; 1; 1; 1; 1; 1; 1;
+    1; 1; 1; 1; 1; 0; 0; 0;
+	0; 0; 0; 0;
+	0; 0; 0; 0; 0; 0;
+	0; 0;
+    0; 0
 ];
 
 [mass,F] = massMatrixForm(eqs, vars);
@@ -200,7 +205,7 @@ nsteps = (tfinal - t0)/step;
 
 opt = odeset('Mass', mass,...
 'AbsTol',1e-6,...
-'RelTol',1e-6);
+'RelTol',1e-3);
 
 implicitDAE = @(t,y,yp) mass(t,y)*yp - f(t,y);
 [y0, yp0] = decic(implicitDAE, t0, y0est, y0fix, zeros(33,1), [], opt);
@@ -248,4 +253,19 @@ for idx=1:2
     subplot(plt_h,plt_l,1+mod(idx0+idx-1,plt_h*plt_l))
     plot(t(:,1),ratesHist(:,idx), 'x')
     title(char(params(43+idx)))
+end
+
+function K = getC(CaM,CaBas, L1, L2, L3, L4)
+    K = double(CaM/(1 + L4/CaBas + L3*L4/(CaBas^2) + L2*L3*L4/(CaBas^3) + L1*L2*L3*L4/(CaBas^4)));
+end
+
+function [gu, gp] = getRates(C, Su, Sp, K5, K9)
+    syms loc_gu loc_gp
+    a = vpasolve([
+        (1-loc_gu)*(C - loc_gu*Su - loc_gp*Sp) - K5*loc_gu == 0,
+        (1-loc_gp)*(C - loc_gu*Su - loc_gp*Sp) - K9*loc_gp == 0
+    ],[loc_gu,loc_gp],[0 1 ; 0 1]...
+    );
+    gu = double(a.loc_gu);
+    gp = double(a.loc_gp);
 end
