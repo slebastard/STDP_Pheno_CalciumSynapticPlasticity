@@ -138,7 +138,7 @@ params = [
     gam_u; gam_p; zet_u; zet_p; k10
 ];
 
-paramVals = getParams('Graupner', 2, 10);
+paramVals = getParams('Michalski', 0.1, 0.1);
 
 C0 = getC(paramVals(4),paramVals(2),paramVals(7),paramVals(8),paramVals(9),paramVals(10));
 [p0,i0] = getP0(C0, paramVals(23:26), paramVals(31:34), paramVals(19:22));
