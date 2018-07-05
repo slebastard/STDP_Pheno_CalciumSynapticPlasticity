@@ -63,7 +63,7 @@ syms PP1(t) I1P(t) mu(t) U(t)
 syms tauCa CaBas Stot CaM K5 K9 L1 L2 L3 L4 k6 k7 k8 k19 k17 k18 KM k12 k11 km11 I10 PP10 Kdcan ncan
 syms kcan0_I1 kcan_I1 kcan0_endo kcan_endo kPP10_pase kPP1_pase Kdpka npka kpka0_I1 kpka_I1 kpka0_phos kpka_phos
 syms kCK2_exo kNMDA_bind N g0 g1 g2 M
-syms gam_u gam_p zet_u zet_p r_u r_p k10
+syms gam_u gam_p zet_u zet_p k10
 
 % QUANTITIES AND EQUATIONS
 
@@ -135,32 +135,20 @@ params = [
 	Kdpka; npka; kpka0_I1; kpka_I1; kpka0_phos; kpka_phos;
 	kCK2_exo; kNMDA_bind;
 	N; g0; g1; g2; M;
-    gam_u; gam_p; zet_u; zet_p; r_u; r_p; k10
+    gam_u; gam_p; zet_u; zet_p; k10
 ];
 
-paramVals = [
-	0.012; 0;
-	33.3; 10;
-	0.1; 0.0001;
-	0.1; 0.025; 0.32; 0.40;
-	6; 6; 6; 6; 10; 0.0005;
-	0.4; 6000;
-	500; 0.1; 1; 0.2;
-	0.053; 3; 0.1; 18; 0.1; 18;
-	0.1; 18;
-	0.11; 8; 0.00359; 100; 0.00359; 100;
-	0.0005; 0; %kNMDA_bind temporarilly set to 0
-	1000; 0.0010; 0.0017; 0.0024; 100
-];
+paramVals = getParams('Graupner', 2, 10);
 
 C0 = getC(paramVals(4),paramVals(2),paramVals(7),paramVals(8),paramVals(9),paramVals(10));
 [p0,i0] = getP0(C0, paramVals(23:26), paramVals(31:34), paramVals(19:22));
 
-[gu,gp,zu,zp,lk10] = getRates(C0, 199.8, 0, paramVals(5), paramVals(6), paramVals(15), paramVals(16), paramVals(18), paramVals(17), p0);
+opt_fsolve = optimoptions('fsolve','Display','off');
+[gu,gp,zu,zp,lk10] = getRates(C0, 199.8, 0, paramVals(5), paramVals(6), paramVals(15), paramVals(16), paramVals(18), paramVals(17), p0, opt_fsolve);
 
 paramVals = [
     paramVals;
-    gu; gp; zu; zp; gu+zu; gp+zp; lk10
+    gu; gp; zu; zp; lk10
 ];
 
 vars = [
@@ -198,52 +186,77 @@ mass = odeFunction(mass, vars);
 F = odeFunction(F, vars, params);
 f = @(t, y) F(t, y, paramVals);
 
-t0=0; tfinal=50; step=0.5;
-nsteps = (tfinal - t0)/step;
+t0=0; tf_p1=1; tf_p2=5; tfinal=1000; 
+step_p1=0.005; step_p2 = 0.01; step_p3 = 0.1;
+nsteps_p1 = (tf_p1 - t0)/step_p1;
+nsteps_p2 = (tf_p2 - tf_p1)/step_p2;
+nsteps_p3 = (tfinal - tf_p2)/step_p3;
 
-opt = odeset('Mass', mass,...
+opt_ode = odeset('Mass', mass,...
 'AbsTol',1e-6,...
-'RelTol',1e-6);
+'RelTol',1e-3);
 
 implicitDAE = @(t,y,yp) mass(t,y)*yp - f(t,y);
-[y0, yp0] = decic(implicitDAE, t0, y0est, y0fix, zeros(32,1), [], opt);
+[y0, yp0] = decic(implicitDAE, t0, y0est, y0fix, zeros(32,1), [], opt_ode);
 
 yi = y0';
 t = []; y = [];
 ratesHist=[];
+chflag = 1;
 
-for nstep=1:nsteps
-    assume(gam_u, 'real')
-    assume(gam_p, 'real')
-    assume(zet_u, 'real')
-    assume(zet_p, 'real')
-    
-    a = vpasolve([
-        (1-gam_u-zet_u)*(yi(end,1) - gam_u*yi(end,20) - gam_p*yi(end,19)) - paramVals(5)*gam_u == 0,
-        (1-gam_p-zet_p)*(yi(end,1) - gam_u*yi(end,20) - gam_p*yi(end,19)) - paramVals(6)*gam_p == 0,
-        paramVals(16)*(1-gam_u-zet_u) - k10*zet_u*yi(end,29) == 0,
-        paramVals(15)*(1-gam_p-zet_p) - k10*zet_p*yi(end,29) == 0,
-        r_u == gam_u+zet_u,
-        r_p == gam_p+zet_p
-        k10 == paramVals(18)/(paramVals(17) + (1+zet_p)*yi(end,19) + zet_u*yi(end,20))
-        ],[gam_u,gam_p,zet_u,zet_p,r_u,r_p,k10],[0 1 ; 0 1 ; 0 1; 0 1; -Inf Inf; -Inf Inf; 0 double(paramVals(18)/paramVals(17))]...
-    );
+opt_ode = odeset('Mass', mass,...
+'AbsTol',1e-12,...
+'RelTol',1e-3);
 
-    paramVals(44) = a.gam_u;
-    paramVals(45) = a.gam_p;
-    paramVals(46) = a.zet_u;
-    paramVals(47) = a.zet_p;
-    paramVals(48) = a.r_u;
-    paramVals(49) = a.r_p;
-    paramVals(50) = a.k10;
+for nstep=1:nsteps_p1
+
+    ratesSyst =  @(y) root(y, yi, paramVals);
+    a = fsolve(ratesSyst,[paramVals(44),paramVals(45),paramVals(46),paramVals(47),paramVals(48)], opt_fsolve);
+
+    paramVals(44:48) = a(1:5);
+
     f = @(t, y) F(t, y, paramVals);
-
-    tstep = t0 + (nstep-1)*step;
-    [ti,yi] = ode15s(f, [tstep, tstep+step], yi(end,:), opt);
+    
+    tstep = t0 + (nstep-1)*step_p1;
+    [ti,yi] = ode15s(f, [tstep, tstep+step_p1], yi(end,:), opt_ode);
     t = [t;ti];
     y = [y;yi];
     
-    ratesHist = [ratesHist;repmat(paramVals(44:50).',length(ti),1)];
+    ratesHist = [ratesHist;repmat(paramVals(44:48).',length(ti),1)];
+end
+
+for nstep=1:nsteps_p2
+
+    ratesSyst =  @(y) root(y, yi, paramVals);
+    a = fsolve(ratesSyst,[paramVals(44),paramVals(45),paramVals(46),paramVals(47),paramVals(48)], opt_fsolve);
+
+    paramVals(44:48) = a(1:5);
+
+    f = @(t, y) F(t, y, paramVals);
+    
+    tstep = tf_p1 + (nstep-1)*step_p2;
+    [ti,yi] = ode15s(f, [tstep, tstep+step_p2], yi(end,:), opt_ode);
+    t = [t;ti];
+    y = [y;yi];
+    
+    ratesHist = [ratesHist;repmat(paramVals(44:48).',length(ti),1)];
+end
+
+for nstep=1:nsteps_p3
+
+    ratesSyst =  @(y) root(y, yi, paramVals);
+    a = fsolve(ratesSyst,[paramVals(44),paramVals(45),paramVals(46),paramVals(47),paramVals(48)], opt_fsolve);
+
+    paramVals(44:48) = a(1:5);
+
+    f = @(t, y) F(t, y, paramVals);
+    
+    tstep = tf_p2 + (nstep-1)*step_p3;
+    [ti,yi] = ode15s(f, [tstep, tstep+step_p3], yi(end,:), opt_ode);
+    t = [t;ti];
+    y = [y;yi];
+    
+    ratesHist = [ratesHist;repmat(paramVals(44:48).',length(ti),1)];
 end
 
 %%
@@ -280,21 +293,64 @@ function [p0,i0] = getP0(C, kin_CaN, kin_PKA, par_PP1)
 end
 
 
-function [gu, gp, zu, zp, lk10] = getRates(C, Su, Sp, K5, K9, k17, k18, k12, KM, PP1)
-    syms loc_gu loc_gp loc_zu loc_zp r_u r_p loc_k10
-    a = vpasolve([
-        (1-loc_gu-loc_zu)*(C - loc_gu*Su - loc_gp*Sp) - K5*loc_gu == 0,
-        (1-loc_gp-loc_zp)*(C - loc_gu*Su - loc_gp*Sp) - K9*loc_gp == 0,
-        k18*(1-loc_gu-loc_zu) - loc_k10*loc_zu*PP1 == 0,
-        k17*(1-loc_gp-loc_zp) - loc_k10*loc_zp*PP1 == 0,
-        r_u == loc_gu+loc_zu,
-        r_p == loc_gp+loc_zp,
-        loc_k10 == k12/(KM + (1+loc_zp)*Sp + loc_zu*Su)
-        ],[loc_gu,loc_gp,loc_zu,loc_zp,r_u,r_p,loc_k10],[0 1 ; 0 1 ; 0 1; 0 1; 0 1; 0 1; 0 double(k12/KM)]...
-    );
-    gu = double(a.loc_gu);
-    gp = double(a.loc_gp);
-    zu = double(a.loc_zu);
-    zp = double(a.loc_zp);
-    lk10 = double(a.loc_k10);
+function [gu, gp, zu, zp, lk10] = getRates(C, Su, Sp, K5, K9, k17, k18, k12, KM, PP1, opt)
+    
+    function r = root(x, C, Su, Sp, K5, K9, k17, k18, k12, KM, PP1)
+        r(1) = (1-x(1)-x(3))*(C - x(1)*Su - x(2)*Sp) - K5*x(1);
+        r(2) = (1-x(2)-x(4))*(C - x(1)*Su - x(2)*Sp) - K9*x(2);
+        r(3) = k18*(1-x(1)-x(3)) - x(5)*x(3)*PP1;
+        r(4) = k17*(1-x(2)-x(4)) - x(5)*x(4)*PP1;
+        r(5) = x(5) - k12/(KM + (1+x(4))*Sp + x(3)*Su);
+    end
+    
+    fun = @(x) root(x, C, Su, Sp, K5, K9, k17, k18, k12, KM, PP1);
+
+    a = fsolve(fun,[0.5; 0.5; 0.5; 0.5; 1000], opt);
+    gu = double(a(1));
+    gp = double(a(2));
+    zu = double(a(3));
+    zp = double(a(4));
+    lk10 = double(a(5));
+end
+
+function r = root(x, yi, paramVals)
+        r(1) = (1-x(1)-x(3))*(yi(end,1) - x(1)*yi(end,20) - x(2)*yi(end,19)) - paramVals(5)*x(1);
+        r(2) = (1-x(2)-x(4))*(yi(end,1) - x(1)*yi(end,20) - x(2)*yi(end,19)) - paramVals(6)*x(2);
+        r(3) = paramVals(16)*(1-x(1)-x(3)) - x(5)*x(3)*yi(end,29);
+        r(4) = paramVals(15)*(1-x(2)-x(4)) - x(5)*x(4)*yi(end,29);
+        r(5) = x(5) - paramVals(18)/(paramVals(17) + (1+x(4))*yi(end,19) + x(3)*yi(end,20));
+end
+
+function paramVals = getParams(author,Ca,CaM)
+    if strcmp(author,'Graupner')
+        paramVals = [
+            0.012; Ca;
+            33.3; CaM;
+            0.1; 0.0001;
+            0.1; 0.025; 0.32; 0.40;
+            6; 6; 6; 6; 10; 0.0005;
+            0.4; 6000;
+            500; 0.1; 1; 0.2;
+            0.053; 3; 0.1; 18; 0.1; 18;
+            0.1; 18;
+            0.11; 8; 0.00359; 100; 0.00359; 100;
+            0.0005; 0; %kNMDA_bind temporarilly set to 0
+            1000; 0.0010; 0.0017; 0.0024; 100
+        ];
+    else
+        paramVals = [
+            0.012; Ca;
+            33.3; CaM;
+            0.1; 0.0001;
+            20; 0.57; 100; 5;
+            6; 6; 4.8; 4.8; 10; 0.0005;
+            11; 1.72;
+            500; 0.1; 1; 0.2;
+            0.053; 3; 0.1; 18; 0.1; 18;
+            0.1; 18;
+            0.11; 8; 0.00359; 100; 0.00359; 100;
+            0.0005; 0; %kNMDA_bind temporarilly set to 0
+            1000; 0.0010; 0.0017; 0.0024; 100
+        ];
+    end
 end
