@@ -42,11 +42,7 @@ double(a.gam_p)
 b = vpasolve([
     (1-gam_u)*(C - gam_u*Su - gam_p*Sp) - K5*gam_u == 0,
     (1-gam_p)*(C - gam_u*Su - gam_p*Sp) - K9*gam_p == 0,
-    gam_u>=0,
-    gam_u<=1,
-    gam_p>=0,
-    gam_p<=1
-    ],[gam_u,gam_p]...
+    ],[gam_u,gam_p],[0 1;0 1]...
 );
 
 double(b.gam_u)
