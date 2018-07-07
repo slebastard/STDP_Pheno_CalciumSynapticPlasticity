@@ -46,58 +46,59 @@ init B8=0.0,B9=0.0,B10=0.0
 init B11=0.0,B12=0.0,B13=0.0
 init PP1=0.0, I1P=0.0
 init TA=132.3964
+
+init mu=0,U=0
 # init n=100 and w=n*g with g conductance of one AMPAr
-init W=0.3
+init w=0.3
 
 
 ###### PARAMS ######
 
-# CALCIUM PARAMETERS
-param tauCa=12, CaBas=0.2, cazero=2, t0=0.3
-
 # CaMKII PATHWAY PARAMETERS
-param b0i=33.3
-param K5=0.1, CaM=0.1
+param Btot=33.3, CaM=0.1
+param K5=0.1, K9=.0001
 param L1=0.1, L2=0.025, L3=0.32, L4=0.40
 param k6=6, k7=6
-param PP10=0.2
-param k12=6000
-param KM=0.4
-param k11=500, km11=0.1
-param I10=1
+param KM=0.4, k12=6000
+param k11=500, km11=0.1, I10=1, PP10=0.2
 
-param Kdcan=0.053, ncan=3
-param kcan0_I1=0.1, kcan_I1=18
-param kcan0_endo=0.1, kcan_endo=18
+param Kdcan=0.053, ncan=3, kcan0_I1=0.1, kcan_I1=18
+param Kdcan_endo=0.053, ncan_endo=3, kcan0_endo=0.1, kcan_endo=18
 
-param Kdpka=0.11, npka=8
-param kpka0_I1=0.00359, kpka_I1=100
+param Kdpka=0.11, npka=8, kpka0_I1=0.00359, kpka_I1=100
+param Kdpka_exo=0.11, npka_exo=8, kpka0_exo=0.00359, kpka_exo=100
 
-param kCK2=0.005
+
+# CaMKII binding to NR2B
+param kbc=1, kbpc=1, kbp=1
+
+param kCK2=0.005, kNMDA=1
 
 # AMPA TRAFFICKING PARAMETERS
 # conductance of one channel is assumed to be 20pS, and we assume a total of 1000 AMPAr
 param N=1000
-param g=0.0020
+param g0=0.0010, g1=0.0017, g2=0.0024
+param M=100
 
 
 ####### CONSTRAINTS & DEFINITIONS #######
 
 # CaMKII CONSERVATION
-#rr=sum(0,12)of(shift(B1,i'))
 rr=B1 + B2 + B3 + B4 + B5 + B6 + B7 + B8 + B9 + B10 + B11 + B12 + B13
+B0=Btot-rr
 
-# p0 is whats left from total
-B0=b0i-rr
+Sp=B1 + 2*(B2 + B3 + B4) + 3*(B5 + B6 + B7 + B8) + 4*(B9 + B10 + B11) + 5*B12 + 6*B13
+Su=6*Btot-Sp
 
-phossum=B1 + 2*(B2 + B3 + B4) + 3*(B5 + B6 + B7 + B8) + 4*(B9 + B10 + B11) + 5*B12 + 6*B13
-
+NR2BbvC=5*B1 + 8*(B2+B3+B4) + 9*(B5+B6+B7+B8) + 8*(B9+B10+B11) + 5*B12
+NR2BbvP=2*(B2+B3+B4) + 6*(B5+B6+B7+B8) + 12*(B9+B10+B11) + 20*B12 + 30*B13
 
 ###### KINETICS ######
 
 k10=k12*PP1/(KM + phossum)
 C=CaM/(1 + L4/Ca + L3*L4/(Ca^2) + L2*L3*L4/(Ca^3) + L1*L2*L3*L4/(Ca^4))
-gamma=C/(K5+C)
+gam_u=C/(K5+C)
+gam_p=C/(K9+C)
 
 # PKA activity
 vPKA_I1=kpka0_I1 + kpka_I1/(1 + (Kdpka/C)^npka)
@@ -112,22 +113,21 @@ vCaMKII=kCK2*phossum
 
 ###### DYNAMICS ######
 
-# Ca2+ equation
-Ca'=(CaBas-Ca + cazero*heav(t0-t)/(t0))/tauCa
+Ca' = 0
 
 # CaMKII concentration equations
-B1' = 6*k6*gamma^2*B0 - 4*k6*gamma^2*B1 - k7*gamma*B1 - k10*B1 + 2*k10*(B2 + B3 + B4)
+B1'= 6*k6*gamma^2*B0 - 4*k6*gamma^2*B1 - k7*gamma*B1 - k10*B1 + 2*k10*(B2 + B3 + B4)
 #
-B2' = k7*gamma*B1 + k6*gamma^2*B1 - 3*k6*gamma^2*B2 - k7*gamma*B2 - 2*k10*B2 + k10*(2*B5 + B6 + B7)
-B3' = 2*k6*gamma^2*B1 - 2*k7*gamma*B3 - 2*k6*gamma^2*B3 - 2*k10*B3 + k10*(B5 + B6 + B7 + 3*B8) 
-B4' = k6*gamma^2*B1 - 2*k7*gamma*B4 - 2*k6*gamma^2*B4 - 2*k10*B4 + k10*(B6 + B7)
+B2'= k7*gamma*B1 + k6*gamma^2*B1 - 3*k6*gamma^2*B2 - k7*gamma*B2 - 2*k10*B2 + k10*(2*B5 + B6 + B7)
+B3'= 2*k6*gamma^2*B1 - 2*k7*gamma*B3 - 2*k6*gamma^2*B3 - 2*k10*B3 + k10*(B5 + B6 + B7 + 3*B8) 
+B4'= k6*gamma^2*B1 - 2*k7*gamma*B4 - 2*k6*gamma^2*B4 - 2*k10*B4 + k10*(B6 + B7)
 #
-B5' = k7*gamma*B2 + k7*gamma*B3 + k6*gamma^2*B2 - k7*gamma*B5 - 2*k6*gamma^2*B5 - 3*k10*B5 + k10*(2*B9 + B10)
-B6' = k6*gamma^2*B2 + k6*gamma^2*B3  + 2*k7*gamma*B4 - k6*gamma^2*B6 - 2*k7*gamma*B6 - 3*k10*B6 + k10*(B9 + B10 + 2*B11)
-B7' = k6*gamma^2*B2 + k7*gamma*B3 + 2*k6*gamma^2*B4 - k6*gamma^2*B7 - 2*k7*gamma*B7 - 3*k10*B7 + k10*(B9 + B10 + 2*B11)
-B8' = k6*gamma^2*B3 - 3*k7*gamma*B8 - 3*k10*B8 + k10*B10
+B5'= k7*gamma*B2 + k7*gamma*B3 + k6*gamma^2*B2 - k7*gamma*B5 - 2*k6*gamma^2*B5 - 3*k10*B5 + k10*(2*B9 + B10)
+B6'= k6*gamma^2*B2 + k6*gamma^2*B3  + 2*k7*gamma*B4 - k6*gamma^2*B6 - 2*k7*gamma*B6 - 3*k10*B6 + k10*(B9 + B10 + 2*B11)
+B7'= k6*gamma^2*B2 + k7*gamma*B3 + 2*k6*gamma^2*B4 - k6*gamma^2*B7 - 2*k7*gamma*B7 - 3*k10*B7 + k10*(B9 + B10 + 2*B11)
+B8'= k6*gamma^2*B3 - 3*k7*gamma*B8 - 3*k10*B8 + k10*B10
 #
-B9' = k7*gamma*B5 + k6*gamma^2*B5 + k7*gamma*B6 + k7*gamma*B7 - k6*gamma^2*B9 - k7*gamma*B9 - 4*k10*B9 + 2*k10*B12
+B9'= k7*gamma*B5 + k6*gamma^2*B5 + k7*gamma*B6 + k7*gamma*B7 - k6*gamma^2*B9 - k7*gamma*B9 - 4*k10*B9 + 2*k10*B12
 B10'= k6*gamma^2*B5 + k6*gamma^2*B6 + k7*gamma*B7 + 3*k7*gamma*B8 - 2*k7*gamma*B10 - 4*k10*B10 + 2*k10*B12
 B11'= k7*gamma*B6 +  k6*gamma^2*B7 - 2*k7*gamma*B11 - 4*k10*B11 + k10*B12
 #
@@ -141,6 +141,11 @@ PP1'= -k11*I1P*PP1 + km11*(PP10 - PP1)
 I1P'= -k11*I1P*PP1 + km11*(PP10 - PP1) + vPKA_I1*(I10-I1P) - vCaN_I1*I1P
 
 # Synaptic strength dynamics
+U'=(M-mu)*kbc*gam_u*NR2BbvC + (M-mu)*(kbpc*gam_p + kbp*(1-gam_p))*NR2BbvP
+mu'=(M-mu)*(kbc*gam_u)*(6*Btot - Sp) + (M-mu)*(kbpc*gam_p + kbp*(1-gam_p))*Sp
+n0'=kNMDA*(N-n0-n1-n2)
+n1'=
+n2'=
 w'= vCaMKII*(N*g-w) - vCaN_endo*w
 
 
