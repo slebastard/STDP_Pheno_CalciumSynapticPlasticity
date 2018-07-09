@@ -54,21 +54,21 @@ clear all;
 % INPUTS
 paramSetName = 'Graupner';
 in_CaInit = 0.1;
-in_CaM = 0.1;
-savePlots = true;
+in_CaM = 10;
+savePlots = false;
 
-t0=0; tfinal=500;
+t0=0; tf_p1=1; tf_p2=5; tfinal=50; 
+step_p1=0.001; step_p2 = 0.003; step_p3 = 0.01;
 
 % VARIABLES AND PARAMETERS
 
 %Variables
-syms C(t)
+syms Ca(t) C(t)
 syms B0(t) B1(t) B2(t) B3(t) B4(t) B5(t) B6(t) B7(t) B8(t) B9(t) B10(t) B11(t) B12(t) B13(t) chi(t) nu(t) rr(t)
 syms Sp(t) Su(t) AMPA_bnd(t) Cb(t) 
 syms vPKA_I1(t) vPKA_phos(t) vCaN_I1(t) vCaN_endo(t) vPP1_pase(t) vCK2_exo(t)
-syms PP1(t) I1P(t) mu(t)
-syms gam_u(t) gam_p(t) k10(t)
-syms Ca(t)
+syms PP1(t) I1P(t) mu(t) U(t)
+
 syms NR2BbvC(t) NR2BbvP(t) Bpsd0(t) Bpsd1(t) Bpsd2(t) Bpsd3(t) Bpsd4(t)
 syms Bpsd5(t) Bpsd6(t) Bpsd7(t) Bpsd8(t) Bpsd9(t) Bpsd10(t) Bpsd11(t) Bpsd12(t) Bpsd13(t)
 syms Uvar(t)
@@ -76,6 +76,8 @@ syms Uvar(t)
 syms tauCa CaBas Stot CaM K5 K9 L1 L2 L3 L4 k6 k7 k8 k19 k17 k18 KM k12 k11 km11 I10 PP10 Kdcan ncan
 syms kcan0_I1 kcan_I1 kcan0_endo kcan_endo kPP10_pase kPP1_pase Kdpka npka kpka0_I1 kpka_I1 kpka0_phos kpka_phos
 syms kCK2_exo kNMDA_bind N g0 g1 g2 M
+syms gam_u gam_p zet_u zet_p k10
+
 syms kbc kbpc kbp kbpp
 syms hgt rad_spn rad_psd NA rate_PSD
 
@@ -91,18 +93,14 @@ daesCaMKII = [
     rr(t) == B1(t) + B2(t) + B3(t) + B4(t) + B5(t) + B6(t) + B7(t) + B8(t) + B9(t) + B10(t) + B11(t) + B12(t) + B13(t);
     B0(t) == Stot - rr(t);
 
-    k10(t) == k12/(KM + Sp(t));
-    
-    gam_u(t) == C(t)/(K5 + C(t));
-    gam_p(t) == C(t)/(K9 + C(t));
     Sp(t) == B1(t) + 2*(B2(t) + B3(t) + B4(t)) + 3*(B5(t) + B6(t) + B7(t) + B8(t)) + 4*(B9(t) + B10(t) + B11(t)) + 5*B12(t) + 6*B13(t);
     Su(t) == 6*Stot - Sp(t);
-    
-    C(t) == CaM/(1 + L4/Ca(t) + L3*L4/(Ca(t)^2) + L2*L3*L4/(Ca(t)^3) + L1*L2*L3*L4/(Ca(t)^4));
-    Cb(t) == gam_u(t)*Su(t) + gam_p(t)*Sp(t);
 
-    chi(t) == k7*gam_p(t) + k8*(1 - gam_p(t));
-    nu(t) == k10*PP1(t);
+    C(t) == CaM/(1 + L4/CaBas + L3*L4/(CaBas^2) + L2*L3*L4/(CaBas^3) + L1*L2*L3*L4/(CaBas^4));
+    Cb(t) == gam_u*Su(t) + gam_p*Sp(t);
+
+    chi(t) == k7*gam_p + k8*(1 - gam_p - zet_p) + k19*zet_p;
+    nu(t) == k10*PP1(t)*(1+zet_p);
     
     AMPA_bnd(t) == 2*(B2(t)+B3(t)+B4(t)) + 6*(B5(t)+B6(t)+B7(t)+B8(t)) + 12*(B9(t)+B10(t)+B11(t)) + 20*B12(t) + 30*B13(t);
 
@@ -115,27 +113,27 @@ daesCaMKII = [
     vPP1_pase(t) == (heaviside((C(t)-Cb(t))^2 - 1e-6))*(kPP10_pase + kPP1_pase/(1 + (Kdcan/(C(t)-Cb(t)))^ncan));
 
     vCK2_exo(t) == kCK2_exo*Sp(t);
-    % 18 DAEs
 ];
+
 odesCaMKII = [
-	diff(Ca(t), t) == -1/(tauCa)*(Ca(t) - CaBas);
-    diff(B1(t), t) == 6*k6*gam_u^2*B0(t) - 4*k6*gam_u^2*B1(t) - chi(t)*gam_u*B1(t) + nu(t)*(2*(B2(t)+B3(t)+B4(t))-B1(t)) - (M-mu(t))*(5*kbc*gam_u(t) + kbpc*gam_p(t) + kbp*(1-gam_p(t)))*B1(t);
-	diff(B2(t), t) == k6*gam_u^2*B1(t) + chi(t)*gam_u*B1(t) + nu(t)*(3*(B5(t)+B6(t)+B7(t)+B8(t))-2*B2(t)) - 3*k6*gam_u^2*B2(t) - chi(t)*gam_u*B2(t) - (M-mu(t))*(4*kbc*gam_u(t) + 2*kbpc*gam_p(t) + 2*kbp*(1-gam_p(t)))*B2(t);
-	diff(B3(t), t) == 2*k6*gam_u^2*B1(t) + nu(t)*(3*(B5(t)+B6(t)+B7(t)+B8(t))-2*B3(t)) - 3*k6*gam_u^2*B3(t) - chi(t)*gam_u*B3(t) - (M-mu(t))*(4*kbc*gam_u(t) + 2*kbpc*gam_p(t) + 2*kbp*(1-gam_p(t)))*B3(t);
-	diff(B4(t), t) == k6*gam_u^2*B1(t) + nu(t)*(3*(B5(t)+B6(t)+B7(t)+B8(t))-2*B4(t)) - 2*k6*gam_u^2*B4(t) - 2*chi(t)*gam_u*B4(t) - (M-mu(t))*(4*kbc*gam_u(t) + 2*kbpc*gam_p(t) + 2*kbp*(1-gam_p(t)))*B4(t);
-	diff(B5(t), t) == k6*gam_u^2*(B2(t)+B3(t)) + chi(t)*gam_u*B2(t) + nu(t)*(4*(B9(t)+B10(t)+B11(t))-3*B5(t)) - 2*k6*gam_u^2*B5(t) - chi(t)*gam_u*B5(t) - (M-mu(t))*(3*kbc*gam_u(t) + 3*kbpc*gam_p(t) + 3*kbp*(1-gam_p(t)))*B5(t);
-	diff(B6(t), t) == k6*gam_u^2*(B2(t)+B3(t)) + 2*chi(t)*gam_u*B4(t) + nu(t)*(4*(B9(t)+B10(t)+B11(t))-3*B6(t)) - k6*gam_u^2*B6(t) - 2*chi(t)*gam_u*B6(t) - (M-mu(t))*(3*kbc*gam_u(t) + 3*kbpc*gam_p(t) + 3*kbp*(1-gam_p(t)))*B6(t);
-	diff(B7(t), t) == k6*gam_u^2*(B2(t)+2*B4(t)) + chi(t)*gam_u*B3(t) + nu(t)*(4*(B9(t)+B10(t)+B11(t))-3*B7(t)) - k6*gam_u^2*B7(t) - 2*chi(t)*gam_u*B7(t) - (M-mu(t))*(3*kbc*gam_u(t) + 3*kbpc*gam_p(t) + 3*kbp*(1-gam_p(t)))*B7(t);
-	diff(B8(t), t) == k6*gam_u^2*B3(t) + nu(t)*(4*(B9(t)+B10(t)+B11(t))-3*B8(t)) - 3*chi(t)*gam_u*B8(t) - (M-mu(t))*(3*kbc*gam_u(t) + 3*kbpc*gam_p(t) + 3*kbp*(1-gam_p(t)))*B8(t);
-	diff(B9(t), t) == k6*gam_u^2*B5(t) + chi(t)*gam_u*(B6(t)+B7(t)) + nu(t)*(5*B12(t)-4*B9(t)) - k6*gam_u^2*B9(t) - chi(t)*gam_u*B9(t) - (M-mu(t))*(2*kbc*gam_u(t) + 4*kbpc*gam_p(t) + 4*kbp*(1-gam_p(t)))*B9(t);
-	diff(B10(t), t) == k6*gam_u^2*(B5(t)+B6(t)) + chi(t)*gam_u*(B7(t)+B8(t)) + nu(t)*(5*B12(t)-4*B10(t)) - 2*chi(t)*gam_u*B10(t) - (M-mu(t))*(2*kbc*gam_u(t) + 4*kbpc*gam_p(t) + 4*kbp*(1-gam_p(t)))*B10(t);
-	diff(B11(t), t) == k6*gam_u^2*B7(t) + chi(t)*gam_u*B6(t) + nu(t)*(5*B12(t)-4*B11(t)) - 2*chi(t)*gam_u*B11(t) - (M-mu(t))*(2*kbc*gam_u(t) + 4*kbpc*gam_p(t) + 4*kbp*(1-gam_p(t)))*B11(t);
-	diff(B12(t), t) == k6*gam_u^2*B9(t) + chi(t)*gam_u*(B9(t)+2*B10(t)+2*B11(t)) + nu(t)*(6*B13(t)-5*B12(t)) - chi(t)*gam_u*B12(t) - (M-mu(t))*(kbc*gam_u(t) + 5*kbpc*gam_p(t) + 5*kbp*(1-gam_p(t)))*B12(t);
-	diff(B13(t), t) == chi(t)*gam_u*B12(t) - nu(t)*6*B13(t) - (M-mu(t))*(kbc*gam_u(t) + 6*kbpc*gam_p(t) + 6*kbp*(1-gam_p(t)))*B13(t);
+    diff(Ca(t), t) == -1/(tauCa)*(Ca(t) - CaBas);
+	diff(B1(t), t) == 6*k6*gam_u^2*B0(t) - 4*k6*gam_u^2*B1(t) - chi(t)*gam_u*B1(t) + nu(t)*(2*(B2(t)+B3(t)+B4(t))-B1(t)) - kNMDA_bind*(M-mu(t))*B1(t);
+	diff(B2(t), t) == k6*gam_u^2*B1(t) + chi(t)*gam_u*B1(t) + nu(t)*(3*(B5(t)+B6(t)+B7(t)+B8(t))-2*B2(t)) - 3*k6*gam_u^2*B2(t) - chi(t)*gam_u*B2(t) - 2*kNMDA_bind*(M-mu(t))*B2(t);
+	diff(B3(t), t) == 2*k6*gam_u^2*B1(t) + nu(t)*(3*(B5(t)+B6(t)+B7(t)+B8(t))-2*B3(t)) - 3*k6*gam_u^2*B3(t) - chi(t)*gam_u*B3(t) - 2*kNMDA_bind*(M-mu(t))*B3(t);
+	diff(B4(t), t) == k6*gam_u^2*B1(t) + nu(t)*(3*(B5(t)+B6(t)+B7(t)+B8(t))-2*B4(t)) - 2*k6*gam_u^2*B4(t) - 2*chi(t)*gam_u*B4(t) - 2*kNMDA_bind*(M-mu(t))*B4(t);
+	diff(B5(t), t) == k6*gam_u^2*(B2(t)+B3(t)) + chi(t)*gam_u*B2(t) + nu(t)*(4*(B9(t)+B10(t)+B11(t))-3*B5(t)) - 2*k6*gam_u^2*B5(t) - chi(t)*gam_u*B5(t) - 3*kNMDA_bind*(M-mu(t))*B5(t);
+	diff(B6(t), t) == k6*gam_u^2*(B2(t)+B3(t)) + 2*chi(t)*gam_u*B4(t) + nu(t)*(4*(B9(t)+B10(t)+B11(t))-3*B6(t)) - k6*gam_u^2*B6(t) - 2*chi(t)*gam_u*B6(t) - 3*kNMDA_bind*(M-mu(t))*B6(t);
+	diff(B7(t), t) == k6*gam_u^2*(B2(t)+2*B4(t)) + chi(t)*gam_u*B3(t) + nu(t)*(4*(B9(t)+B10(t)+B11(t))-3*B7(t)) - k6*gam_u^2*B7(t) - 2*chi(t)*gam_u*B7(t) - 3*kNMDA_bind*(M-mu(t))*B7(t);
+	diff(B8(t), t) == k6*gam_u^2*B3(t) + nu(t)*(4*(B9(t)+B10(t)+B11(t))-3*B8(t)) - 3*chi(t)*gam_u*B8(t) - 3*kNMDA_bind*(M-mu(t))*B8(t);
+	diff(B9(t), t) == k6*gam_u^2*B5(t) + chi(t)*gam_u*(B6(t)+B7(t)) + nu(t)*(5*B12(t)-4*B9(t)) - k6*gam_u^2*B9(t) - chi(t)*gam_u*B9(t) - 4*kNMDA_bind*(M-mu(t))*B9(t);
+	diff(B10(t), t) == k6*gam_u^2*(B5(t)+B6(t)) + chi(t)*gam_u*(B7(t)+B8(t)) + nu(t)*(5*B12(t)-4*B10(t)) - 2*chi(t)*gam_u*B10(t) - 4*kNMDA_bind*(M-mu(t))*B10(t);
+	diff(B11(t), t) == k6*gam_u^2*B7(t) + chi(t)*gam_u*B6(t) + nu(t)*(5*B12(t)-4*B11(t)) - 2*chi(t)*gam_u*B11(t) - 4*kNMDA_bind*(M-mu(t))*B11(t);
+	diff(B12(t), t) == k6*gam_u^2*B9(t) + chi(t)*gam_u*(B9(t)+2*B10(t)+2*B11(t)) + nu(t)*(6*B13(t)-5*B12(t)) - chi(t)*gam_u*B12(t) - 5*kNMDA_bind*(M-mu(t))*B11(t);
+	diff(B13(t), t) == chi(t)*gam_u*B12(t) - nu(t)*6*B13(t) - 6*kNMDA_bind*(M-mu(t))*B13(t);
 	diff(PP1(t), t) == -k11*I1P(t)*PP1(t) + km11*(PP10 - PP1(t));
 	diff(I1P(t), t) == -k11*I1P(t)*PP1(t) + km11*(PP10 - PP1(t)) + vPKA_I1(t)*(I10-I1P(t)) - vCaN_I1(t)*I1P(t);
-    diff(mu(t), t) == (M-mu(t))*kbc*gam_u(t)*Su(t) + (M-mu(t))*(kbpc*gam_p(t) + kbp*(1-gam_p(t)))*Sp(t);
-       % 16 ODEs
+	diff(mu(t), t) == kNMDA_bind*(M-mu(t))*Sp(t);
+       % TOTAL 18 ODEs
 ];
 
 eqsCaMKII = [odesCaMKII;daesCaMKII];
@@ -154,7 +152,8 @@ params = [
 	kCK2_exo; kNMDA_bind;
 	N; g0; g1; g2; M;
     kbc; kbpc; kbp; kbpp;
-    hgt; rad_spn; rad_psd; NA; rate_PSD
+    hgt; rad_spn; rad_psd; NA; rate_PSD;
+    gam_u; gam_p; zet_u; zet_p; k10
 ];
 
 paramVals = getParams(paramSetName, in_CaM);
@@ -162,74 +161,148 @@ paramVals = getParams(paramSetName, in_CaM);
 C0 = getC(in_CaInit,paramVals(4),paramVals(7),paramVals(8),paramVals(9),paramVals(10));
 [p0,i0] = getP0(C0, paramVals(23:26), paramVals(31:34), paramVals(19:22));
 
+opt_fsolve = optimoptions('fsolve','Display','off');
+[gu,gp,zu,zp,lk10] = getRates(C0, 199.8, 0, paramVals(5), paramVals(6), paramVals(15), paramVals(16), paramVals(18), paramVals(17), p0, opt_fsolve);
+
+paramVals = [
+    paramVals;
+    gu; gp; zu; zp; lk10
+];
+
 varsCaMKII = [
-	Ca(t); C(t);
+	C(t);
 	B0(t); B1(t); B2(t); B3(t); B4(t); B5(t); B6(t); B7(t); B8(t);
     B9(t); B10(t); B11(t); B12(t); B13(t); chi(t); nu(t); rr(t);
 	Sp(t); Su(t); AMPA_bnd(t); Cb(t);
 	vPKA_I1(t); vPKA_phos(t); vCaN_I1(t); vCaN_endo(t); vPP1_pase(t); vCK2_exo(t);
 	PP1(t); I1P(t);
-    gam_u(t); gam_p(t); k10(t);
-    mu(t)
+    mu(t);
+    Ca(t)
 ];
 
 y0est = [
-	in_CaInit; C0;
+	C0;
 	33.3; 0; 0; 0; 0; 0; 0; 0; 0;
     0; 0; 0; 0; 0; 0; 0; 0;
 	0; 199.8; 0; 0;
 	0; 0; 0; 0; 0; 0;
 	p0; i0;
-    0.5; 0.5; 10000;
-    0
+    0;
+    in_CaInit
 ];
 
 y0fix = [
-	1; 0;
-	1; 0; 0; 0; 0; 0; 0; 0; 0;
-    0; 0; 0; 0; 0; 0; 0; 0;
+	0;
+	0; 0; 0; 0; 1; 1; 1; 1; 1;
+    1; 1; 1; 1; 1; 0; 0; 0;
 	0; 0; 0; 0;
 	0; 0; 0; 0; 0; 0;
 	1; 1;
-    0; 0; 0;
-    0
+    0;
+    1
 ];
 
 [mass,F] = massMatrixForm(eqsCaMKII, varsCaMKII);
 mass = odeFunction(mass, varsCaMKII);
 F = odeFunction(F, varsCaMKII, params);
 f = @(t, y) F(t, y, paramVals);
-implicitDAE = @(t,y,yp) mass(t,y)*yp - f(t,y);
+
+nsteps_p1 = (tf_p1 - t0)/step_p1;
+nsteps_p2 = (tf_p2 - tf_p1)/step_p2;
+nsteps_p3 = (tfinal - tf_p2)/step_p3;
 
 opt_ode = odeset('Mass', mass,...
-'AbsTol',1e-5,...
+'AbsTol',1e-6,...
 'RelTol',1e-3);
 
-% Solving system of eqs for CaMKII
-[y0, yp0] = decic(implicitDAE, t0, y0est, y0fix, zeros(35,1), [], opt_ode);
+implicitDAE = @(t,y,yp) mass(t,y)*yp - f(t,y);
+[y0, yp0] = decic(implicitDAE, t0, y0est, y0fix, zeros(32,1), [], opt_ode);
+
+yi = y0';
+tSimu = []; yCaMKII = [];
+ratesHist=[];
+stop = 0;
 
 opt_ode = odeset('Mass', mass,...
 'AbsTol',1e-10, ...
 'RelTol',1e-3);
+
+nstep=1;
+while ~stop && nstep~=nsteps_p1+1
+
+    ratesSyst =  @(y) root(y, yi, paramVals);
+    a = fsolve(ratesSyst,[paramVals(53),paramVals(54),paramVals(55),paramVals(56),paramVals(57)], opt_fsolve);
+
+    paramVals(53:57) = a(1:5);
+
+    f = @(t, y) F(t, y, paramVals);
     
-[tSimu,yCaMKII] = ode15s(f, [t0, tfinal], y0', opt_ode);
+    tstep = t0 + (nstep-1)*step_p1;
+    [ti,yi] = ode15s(f, [tstep, tstep+step_p1], yi(end,:), opt_ode);
+    tSimu = [tSimu;ti];
+    yCaMKII = [yCaMKII;yi];  
+    ratesHist = [ratesHist;repmat(paramVals(53:57).',length(ti),1)];
+    
+    stop = (tstep~=t0 && abs(yCaMKII(end,19)-yCaMKII(end-1,19))<1e-6*yCaMKII(end,19));
+    nstep = nstep + 1;
+end
 
-% Compute NMDA variables
+nstep=1;
+while ~stop && nstep~=nsteps_p2+1
 
-Bp0 = floor(max(0,1e-21* paramVals(52) * paramVals(51) * paramVals(48)*pi*paramVals(49)^2 * yCaMKII(:,3)));
-Bp1 = floor(max(0,1e-21* paramVals(52) * paramVals(51) * paramVals(48)*pi*paramVals(49)^2 * yCaMKII(:,4)));
-Bp2 = floor(max(0,1e-21* paramVals(52) * paramVals(51) * paramVals(48)*pi*paramVals(49)^2 * yCaMKII(:,5)));
-Bp3 = floor(max(0,1e-21* paramVals(52) * paramVals(51) * paramVals(48)*pi*paramVals(49)^2 * yCaMKII(:,6)));
-Bp4 = floor(max(0,1e-21* paramVals(52) * paramVals(51) * paramVals(48)*pi*paramVals(49)^2 * yCaMKII(:,7)));
-Bp5 = floor(max(0,1e-21* paramVals(52) * paramVals(51) * paramVals(48)*pi*paramVals(49)^2 * yCaMKII(:,8)));
-Bp6 = floor(max(0,1e-21* paramVals(52) * paramVals(51) * paramVals(48)*pi*paramVals(49)^2 * yCaMKII(:,9)));
-Bp7 = floor(max(0,1e-21* paramVals(52) * paramVals(51) * paramVals(48)*pi*paramVals(49)^2 * yCaMKII(:,10)));
-Bp8 = floor(max(0,1e-21* paramVals(52) * paramVals(51) * paramVals(48)*pi*paramVals(49)^2 * yCaMKII(:,11)));
-Bp9 = floor(max(0,1e-21* paramVals(52) * paramVals(51) * paramVals(48)*pi*paramVals(49)^2 * yCaMKII(:,12)));
-Bp10 = floor(max(0,1e-21* paramVals(52) * paramVals(51) * paramVals(48)*pi*paramVals(49)^2 * yCaMKII(:,13)));
-Bp11 = floor(max(0,1e-21* paramVals(52) * paramVals(51) * paramVals(48)*pi*paramVals(49)^2 * yCaMKII(:,14)));
-Bp12 = floor(max(0,1e-21* paramVals(52) * paramVals(51) * paramVals(48)*pi*paramVals(49)^2 * yCaMKII(:,15)));
-Bp13 = floor(max(0,1e-21* paramVals(52) * paramVals(51) * paramVals(48)*pi*paramVals(49)^2 * yCaMKII(:,16)));
+    ratesSyst =  @(y) root(y, yi, paramVals);
+    a = fsolve(ratesSyst,[paramVals(53),paramVals(54),paramVals(55),paramVals(56),paramVals(57)], opt_fsolve);
+
+    paramVals(53:57) = a(1:5);
+
+    f = @(t, y) F(t, y, paramVals);
+    
+    tstep = tf_p1 + (nstep-1)*step_p2;
+    [ti,yi] = ode15s(f, [tstep, tstep+step_p2], yi(end,:), opt_ode);
+    tSimu = [tSimu;ti];
+    yCaMKII = [yCaMKII;yi];
+    ratesHist = [ratesHist;repmat(paramVals(53:57).',length(ti),1)];
+    
+    stop = (tstep~=t0 && abs(yCaMKII(end,19)-yCaMKII(end-1,19))<1e-6*yCaMKII(end,19));
+    nstep = nstep + 1;
+end
+
+nstep=1;
+while ~stop && nstep~=nsteps_p3+1
+
+    ratesSyst =  @(y) root(y, yi, paramVals);
+    a = fsolve(ratesSyst,[paramVals(53),paramVals(54),paramVals(55),paramVals(56),paramVals(57)], opt_fsolve);
+
+    paramVals(53:57) = a(1:5);
+
+    f = @(t, y) F(t, y, paramVals);
+    
+    tstep = tf_p2 + (nstep-1)*step_p3;
+    [ti,yi] = ode15s(f, [tstep, tstep+step_p3], yi(end,:), opt_ode);
+    tSimu = [tSimu;ti];
+    yCaMKII = [yCaMKII;yi];
+    ratesHist = [ratesHist;repmat(paramVals(53:57).',length(ti),1)];
+    
+    stop = (tstep~=t0 && abs(yCaMKII(end,19)-yCaMKII(end-1,19))<1e-6*yCaMKII(end,19));
+    nstep = nstep + 1;
+end
+
+%% NMDA binding
+
+Bp0 = floor(max(0,1e-21* paramVals(52) * paramVals(51) * paramVals(48)*pi*paramVals(49)^2 * yCaMKII(:,2)));
+Bp1 = floor(max(0,1e-21* paramVals(52) * paramVals(51) * paramVals(48)*pi*paramVals(49)^2 * yCaMKII(:,3)));
+Bp2 = floor(max(0,1e-21* paramVals(52) * paramVals(51) * paramVals(48)*pi*paramVals(49)^2 * yCaMKII(:,4)));
+Bp3 = floor(max(0,1e-21* paramVals(52) * paramVals(51) * paramVals(48)*pi*paramVals(49)^2 * yCaMKII(:,5)));
+Bp4 = floor(max(0,1e-21* paramVals(52) * paramVals(51) * paramVals(48)*pi*paramVals(49)^2 * yCaMKII(:,6)));
+Bp5 = floor(max(0,1e-21* paramVals(52) * paramVals(51) * paramVals(48)*pi*paramVals(49)^2 * yCaMKII(:,7)));
+Bp6 = floor(max(0,1e-21* paramVals(52) * paramVals(51) * paramVals(48)*pi*paramVals(49)^2 * yCaMKII(:,8)));
+Bp7 = floor(max(0,1e-21* paramVals(52) * paramVals(51) * paramVals(48)*pi*paramVals(49)^2 * yCaMKII(:,9)));
+Bp8 = floor(max(0,1e-21* paramVals(52) * paramVals(51) * paramVals(48)*pi*paramVals(49)^2 * yCaMKII(:,10)));
+Bp9 = floor(max(0,1e-21* paramVals(52) * paramVals(51) * paramVals(48)*pi*paramVals(49)^2 * yCaMKII(:,11)));
+Bp10 = floor(max(0,1e-21* paramVals(52) * paramVals(51) * paramVals(48)*pi*paramVals(49)^2 * yCaMKII(:,12)));
+Bp11 = floor(max(0,1e-21* paramVals(52) * paramVals(51) * paramVals(48)*pi*paramVals(49)^2 * yCaMKII(:,13)));
+Bp12 = floor(max(0,1e-21* paramVals(52) * paramVals(51) * paramVals(48)*pi*paramVals(49)^2 * yCaMKII(:,14)));
+Bp13 = floor(max(0,1e-21* paramVals(52) * paramVals(51) * paramVals(48)*pi*paramVals(49)^2 * yCaMKII(:,15)));
 NR2C = 5*Bp1 + 8*(Bp2+Bp3+Bp4) + 9*(Bp5+Bp6+Bp7+Bp8) + 8*(Bp9+Bp10+Bp11) + 5*Bp12;
 NR2P = 2*(Bp2+Bp3+Bp4) + 6*(Bp5+Bp6+Bp7+Bp8) + 12*(Bp9+Bp10+Bp11) + 20*Bp12 + 30*Bp13;
 
@@ -252,7 +325,7 @@ U = [0];
 nstep = length(tSimu);
 for stp=1:nstep-1
     U = [
-        U; U(end) + (tSimu(stp+1) - tSimu(stp))*((paramVals(43)-y(stp,35))*paramVals(44)*y(stp,32)*y(stp,50) + (paramVals(43)-y(stp,35))*(paramVals(45)*y(stp,33) + paramVals(46)*(1-y(stp,33)))*y(stp,51))
+        U; U(end) + (tSimu(stp+1) - tSimu(stp))*((paramVals(43)-y(stp,31))*paramVals(44)*ratesHist(stp,1)*y(stp,20) + (paramVals(43)-y(stp,31))*(paramVals(45)*ratesHist(stp,2) + paramVals(46)*(1-ratesHist(stp,2))*y(stp,19)))
     ];
 end
 
@@ -260,11 +333,11 @@ y = [y, U];
 
 %%
 plt_h=4; plt_l=4;
-subt = sprintf('Response for impulse CaInit=%0.1f for total CaM=%0.2f', in_CaInit, in_CaM);
-figName = sprintf('OutputGB_%s_CaInit%0.1f_CaM%0.2f', paramSetName, in_CaInit, in_CaM);
+subt = sprintf('Response at steady Ca=%0.1f for total CaM=%0.2f', in_CaInit, in_CaM);
+figName = sprintf('Output_%s_Ca%0.1f_CaM%0.2f', paramSetName, in_CaInit, in_CaM);
 subplot = @(m,n,p) subtightplot (m, n, p, [0.05 0.035], [0.1 0.01], [0.1 0.01]);
 
-for idx = 1:length(vars)
+for idx = 1:length(vars)+5
     if mod(idx,plt_h*plt_l)==1
         ax = subtitle(subt);
         axes(ax);
@@ -277,8 +350,14 @@ for idx = 1:length(vars)
     h = subplot(plt_h,plt_l,1+mod(idx-1,plt_h*plt_l));
     p = get(h, 'Position');
     set(h,'pos',p+[0 -0.04 0 -0.04]);
-    plot(tSimu(:,1),y(:,idx), 'x')
-    title(char(vars(idx))) 
+    if idx <= length(vars)
+        plot(tSimu(:,1),y(:,idx), 'x')
+        title(char(vars(idx)))
+    else
+        plot(tSimu(:,1),ratesHist(:,idx-length(vars)), 'x')
+        title(char(params(52+idx-length(vars))))
+    end
+    
 end
 
 ax = subtitle(subt);
@@ -287,11 +366,13 @@ if savePlots
     saveas(fig, strcat(figName, sprintf('_%0d.png',1 + fix(idx/(plt_h*plt_l)))));
 end
 
-function K = getC(Ca, CaM, L1, L2, L3, L4)
-    K = double(CaM/(1 + L4/Ca + L3*L4/(Ca^2) + L2*L3*L4/(Ca^3) + L1*L2*L3*L4/(Ca^4)));
+function K = getC(CaBas, CaM, L1, L2, L3, L4)
+    K = double(CaM/(1 + L4/CaBas + L3*L4/(CaBas^2) + L2*L3*L4/(CaBas^3) + L1*L2*L3*L4/(CaBas^4)));
 end
 
 function [p0,i0] = getP0(C, kin_CaN, kin_PKA, par_PP1)
+    syms loc_p0 loc_i0
+
     vCaN = kin_CaN(3) + kin_CaN(4)/(1 + (kin_CaN(1)/C)^kin_CaN(2));
     vPKA = kin_PKA(3) + kin_PKA(4)/(1 + (kin_PKA(1)/C)^kin_PKA(2));
 
@@ -299,10 +380,39 @@ function [p0,i0] = getP0(C, kin_CaN, kin_PKA, par_PP1)
     p0 = par_PP1(4)/(1+i0*par_PP1(1)/par_PP1(2));
 end
 
+
+function [gu, gp, zu, zp, lk10] = getRates(C, Su, Sp, K5, K9, k17, k18, k12, KM, PP1, opt)
+    
+    function r = root(x, C, Su, Sp, K5, K9, k17, k18, k12, KM, PP1)
+        r(1) = (1-x(1)-x(3))*(C - x(1)*Su - x(2)*Sp) - K5*x(1);
+        r(2) = (1-x(2)-x(4))*(C - x(1)*Su - x(2)*Sp) - K9*x(2);
+        r(3) = k18*(1-x(1)-x(3)) - x(5)*x(3)*PP1;
+        r(4) = k17*(1-x(2)-x(4)) - x(5)*x(4)*PP1;
+        r(5) = x(5) - k12/(KM + (1+x(4))*Sp + x(3)*Su);
+    end
+    
+    fun = @(x) root(x, C, Su, Sp, K5, K9, k17, k18, k12, KM, PP1);
+
+    a = fsolve(fun,[0.5; 0.5; 0.5; 0.5; 1000], opt);
+    gu = double(a(1));
+    gp = double(a(2));
+    zu = double(a(3));
+    zp = double(a(4));
+    lk10 = double(a(5));
+end
+
+function r = root(x, yi, paramVals)
+        r(1) = (1-x(1)-x(3))*(yi(end,1) - x(1)*yi(end,20) - x(2)*yi(end,19)) - paramVals(5)*x(1);
+        r(2) = (1-x(2)-x(4))*(yi(end,1) - x(1)*yi(end,20) - x(2)*yi(end,19)) - paramVals(6)*x(2);
+        r(3) = paramVals(16)*(1-x(1)-x(3)) - x(5)*x(3)*yi(end,29);
+        r(4) = paramVals(15)*(1-x(2)-x(4)) - x(5)*x(4)*yi(end,29);
+        r(5) = x(5) - paramVals(18)/(paramVals(17) + (1+x(4))*yi(end,19) + x(3)*yi(end,20));
+end
+
 function paramVals = getParams(author,CaM)
     if strcmp(author,'Graupner')
         paramVals = [
-            0.012; 0.05;
+            0.012; 0.1;
             33.3; CaM;
             0.1; 0.0001;
             0.1; 0.025; 0.32; 0.40;
@@ -320,7 +430,7 @@ function paramVals = getParams(author,CaM)
         ];
     else
         paramVals = [
-            0.012; 0.05;
+            0.012; 0.1;
             33.3; CaM;
             0.1; 0.0001;
             20; 0.57; 100; 5;
@@ -337,9 +447,5 @@ function paramVals = getParams(author,CaM)
             % Params 48 to 52
             0.5; 0.2; 0.1; 6.02e23; 0.05
         ];
-    end
-    
-    function y0 = getInitCond(eqs)
-        
     end
 end
