@@ -68,6 +68,10 @@ syms B0(t) B1(t) B2(t) B3(t) B4(t) B5(t) B6(t) B7(t) B8(t) B9(t) B10(t) B11(t) B
 syms Sp(t) Su(t) AMPA_bnd(t) Cb(t) 
 syms vPKA_I1(t) vPKA_phos(t) vCaN_I1(t) vCaN_endo(t) vPP1_pase(t) vCK2_exo(t)
 syms PP1(t) I1P(t) mu(t) U(t)
+
+syms NR2BbvC(t) NR2BbvP(t) Bpsd0(t) Bpsd1(t) Bpsd2(t) Bpsd3(t) Bpsd4(t)
+syms Bpsd5(t) Bpsd6(t) Bpsd7(t) Bpsd8(t) Bpsd9(t) Bpsd10(t) Bpsd11(t) Bpsd12(t) Bpsd13(t)
+syms Uvar(t)
 %Params
 syms tauCa CaBas Stot CaM K5 K9 L1 L2 L3 L4 k6 k7 k8 k19 k17 k18 KM k12 k11 km11 I10 PP10 Kdcan ncan
 syms kcan0_I1 kcan_I1 kcan0_endo kcan_endo kPP10_pase kPP1_pase Kdpka npka kpka0_I1 kpka_I1 kpka0_phos kpka_phos
