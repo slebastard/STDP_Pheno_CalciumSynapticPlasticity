@@ -21,22 +21,22 @@ mode = 'STDP';
 T = 200;
 rho_0 = 0.3; % must be between 0 and 1
 
-C_pre = 1.2;
+C_pre = 0.8;
 C_post = 0.8;
 tau_Ca = 20;
 delay_pre = -5;
 Ca_params = [C_pre, C_post, tau_Ca, delay_pre];
 
-theta_dep = 1;
+theta_dep = 0.7;
 gamma_dep = 10;
 dep_params = [theta_dep, gamma_dep];
 
-theta_pot = 1.3;
+theta_pot = 1.1;
 gamma_pot = 50;
 pot_params = [theta_pot, gamma_pot];
 
 tau = 150000; % this is larger than I expected. Ask Brunel about this
-noise_lvl = 0.05;
+noise_lvl = 0.0;
 
 n_iter = 10;
 frequency = 1;

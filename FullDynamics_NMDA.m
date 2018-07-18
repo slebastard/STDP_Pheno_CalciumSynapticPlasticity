@@ -1,4 +1,4 @@
-function [t, varNames, y] = FullDynamics_NMDA(CaInputs, initVals, paramSetName, showPlots, savePlots, varParamName, varParamValue)
+% function [t, varNames, y] = FullDynamics_NMDA(CaInputs, initVals, paramSetName, showPlots, savePlots, varParamName, varParamValue)
 
 % Naming conventions
 % k --- reaction constant
@@ -51,9 +51,15 @@ function [t, varNames, y] = FullDynamics_NMDA(CaInputs, initVals, paramSetName, 
 % 26	n0 			Number of AMPA in phosphorylation state 0 (fully dephosphorylated)
 % 27	n1 			Number of AMPA in phosphorylation state 1
 
-if nargin~=5 && nargin~=7
-    error('Incorrect number of input arguments');
-end
+CaInputs = 0.2;
+initVals = [];
+paramSetName = 'Graupner';
+showPlots = true;
+savePlots = true;
+
+% if nargin~=5 && nargin~=7
+%     error('Incorrect number of input arguments');
+% end
 
 % RECOMMENDED INPUTS
 % paramSetName = 'Graupner';
@@ -175,10 +181,10 @@ end
 
 paramVals = getParams(paramSetName);
 
-if nargin==7
-    paramInd = (paramNames==varParamName);
-    paramVals(paramInd) = varParamValue;
-end
+% if nargin==7
+%     paramInd = (paramNames==varParamName);
+%     paramVals(paramInd) = varParamValue;
+% end
 
 CaInit = CaInputs(1);
 
@@ -276,7 +282,7 @@ while ~stop && nstep~=nsteps_p1+1
     yCaMKII = [yCaMKII;yi];  
     ratesHist = [ratesHist;repmat(paramVals(53:57).',length(ti),1)];
     
-    stop = (tstep~=t0 && abs(yCaMKII(end,19)-yCaMKII(end-1,19))<3e-6*yCaMKII(end,19));
+    stop = (tstep~=t0 && abs(yCaMKII(end,19)-yCaMKII(end-1,19))<1.5e-6*yCaMKII(end,19));
     nstep = nstep + 1;
 end
 
@@ -296,7 +302,7 @@ while ~stop && nstep~=nsteps_p2+1
     yCaMKII = [yCaMKII;yi];
     ratesHist = [ratesHist;repmat(paramVals(53:57).',length(ti),1)];
     
-    stop = (tstep~=t0 && abs(yCaMKII(end,19)-yCaMKII(end-1,19))<3e-6*yCaMKII(end,19));
+    stop = (tstep~=t0 && abs(yCaMKII(end,19)-yCaMKII(end-1,19))<1.5e-6*yCaMKII(end,19));
     nstep = nstep + 1;
 end
 
@@ -316,7 +322,7 @@ while ~stop && nstep~=nsteps_p3+1
     yCaMKII = [yCaMKII;yi];
     ratesHist = [ratesHist;repmat(paramVals(53:57).',length(ti),1)];
     
-    stop = (tstep~=t0 && abs(yCaMKII(end,19)-yCaMKII(end-1,19))<3e-6*yCaMKII(end,19));
+    stop = (tstep~=t0 && abs(yCaMKII(end,19)-yCaMKII(end-1,19))<1.5e-6*yCaMKII(end,19));
     nstep = nstep + 1;
 end
 
@@ -370,12 +376,12 @@ end
 
 %%
 plt_h=4; plt_l=4;
-subt = sprintf('Response at steady Ca=%0.1f for total CaM=%0.2f', CaInputs(1), paramVals(4));
-figName = sprintf('Output_%s_Ca%0.1f_CaM%0.2f', paramSetName, CaInputs(1), paramVals(4));
+subt = sprintf('Response at initial Ca=%0.1f, basal Ca=%0.1f for total CaM=%0.2f', CaInputs(1), paramVals(2), paramVals(4));
+figName = sprintf('Output_%s_initCa%0.1f_steadyCa%0.1f_CaM%0.2f', paramSetName, CaInputs(1), paramVals(2), paramVals(4));
 subplot = @(m,n,p) subtightplot (m, n, p, [0.05 0.035], [0.1 0.01], [0.1 0.01]);
 
 if showPlots
-    for idx = 1:length(y)
+    for idx = 1:size(y,2)
         if mod(idx,plt_h*plt_l)==1
             ax = subtitle(subt);
             axes(ax);
@@ -482,4 +488,4 @@ function paramVals = getParams(author)
     end
 end
 
-end
+% end

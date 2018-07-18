@@ -1,7 +1,7 @@
 function [STDP_an, STDP_sim] = get_both_STDP(model, mode, params, int_scheme, int_step)
 % STDP EXPERIMENT
 % - Runs a battery of model simulation with Calcium bumps
-% relfecting different temporal differences. Uses those simulation to build
+% reflecting different temporal differences. Uses those simulation to build
 % a dw = f(delta_t) curve
 % - All time params are in ms, all frequencies are in Hz
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
