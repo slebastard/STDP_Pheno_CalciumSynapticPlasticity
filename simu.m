@@ -36,13 +36,15 @@ gamma_pot = 50;
 pot_params = [theta_pot, gamma_pot];
 
 tau = 150000; % this is larger than I expected. Ask Brunel about this
-noise_lvl = 0.0;
+
+% Modeling noise
+noise_lvl = 0.0; %1/sqrt(N_A*V)
 
 n_iter = 10;
 frequency = 1;
 
 model_params = [T, rho_0, Ca_params, dep_params, pot_params, tau, noise_lvl];
-model = 'naive';
+model = 'naive'; %naive or pheno
 
 int_scheme = 'euler_expl';
 scheme_step = 0.5;
@@ -58,6 +60,9 @@ model_params(1) = T;
 if strcmp(mode, 'single') || strcmp(mode, 'all')
     if strcmp(model, 'naive')
         [rho_hist, c_hist] = naive_model(pre_spikes_hist, post_spikes_hist, model_params, int_scheme, scheme_step);
+    elseif strcmp(model, 'pheno')
+        model_params = [T, rho_0, w_0, Ca_params, dep_params, pot_params, tau, noise_lvl];
+        [rho_hist, c_hist] = pheno_model(pre_spikes_hist, post_spikes_hist, model_params, int_scheme, scheme_step);
     end
 
     % Plotting rho as a function of time
