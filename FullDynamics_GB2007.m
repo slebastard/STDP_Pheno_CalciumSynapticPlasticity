@@ -109,7 +109,7 @@ clear all;
 paramSetName = 'Graupner';
 in_CaInit = 0.1;
 in_CaM = 0.1;
-savePlots = true;
+savePlots = false;
 
 t0=0; tfinal=500;
 
@@ -175,7 +175,7 @@ odesCaMKII = [
 	diff(B13(t), t) == chi(t)*gam_u*B12(t) - nu(t)*6*B13(t);
 	diff(PP1(t), t) == -k11*I1P(t)*PP1(t) + km11*(PP10 - PP1(t));
 	diff(I1P(t), t) == -k11*I1P(t)*PP1(t) + km11*(PP10 - PP1(t)) + vPKA_I1(t)*(I10-I1P(t)) - vCaN_I1(t)*I1P(t);
-    diff(mu(t), t) == 6*(M-mu(t))*(kbc*gam_u(t))*S0(t) + (M-mu(t))*(kbpc*gam_p(t) + kbp*(1-gam_p(t)) - kbc*gam_u(t))*S1(t);
+    diff(mu(t), t) == 6*(M-mu(t))*(kbc*gam_u(t))*S0(t) + (M-mu(t))*(kbpc*gam_p(t) + kbp*(1-gam_p(t)) - kbc*gam_u(t))*Sp(t);
        % 17 ODEs
 ];
 
@@ -291,7 +291,7 @@ U = [0];
 nstep = length(tSimu);
 for stp=1:nstep-1
     U = [
-        U; U(end) + (tSimu(stp+1) - tSimu(stp))*((paramVals(28)-y(end,31))*(6*paramVals(29)*y(end,28) - paramVals(30)*y(end,29) - paramVals(31)*(1-y(end,29)))*y(end,46) + (paramVals(28)-y(end,31))*(paramVals(30)*y(end,29) + paramVals(31)*(1-y(end,29)) - paramVals(29)*y(end,28))*y(end,47))
+        U; 0 %U(end) + (tSimu(stp+1) - tSimu(stp))*((paramVals(28)-y(end,31))*(6*paramVals(29)*y(end,28) - paramVals(30)*y(end,29) - paramVals(31)*(1-y(end,29)))*y(end,46) + (paramVals(28)-y(end,31))*(paramVals(30)*y(end,29) + paramVals(31)*(1-y(end,29)) - paramVals(29)*y(end,28))*y(end,47))
     ];
 end
 
@@ -341,44 +341,31 @@ end
 function paramVals = getParams(author,CaM)
     if strcmp(author,'Graupner')
         paramVals = [
-            0.012; 0.05;
+            0.012; 0.1;
             33.3; CaM;
             0.1; 0.0001;
             0.1; 0.025; 0.32; 0.40;
-            6; 6; 6; 6; 10; 0.0005;
+            6; 6; 6;
             0.4; 6000;
             500; 0.1; 1; 0.2;
-            0.053; 3; 0.1; 18; 0.1; 18;
-            0.1; 18;
-            0.11; 8; 0.00359; 100; 0.00359; 100;
-            0.0005; 0; %kNMDA_bind temporarilly set to 0
-            1000; 0.0010; 0.0017; 0.0024; 100;
-            0.01; 0.01; 0.01; 0.01; % NMDA binding is ON
-            % 0; 0; 0; 0; % NMDA binding is OFF
+            0.053; 3; 0.1; 18;
+            0.11; 8; 0.00359; 100;
+            1000; 0; 0; 0;
             0.5; 0.2; 0.1; 6.02e23; 0.05
         ];
     else
         paramVals = [
-            0.012; 0.05;
+            0.012; 0.1;
             33.3; CaM;
             0.1; 0.0001;
             20; 0.57; 100; 5;
-            6; 6; 4.8; 4.8; 10; 0.0005;
+            6; 6; 4.8;
             11; 1.72;
             500; 0.1; 1; 0.2;
-            0.053; 3; 0.1; 18; 0.1; 18;
-            0.1; 18;
-            0.11; 8; 0.00359; 100; 0.00359; 100;
-            0.0005; 0; %kNMDA_bind temporarilly set to 0
-            1000; 0.0010; 0.0017; 0.0024; 100;
-            0.01; 0.01; 0.01; 0.01; % NMDA binding is ON
-            % 0; 0; 0; 0; % NMDA binding is OFF
-            % Params 48 to 52
+            0.053; 3; 0.1; 18;
+            0.11; 8; 0.00359; 100;
+            1000; 0; 0; 0;
             0.5; 0.2; 0.1; 6.02e23; 0.05
         ];
-    end
-    
-    function y0 = getInitCond(eqs)
-        
     end
 end

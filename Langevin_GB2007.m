@@ -89,21 +89,24 @@ y0 = [
     Ca_stim;
     0; 0; 0; 0; 0; 0; 0; 0;
     0; 0; 0; 0; 0
-    0.01; 0.01
+    p0; i0
 ];
 
 % Integrate equations
-[eqs_det1, eqs_det2, eqs_stoch, aux] = getEqs(paramVals);
+[eqs_det1, eqs_det2, eqs_stoch, ~] = getEqs(paramVals);
  
 opts = sdeset('NonNegative',1:16,...
               'RandSeed',1,...
               'SDEType','Ito');
 
-y1 = sde_euler(eqs_det1, eqs_stoch, t0:dt:tstim, y0', opts);
-y2 = sde_euler(eqs_det2, eqs_stoch, tstim+dt:dt:tfinal, y1(end,:), opts);
-y = [y1;y2];
+% y1 = sde_euler(eqs_det1, eqs_stoch, t0:dt:tstim, y0', opts);
+% y2 = sde_euler(eqs_det2, eqs_stoch, tstim+dt:dt:tfinal, y1(end,:), opts);
+y1 = ode45(eqs_det1, [t0 tstim], y0');
+y2 = ode45(eqs_det2, [tstim tfinal], y1.y(:,end));
+y = [y1.y';y2.y'];
 
-t = t0:dt:tfinal;
+% t = t0:dt:tfinal;
+t = [y1.x,y2.x];
 
 % Finding Sp when calcium goes beyond given threshold
 t_alpha = tstim + paramVals(1)*log(Ca_stim/(Ca_alpha-paramVals(2)));
@@ -111,17 +114,17 @@ Sp = y(:,2) + 2*(y(:,3) + y(:,4) + y(:,5)) + 3*(y(:,6) + y(:,7) + y(:,8) + y(:,9
 S0 = y(:,2) + y(:,3) + y(:,4) + y(:,5) + y(:,6) + y(:,7) + y(:,8) + y(:,9) + y(:,10) + y(:,11) + y(:,12) + y(:,13) + y(:,14);
 B0 = paramVals(3) - S0;
 id_alpha = floor(t_alpha/dt);
-Sp_alpha = Sp(id_alpha,1);
+% Sp_alpha = Sp(id_alpha,1);
 Sp_infty = Sp(end,1);
 
 % [Optionnal, disabled by default] Plot and save variables
 if showPlots
     figure(1);
-    plot(t,y(:,1));
+    plot(t,y(:,1),'+');
     title('Ca2+ as a function of time');
     
     figure(2);
-    plot(t,Sp);
+    plot(t,Sp,'+');
     title('Phosphorylated CaMKII as a function of time');
 end
 
@@ -143,16 +146,13 @@ function paramVals = getParams(author, CaM, t_stim)
             0.012; 0.1;
             33.3; CaM;
             0.1; 0.0001;
-            0.1; 0.025; 0.32; 0.40;
-            6; 6; 6; 6; 10; 0.0005;
-            0.4; 6000;
+            20; 0.57; 100; 5;
+            6; 6; 4.8;
+            11; 1.72;
             500; 0.1; 1; 0.2;
-            0.053; 3; 0.1; 18; 0.1; 18;
-            0.1; 18;
-            0.11; 8; 0.00359; 100; 0.00359; 100;
-            0.0005; 0;
-            1000; 0.0010; 0.0017; 0.0024; 100;
-            0; 0; 0; 0;
+            0.053; 3; 0.1; 18;
+            0.11; 8; 0.00359; 100;
+            1000; 0; 0; 0;
             0.5; 0.2; 0.1; 6.02e23; 0.05;
             
             t_stim
@@ -163,15 +163,12 @@ function paramVals = getParams(author, CaM, t_stim)
             33.3; CaM;
             0.1; 0.0001;
             20; 0.57; 100; 5;
-            6; 6; 4.8; 4.8; 10; 0.0005;
+            6; 6; 4.8;
             11; 1.72;
             500; 0.1; 1; 0.2;
-            0.053; 3; 0.1; 18; 0.1; 18;
-            0.1; 18;
-            0.11; 8; 0.00359; 100; 0.00359; 100;
-            0.0005; 0;
-            1000; 0.0010; 0.0017; 0.0024; 100;
-            0; 0; 0; 0;
+            0.053; 3; 0.1; 18;
+            0.11; 8; 0.00359; 100;
+            1000; 0; 0; 0;
             0.5; 0.2; 0.1; 6.02e23; 0.05;
             
             t_stim
@@ -185,7 +182,7 @@ function [eqs_det1, eqs_det2, eqs_stoch, aux] = getEqs(params)
     B0 = @(t, vars) (params(3) - S0(t, vars));
     gam_u = @(t, vars) (C(t, vars)/(params(5) + C(t, vars)));
     gam_p = @(t, vars) (C(t, vars)/(params(6) + C(t, vars)));
-    Sp = @(t, vars) min(6*params(3), vars(2) + 2*(vars(3) + vars(4) + vars(5)) + 3*(vars(6) + vars(7) + vars(8) + vars(9)) + 4*(vars(10) + vars(11) + vars(12)) + 5*vars(13) + 6*vars(14));
+    Sp = @(t, vars) (vars(2) + 2*(vars(3) + vars(4) + vars(5)) + 3*(vars(6) + vars(7) + vars(8) + vars(9)) + 4*(vars(10) + vars(11) + vars(12)) + 5*vars(13) + 6*vars(14));
     Su = @(t, vars) (6*params(3) - Sp(t, vars));
     Cb = @(t, vars) (gam_u(t, vars)*Su(t, vars) + gam_p(t, vars)*Sp(t, vars));
     k10 = @(t, vars) (params(15)/(params(14) + Sp(t, vars)));
@@ -195,9 +192,9 @@ function [eqs_det1, eqs_det2, eqs_stoch, aux] = getEqs(params)
     + 6*(vars(6) + vars(7) + vars(8) + vars(9)) ...
     + 12*(vars(10) + vars(11) + vars(12)) ...
     + 20*vars(13) + 30*vars(14));
-    vPKA_I1 = @(t, vars) (params(26) + params(27)/(1 + (params(24)/(C(t, vars)-Cb(t, vars)))^params(25)));
-    vCaN_I1 = @(t, vars) (params(22) + params(23)/(1 + (params(20)/(C(t, vars)-Cb(t, vars)))^params(21)));
-
+    vPKA_I1 = @(t, vars) (params(26) + params(27)/(1 + (params(24)/(C(t, vars)))^params(25)));
+    vCaN_I1 = @(t, vars) (params(22) + params(23)/(1 + (params(20)/(C(t, vars)))^params(21)));
+    
     eqs_det1 = @(t, vars) [
         0;
         6*params(11)*gam_u(t, vars)^2*B0(t, vars) - 4*params(11)*gam_u(t, vars)^2*vars(2) - chi(t, vars)*gam_u(t, vars)*vars(2) + nu(t, vars)*(2*(vars(3)+vars(4)+vars(5))-vars(2));
@@ -238,22 +235,22 @@ function [eqs_det1, eqs_det2, eqs_stoch, aux] = getEqs(params)
     
     lvl=0.001;
     eqs_stoch = @(t, vars) [
-        % 0;
-        % lvl*(1/sqrt(params(35)*params(32)*pi*params(33)^2))*sqrt(6*params(11)*gam_u(t, vars)^2*S0(t, vars) + 4*params(11)*gam_u(t, vars)^2*vars(2) + chi(t, vars)*gam_u(t, vars)*vars(2) + nu(t, vars)*(2*(vars(3)+vars(4)+vars(5))+vars(2)));
-        % lvl*(1/sqrt(params(35)*params(32)*pi*params(33)^2))*sqrt(params(11)*gam_u(t, vars)^2*vars(2) + chi(t, vars)*gam_u(t, vars)*vars(2) + nu(t, vars)*(3*(vars(6)+vars(7)+vars(8)+vars(9))+2*vars(3)) + 3*params(11)*gam_u(t, vars)^2*vars(3) + chi(t, vars)*gam_u(t, vars)*vars(3));
-        % lvl*(1/sqrt(params(35)*params(32)*pi*params(33)^2))*sqrt(2*params(11)*gam_u(t, vars)^2*vars(2) + nu(t, vars)*(3*(vars(6)+vars(7)+vars(8)+vars(9))+2*vars(4)) + 3*params(11)*gam_u(t, vars)^2*vars(4) + chi(t, vars)*gam_u(t, vars)*vars(4));
-        % lvl*(1/sqrt(params(35)*params(32)*pi*params(33)^2))*sqrt(params(11)*gam_u(t, vars)^2*vars(2) + nu(t, vars)*(3*(vars(6)+vars(7)+vars(8)+vars(9))+2*vars(5)) + 2*params(11)*gam_u(t, vars)^2*vars(5) + 2*chi(t, vars)*gam_u(t, vars)*vars(5));
-        % lvl*(1/sqrt(params(35)*params(32)*pi*params(33)^2))*sqrt(params(11)*gam_u(t, vars)^2*(vars(3)+vars(4)) + chi(t, vars)*gam_u(t, vars)*vars(3) + nu(t, vars)*(4*(vars(10)+vars(11)+vars(12))+3*vars(6)) + 2*params(11)*gam_u(t, vars)^2*vars(6) + chi(t, vars)*gam_u(t, vars)*vars(6));
-        % lvl*(1/sqrt(params(35)*params(32)*pi*params(33)^2))*sqrt(params(11)*gam_u(t, vars)^2*(vars(3)+vars(4)) + 2*chi(t, vars)*gam_u(t, vars)*vars(5) + nu(t, vars)*(4*(vars(10)+vars(11)+vars(12))+3*vars(7)) + params(11)*gam_u(t, vars)^2*vars(7) + 2*chi(t, vars)*gam_u(t, vars)*vars(7));
-        % lvl*(1/sqrt(params(35)*params(32)*pi*params(33)^2))*sqrt(params(11)*gam_u(t, vars)^2*(vars(3)+2*vars(5)) + chi(t, vars)*gam_u(t, vars)*vars(4) + nu(t, vars)*(4*(vars(10)+vars(11)+vars(12))+3*vars(8)) + params(11)*gam_u(t, vars)^2*vars(8) + 2*chi(t, vars)*gam_u(t, vars)*vars(8));
-        % lvl*(1/sqrt(params(35)*params(32)*pi*params(33)^2))*sqrt(params(11)*gam_u(t, vars)^2*vars(4) + nu(t, vars)*(4*(vars(10)+vars(11)+vars(12))+3*vars(9)) + 3*chi(t, vars)*gam_u(t, vars)*vars(9));
-        % lvl*(1/sqrt(params(35)*params(32)*pi*params(33)^2))*sqrt(params(11)*gam_u(t, vars)^2*vars(6) + chi(t, vars)*gam_u(t, vars)*(vars(7)+vars(8)) + nu(t, vars)*(5*vars(13)+4*vars(10)) + params(11)*gam_u(t, vars)^2*vars(10) + chi(t, vars)*gam_u(t, vars)*vars(10));
-        % lvl*(1/sqrt(params(35)*params(32)*pi*params(33)^2))*sqrt(params(11)*gam_u(t, vars)^2*(vars(6)+vars(7)) + chi(t, vars)*gam_u(t, vars)*(vars(8)+vars(9)) + nu(t, vars)*(5*vars(13)+4*vars(11)) + 2*chi(t, vars)*gam_u(t, vars)*vars(11));
-        % lvl*(1/sqrt(params(35)*params(32)*pi*params(33)^2))*sqrt(params(11)*gam_u(t, vars)^2*vars(8) + chi(t, vars)*gam_u(t, vars)*vars(7) + nu(t, vars)*(5*vars(13)+4*vars(12)) + 2*chi(t, vars)*gam_u(t, vars)*vars(12));
-        % lvl*(1/sqrt(params(35)*params(32)*pi*params(33)^2))*sqrt(params(11)*gam_u(t, vars)^2*vars(10) + chi(t, vars)*gam_u(t, vars)*(vars(10)+2*vars(11)+2*vars(12)) + nu(t, vars)*(6*vars(14)+5*vars(13)) + chi(t, vars)*gam_u(t, vars)*vars(13));
-        % lvl*(1/sqrt(params(35)*params(32)*pi*params(33)^2))*sqrt(chi(t, vars)*gam_u(t, vars)*vars(13) + nu(t, vars)*6*vars(14));
-        % lvl*(1/sqrt(params(35)*params(32)*pi*params(33)^2))*sqrt(+params(16)*vars(16)*vars(15) + params(17)*(params(19) + vars(15)));
-        % lvl*(1/sqrt(params(35)*params(32)*pi*params(33)^2))*sqrt(+params(16)*vars(16)*vars(15) + params(17)*(params(19) + vars(15)) + vPKA_I1(t, vars)*(params(18)+vars(16)) + vCaN_I1(t, vars)*vars(16));
+%         0;
+%         lvl*(1/sqrt(params(35)*params(32)*pi*params(33)^2))*sqrt(6*params(11)*gam_u(t, vars)^2*S0(t, vars) + 4*params(11)*gam_u(t, vars)^2*vars(2) + chi(t, vars)*gam_u(t, vars)*vars(2) + nu(t, vars)*(2*(vars(3)+vars(4)+vars(5))+vars(2)));
+%         lvl*(1/sqrt(params(35)*params(32)*pi*params(33)^2))*sqrt(params(11)*gam_u(t, vars)^2*vars(2) + chi(t, vars)*gam_u(t, vars)*vars(2) + nu(t, vars)*(3*(vars(6)+vars(7)+vars(8)+vars(9))+2*vars(3)) + 3*params(11)*gam_u(t, vars)^2*vars(3) + chi(t, vars)*gam_u(t, vars)*vars(3));
+%         lvl*(1/sqrt(params(35)*params(32)*pi*params(33)^2))*sqrt(2*params(11)*gam_u(t, vars)^2*vars(2) + nu(t, vars)*(3*(vars(6)+vars(7)+vars(8)+vars(9))+2*vars(4)) + 3*params(11)*gam_u(t, vars)^2*vars(4) + chi(t, vars)*gam_u(t, vars)*vars(4));
+%         lvl*(1/sqrt(params(35)*params(32)*pi*params(33)^2))*sqrt(params(11)*gam_u(t, vars)^2*vars(2) + nu(t, vars)*(3*(vars(6)+vars(7)+vars(8)+vars(9))+2*vars(5)) + 2*params(11)*gam_u(t, vars)^2*vars(5) + 2*chi(t, vars)*gam_u(t, vars)*vars(5));
+%         lvl*(1/sqrt(params(35)*params(32)*pi*params(33)^2))*sqrt(params(11)*gam_u(t, vars)^2*(vars(3)+vars(4)) + chi(t, vars)*gam_u(t, vars)*vars(3) + nu(t, vars)*(4*(vars(10)+vars(11)+vars(12))+3*vars(6)) + 2*params(11)*gam_u(t, vars)^2*vars(6) + chi(t, vars)*gam_u(t, vars)*vars(6));
+%         lvl*(1/sqrt(params(35)*params(32)*pi*params(33)^2))*sqrt(params(11)*gam_u(t, vars)^2*(vars(3)+vars(4)) + 2*chi(t, vars)*gam_u(t, vars)*vars(5) + nu(t, vars)*(4*(vars(10)+vars(11)+vars(12))+3*vars(7)) + params(11)*gam_u(t, vars)^2*vars(7) + 2*chi(t, vars)*gam_u(t, vars)*vars(7));
+%         lvl*(1/sqrt(params(35)*params(32)*pi*params(33)^2))*sqrt(params(11)*gam_u(t, vars)^2*(vars(3)+2*vars(5)) + chi(t, vars)*gam_u(t, vars)*vars(4) + nu(t, vars)*(4*(vars(10)+vars(11)+vars(12))+3*vars(8)) + params(11)*gam_u(t, vars)^2*vars(8) + 2*chi(t, vars)*gam_u(t, vars)*vars(8));
+%         lvl*(1/sqrt(params(35)*params(32)*pi*params(33)^2))*sqrt(params(11)*gam_u(t, vars)^2*vars(4) + nu(t, vars)*(4*(vars(10)+vars(11)+vars(12))+3*vars(9)) + 3*chi(t, vars)*gam_u(t, vars)*vars(9));
+%         lvl*(1/sqrt(params(35)*params(32)*pi*params(33)^2))*sqrt(params(11)*gam_u(t, vars)^2*vars(6) + chi(t, vars)*gam_u(t, vars)*(vars(7)+vars(8)) + nu(t, vars)*(5*vars(13)+4*vars(10)) + params(11)*gam_u(t, vars)^2*vars(10) + chi(t, vars)*gam_u(t, vars)*vars(10));
+%         lvl*(1/sqrt(params(35)*params(32)*pi*params(33)^2))*sqrt(params(11)*gam_u(t, vars)^2*(vars(6)+vars(7)) + chi(t, vars)*gam_u(t, vars)*(vars(8)+vars(9)) + nu(t, vars)*(5*vars(13)+4*vars(11)) + 2*chi(t, vars)*gam_u(t, vars)*vars(11));
+%         lvl*(1/sqrt(params(35)*params(32)*pi*params(33)^2))*sqrt(params(11)*gam_u(t, vars)^2*vars(8) + chi(t, vars)*gam_u(t, vars)*vars(7) + nu(t, vars)*(5*vars(13)+4*vars(12)) + 2*chi(t, vars)*gam_u(t, vars)*vars(12));
+%         lvl*(1/sqrt(params(35)*params(32)*pi*params(33)^2))*sqrt(params(11)*gam_u(t, vars)^2*vars(10) + chi(t, vars)*gam_u(t, vars)*(vars(10)+2*vars(11)+2*vars(12)) + nu(t, vars)*(6*vars(14)+5*vars(13)) + chi(t, vars)*gam_u(t, vars)*vars(13));
+%         lvl*(1/sqrt(params(35)*params(32)*pi*params(33)^2))*sqrt(chi(t, vars)*gam_u(t, vars)*vars(13) + nu(t, vars)*6*vars(14));
+%         lvl*(1/sqrt(params(35)*params(32)*pi*params(33)^2))*sqrt(+params(16)*vars(16)*vars(15) + params(17)*(params(19) + vars(15)));
+%         lvl*(1/sqrt(params(35)*params(32)*pi*params(33)^2))*sqrt(+params(16)*vars(16)*vars(15) + params(17)*(params(19) + vars(15)) + vPKA_I1(t, vars)*(params(18)+vars(16)) + vCaN_I1(t, vars)*vars(16));
         0;
         0;
         0;

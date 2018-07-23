@@ -1,4 +1,4 @@
-function [rho_hist, c_hist] = pheno_model( pre_spikes_hist, post_spikes_hist, params, int_scheme, int_step, noise_lvl)
+function [rho_hist, w_hist, c_hist] = pheno_model( pre_spikes_hist, post_spikes_hist, params, int_scheme, int_step, noise_lvl)
 %NAIVE_MODEL Simulates the behavior of a synapse whose behavior follows the
 %naive Calcium_based dynamics
 %   Detailed explanation goes here
@@ -18,7 +18,10 @@ def_params = [...
     200 ...         % gamma_dep
     1.3 ...         % theta_pot
     321 ...         % gamma_pot
-    150 ...         % tau           syn plast time cst  (ms)
+    150 ...         % tau_rho           syn plast time cst  (ms)
+    1000 ...        % tau_w
+    0.6 ...         % theta_act
+    0 ...           % sigma
     ];
 
 switch nargin
@@ -69,10 +72,14 @@ gamma_dep = params(9);
 theta_pot = params(10);
 gamma_pot = params(11);
 
-tau = params(12);
-sigma = params(13);
+tau_rho = params(12);
+tau_w = params(13);
+theta_act = params(14);
+sigma = params(15);
 
 eq_thr = 1e-5;
+S_attr = 40;
+rho_max = 200;
 
 %% Building events list based on calcium hypothesis
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -103,13 +110,14 @@ evts = sortrows(evts, 1);
 if strcmp(int_scheme, 'euler_expl')
     % Initiate simulation %
     %%%%%%%%%%%%%%%%%%%%%%%
-    [rho, w] = params(2);
+    rho = params(2);
+    w = params(3);
     t = 0;
     c = 0;
     
     rho_hist = rho;
+    w_hist = w;
     c_hist = 0;
-
 
     % Check whether simulation is trivial %
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -128,9 +136,9 @@ if strcmp(int_scheme, 'euler_expl')
                 c = c + C_bump; 
             end
             
-            rho = rho + step/tau_rho * (gamma_pot*(1-rho)*(c > theta_pot) - gamma_dep*rho*(c > theta_dep)) + sigma*step*sqrt(1/tau)*sqrt((c > theta_dep)+(c > theta_pot))*randn();
-            w_f = zeta(rho);
-            w = w + step/tau_w * (w-w_f);
+            rho = rho + step/tau_rho * (gamma_pot*(rho_max-rho)*(c > theta_pot) - gamma_dep*rho*(c > theta_dep)) * (c > theta_act);
+            w_f = 0.5*erfc((S_attr-rho)/sqrt(2*sigma^2));
+            w = w + step/tau_w * (w_f-w);
             
             rho_hist = [rho_hist, rho];
             w_hist = [w_hist; w];
