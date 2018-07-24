@@ -1,7 +1,7 @@
 function STDP = get_STDP(model, mode, params, int_scheme, int_step)
 % STDP EXPERIMENT
 % - Runs a battery of model simulation with Calcium bumps
-% relfecting different temporal differences. Uses those simulation to build
+% reflecting different temporal differences. Uses those simulation to build
 % a dw = f(delta_t) curve
 % - All time params are in ms, all frequencies are in Hz
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -87,6 +87,8 @@ freq = params(17);
 %% Running simulations, returning STDP curve
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+rho_max = 199.8;
+
 n_points = 1 + (t_max - t_min)/dt;
 STDP = [];
 
@@ -144,7 +146,7 @@ if perm_regime
     r_dep = Ca_topTheta_rate(theta_dep, dt-delay_pre) - r_pot;
     % ...then get the analytic STDP curve
     a = exp(-(r_dep*gamma_dep + r_pot*(gamma_dep+gamma_pot))/((freq/1000)*tau));
-    b = (gamma_pot/(gamma_pot + gamma_dep)) * exp(-(r_dep*gamma_dep)/(tau*(freq/1000))) .* (1 - exp(-(r_pot*(gamma_pot+gamma_dep))/(tau*(freq/1000))));
+    b = rho_max*(gamma_pot/(gamma_pot + gamma_dep)) * exp(-(r_dep*gamma_dep)/(tau*(freq/1000))) .* (1 - exp(-(r_pot*(gamma_pot+gamma_dep))/(tau*(freq/1000))));
     c = sigma * sqrt((r_pot + r_dep)./(tau*freq));
     
     rho_lim = b ./ (1-a);
@@ -152,6 +154,8 @@ if perm_regime
     rho = (rho_0 - rho_lim).*(a.^n_iter)...
         + rho_lim...
         + c .* sqrt((1 - a.^(2*n_iter))./(1 - a.^2)) .* randn(1,n_points); % final EPSP amplitude
+
+    rho(isnan(rho)) = rho_0;
     
     if strcmp(mode, 'rel')
         STDP = transpose(cat(1, dt, rho/rho_0));

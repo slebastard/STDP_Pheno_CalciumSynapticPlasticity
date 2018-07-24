@@ -98,6 +98,7 @@ evts = sortrows(evts, 1);
 
 %% Simulating process
 %%%%%%%%%%%%%%%%%%%%%
+rho_max = 199.8;
 
 if strcmp(int_scheme, 'euler_expl')
     % Initiate simulation %
@@ -119,13 +120,13 @@ if strcmp(int_scheme, 'euler_expl')
         %%%%%%%%%%%%%%%%%%%%%%
         while t < T
             c_hist = [c_hist, c];
-            evt = find(and(t - double(evts(:,1)) <= int_step, t > double(evts(:,1))));
+            evt = find(and(t - double(evts(:,1)) < int_step, t >= double(evts(:,1))));
             if evt
                 C_bump = sum(evts(evt,2));
                 c = c + C_bump; 
             end
             
-            rho = rho + step/tau * (gamma_pot*(1-rho)*(c > theta_pot) - gamma_dep*rho*(c > theta_dep)) + sigma*sqrt(1/tau)*sqrt(gamma_dep*(step/tau)*rho*(c > theta_dep)+gamma_pot*(step/tau)*(1-rho)*(c > theta_pot))*randn();
+            rho = rho + step/tau * (gamma_pot*(rho_max-rho)*(c > theta_pot) - gamma_dep*rho*(c > theta_dep)) + sigma*sqrt(1/tau)*sqrt(gamma_dep*(step/tau)*rho*(c > theta_dep)+gamma_pot*(step/tau)*(rho_max-rho)*(c > theta_pot))*randn();
             
             rho_hist = [rho_hist, rho];
             c = c * exp(-step/tau_Ca);

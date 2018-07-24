@@ -87,6 +87,8 @@ freq = params(17);
 %% Running simulations, returning STDP curve
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+rho_max = 199.8;
+
 n_points = 1 + (t_max - t_min)/dt;
 STDP_an = [];
 STDP_sim = [];
@@ -145,7 +147,7 @@ if perm_regime
     r_dep = Ca_topTheta_rate(theta_dep, dt-delay_pre) - r_pot;
     % ...then get the analytic STDP curve
     a = exp(-(r_dep*gamma_dep + r_pot*(gamma_dep+gamma_pot))/((freq/1000)*tau));
-    b = (gamma_pot/(gamma_pot + gamma_dep)) * exp(-(r_dep*gamma_dep)/(tau*(freq/1000))) .* (1 - exp(-(r_pot*(gamma_pot+gamma_dep))/(tau*(freq/1000))));
+    b = rho_max * (gamma_pot/(gamma_pot + gamma_dep)) * exp(-(r_dep*gamma_dep)/(tau*(freq/1000))) .* (1 - exp(-(r_pot*(gamma_pot+gamma_dep))/(tau*(freq/1000))));
     c = sigma * sqrt((r_pot + r_dep)./(tau*freq));
     
     rho_lim = b ./ (1-a);

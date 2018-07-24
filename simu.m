@@ -12,34 +12,36 @@
 % single    Step 2 only
 % STDP      Step 3 only
 % freq      Step 4 only
-% all       All steps
+%
+% pairs     Step 6 only
+% all       Steps 2 to 4
 
-mode = 'STDP';
+mode = 'pairs';
 
 %% 0) Define the environment
 
-T = 200;
+T = 10;
 rho_0 = 35; % must be between 0 and
 rho_max = 200;
 S_attr = 40;
 w_0 = transfer(rho_0, S_attr, 10);
 
-C_pre = 0.7;
-C_post = 1;
+C_pre = 1;
+C_post = 1.3;
 tau_Ca = 20;
-delay_pre = -5;
+delay_pre = 5;
 Ca_params = [C_pre, C_post, tau_Ca, delay_pre];
 
-theta_dep = 0.8;
-gamma_dep = 50;
+theta_dep = 1.3;
+gamma_dep = 10;
 dep_params = [theta_dep, gamma_dep];
 
-theta_pot = 1.1;
-gamma_pot = 30;
+theta_pot = 1.4;
+gamma_pot = balance_coefs(C_pre, C_post, theta_dep, theta_pot, gamma_dep);
 pot_params = [theta_pot, gamma_pot];
 
 tau_rho = 1000; % this is larger than I expected. Ask Brunel about this
-tau_w =10000;
+tau_w = 10000;
 
 N_A = 6.02e23; %mol^(-1)
 V = 2.5e-16; %L
@@ -48,20 +50,20 @@ theta_act = 0.6;
 % Modeling noise
 noise_lvl = 10; %1/sqrt(N_A*V);
 
-n_iter = 10;
+n_iter = 15;
 frequency = 1;
 
 model_params = [T, rho_0, Ca_params, dep_params, pot_params, tau_rho, noise_lvl];
-model = 'naive'; %naive or pheno
+model = 'pheno'; %naive or pheno
 
 int_scheme = 'euler_expl';
 scheme_step = 0.5;
 
 %% 1) Define the stimulation history
-d_t = 15;
+d_t = 20;
 pre_spikes_hist = linspace(0, 1000*(n_iter-1)/frequency, n_iter);
 post_spikes_hist = pre_spikes_hist + d_t;
-T = 1000*(n_iter-1)/frequency + 10*tau_Ca;
+T = 1000*(n_iter-1)/frequency + abs(d_t) + 10*tau_Ca;
 model_params(1) = T;
 
 %% 2) Full evolution of syn plast on a single simulation
@@ -117,19 +119,20 @@ end
 if strcmp(mode, 'STDP') || strcmp(mode, 'all')
     t_min = -75;
     t_max = 75;
-    dt = 3;
+    dt = 0.5;
 
     stdp_params = [model_params, t_min, t_max, dt, n_iter, frequency];
     if strcmp(model, 'naive')
         STDP = get_STDP(model, 'rel', stdp_params, int_scheme, scheme_step);
+        figure(3)
     elseif strcmp(model, 'pheno')
-        drho = get_STDP(model, 'abs', stdp_params, int_scheme, scheme_step);
-        STDP = [drho(:,1),transfer(rho_0+drho(:,2), S_attr, noise_lvl)./w_0];
+        rho = get_STDP(model, 'abs', stdp_params, int_scheme, scheme_step);
+        STDP = [rho(:,1),transfer(rho(:,2), S_attr, noise_lvl)./w_0];
+        figure(4)
     end
     % Validation against simulation
     % [STDP_an, STDP_sim] = get_both_STDP(model, 'rel', stdp_params, int_scheme, scheme_step);
 
-    figure(3)
     plot(STDP(:,1), STDP(:,2), '+r');
 %     plot(STDP_an(:,1), STDP_an(:,2), '+r');
 %     hold on
@@ -219,6 +222,41 @@ if strcmp(mode, 'freq_heat')
 end
 
 %% 6)Nb Paris - dt - heatmap
-if strcmp(mode, 'pairs_stdp')
+if strcmp(mode, 'pairs')
+    npairs = 200;
+    step = 1;
+    if strcmp(model, 'naive')
+        [STDP_prepost, STDP_postpre] = get_pairsSTDP(model, 'rel', stdp_params, int_scheme, dt, 200, 1);
+    elseif strcmp(model, 'pheno')
+        [rho_prepost, rho_postpre] = get_pairsSTDP(model, 'abs', stdp_params, int_scheme, dt, 200, 1);
+        STDP_prepost = [rho_prepost(:,1),transfer(rho_prepost(:,2), S_attr, noise_lvl)./w_0];
+        STDP_postpre = [rho_postpre(:,1),transfer(rho_postpre(:,2), S_attr, noise_lvl)./w_0];        
+    end
     
+    figure()
+    plot(STDP_prepost(:,1), STDP_prepost(:,2), '+g')
+    
+    hold on
+    plot(STDP_postpre(:,1), STDP_postpre(:,2), '+r')
+    
+    xlabel('Number of pairings')
+    ylabel('STDP')
 end
+
+% Tools
+
+function gamma_pot = balance_coefs(Cpre, Cpost, theta_dep, theta_pot, gamma_dep)
+    default = 1;
+    if Cpre < theta_dep && Cpost < theta_dep
+        r = default;
+    elseif Cpre < theta_dep && theta_pot < Cpost
+        r = log(Cpost/theta_dep)/log(Cpost/theta_pot);
+    elseif theta_dep < Cpre &&  Cpre < theta_pot && theta_pot < Cpost
+        r = (log(Cpre/theta_dep) + log(Cpost/theta_dep))/log(Cpost/theta_pot);
+    else
+        r = (log(Cpre/theta_dep) + log(Cpost/theta_dep))/(log(Cpre/theta_pot) + log(Cpost/theta_pot));
+    end
+    gamma_pot = r*gamma_dep;
+end
+
+   
