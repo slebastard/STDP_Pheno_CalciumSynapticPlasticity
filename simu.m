@@ -52,7 +52,7 @@ n_iter = 10;
 frequency = 1;
 
 model_params = [T, rho_0, Ca_params, dep_params, pot_params, tau_rho, noise_lvl];
-model = 'pheno'; %naive or pheno
+model = 'naive'; %naive or pheno
 
 int_scheme = 'euler_expl';
 scheme_step = 0.5;
