@@ -9,6 +9,7 @@ function [rho_hist, c_hist] = naive_model( pre_spikes_hist, post_spikes_hist, pa
 def_params = [...
     1000 ...        % T         total simu time     (ms)
     .3 ...          % rho_0     init syn strength
+    1 ...           % rho_max   max syn strength
     1 ...           % C_pre
     2 ...           % C_post
     20 ...          % tau_Ca
@@ -53,23 +54,24 @@ end
 
 T = params(1);
 rho_0 = params(2);
+rho_max = params(3);
 
 step = int_step;
 n_steps = T / step;
 
-C_pre = params(3);
-C_post = params(4);
-tau_Ca = params(5);
-delay_pre = params(6);
+C_pre = params(4);
+C_post = params(5);
+tau_Ca = params(6);
+delay_pre = params(7);
 
-theta_dep = params(7);
-gamma_dep = params(8);
+theta_dep = params(8);
+gamma_dep = params(9);
 
-theta_pot = params(9);
-gamma_pot = params(10);
+theta_pot = params(10);
+gamma_pot = params(11);
 
-tau = params(11);
-sigma = params(12);
+tau = params(12);
+sigma = params(13);
 
 eq_thr = 1e-5;
 

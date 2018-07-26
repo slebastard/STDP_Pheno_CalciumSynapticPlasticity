@@ -1,4 +1,4 @@
-function [rho_hist, w_hist, c_hist] = pheno_model( pre_spikes_hist, post_spikes_hist, params, int_scheme, int_step, noise_lvl)
+function [rho_hist, w_hist, c_hist] = pheno_model( pre_spikes_hist, post_spikes_hist, params, int_scheme, int_step)
 %NAIVE_MODEL Simulates the behavior of a synapse whose behavior follows the
 %naive Calcium_based dynamics
 %   Detailed explanation goes here
@@ -9,7 +9,6 @@ function [rho_hist, w_hist, c_hist] = pheno_model( pre_spikes_hist, post_spikes_
 def_params = [...
     1000 ...        % T             total simu time     (ms)
     .3 ...          % rho_0         init syn strength
-    .3 ...         % w_0
     1 ...           % C_pre
     2 ...           % C_post
     20 ...          % tau_Ca
@@ -19,9 +18,10 @@ def_params = [...
     1.3 ...         % theta_pot
     321 ...         % gamma_pot
     150 ...         % tau_rho           syn plast time cst  (ms)
-    1000 ...        % tau_w
     0.6 ...         % theta_act
     0 ...           % sigma
+    .3 ...          % w_0
+    1000 ...        % tau_w
     ];
 
 switch nargin
@@ -56,7 +56,7 @@ end
 
 T = params(1);
 rho_0 = params(2);
-w_0 = params(3);
+rho_max = params(3);
 
 step = int_step;
 n_steps = T / step;
@@ -73,9 +73,11 @@ theta_pot = params(10);
 gamma_pot = params(11);
 
 tau_rho = params(12);
-tau_w = params(13);
-theta_act = params(14);
-sigma = params(15);
+sigma = params(13);
+
+w_0 = params(14);
+tau_w = params(15);
+theta_act = params(16);
 
 eq_thr = 1e-5;
 S_attr = 40;
@@ -110,8 +112,8 @@ evts = sortrows(evts, 1);
 if strcmp(int_scheme, 'euler_expl')
     % Initiate simulation %
     %%%%%%%%%%%%%%%%%%%%%%%
-    rho = params(2);
-    w = params(3);
+    rho = rho_0;
+    w = w_0;
     t = 0;
     c = 0;
     

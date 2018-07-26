@@ -12,6 +12,7 @@ function [STDP_prepost, STDP_postpre] = get_pairsSTDP(model, mode, params, int_s
 def_params = [...
     1000 ...        % T         total simu time     (ms)
     .3 ...          % rho_0     init syn strength
+    1 ...           % rho_max
     1 ...           % C_pre
     2 ...           % C_post
     20 ...          % tau_Ca
@@ -22,11 +23,7 @@ def_params = [...
     321 ...         % gamma_pot
     150 ...         % tau       syn plast time cst  (ms)
     2.85 ...        % sigma     noise level
-    -75 ...         % t_min
-    75 ...          % t_max
-    3 ...           % dt        step of d_t grid
-    60 ...          % n_iter    nb of spike pairs
-    1 ...           % freq                          (Hz)
+    1 ...           % frequency
     ];
 
 switch nargin
@@ -74,39 +71,60 @@ end
 % Unpacking params %
 %%%%%%%%%%%%%%%%%%%%
 
-T = params(1);
+if strcmp(model, 'naive')
+    T = params(1);
+    rho_0 = params(2);
+    rho_max = params(3);
+    C_pre = params(4);
+    C_post = params(5);
+    tau_Ca = params(6);
+    delay_pre = params(7);
 
-rho_0 = params(2);
-C_pre = params(3);
-C_post = params(4);
-tau_Ca = params(5);
-delay_pre = params(6);
+    theta_dep = params(8);
+    gamma_dep = params(9);
 
-theta_dep = params(7);
-gamma_dep = params(8);
+    theta_pot = params(10);
+    gamma_pot = params(11);
 
-theta_pot = params(9);
-gamma_pot = params(10);
+    tau_rho = params(12);
+    sigma = params(13);
 
-tau = params(11);
-sigma = params(12);
+    freq = params(14);
+elseif strcmp(model, 'pheno')
+    T = params(1);
+    rho_0 = params(2);
+    rho_max = params(3);
+    C_pre = params(4);
+    C_post = params(5);
+    tau_Ca = params(6);
+    delay_pre = params(7);
 
-t_min = params(13);
-t_max = params(14);
+    theta_dep = params(8);
+    gamma_dep = params(9);
 
-n_iter = params(16);
-freq = params(17);
+    theta_pot = params(10);
+    gamma_pot = params(11);
+
+    tau_rho = params(12);
+    sigma = params(13);
+
+    w_0 = params(14);
+    tau_w = params(15);
+    theta_act = params(16);
+    
+    freq = params(17);
+end
+
+int_step = 0.5;
 
 %% Running simulations, returning STDP curve
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-rho_max = 199.8;
 
 n_points = floor(pairs_max/step);
 STDP_prepost = [];
 STDP_postpre = [];
 
-perm_regime = (freq/1000 < 1/(t_max + 10*tau_Ca));
+perm_regime = (freq/1000 < 1/(dt + 10*tau_Ca));
 
 function r = Ca_topTheta_rate(theta, dt)
 
@@ -160,9 +178,9 @@ if perm_regime
     r_pot = Ca_topTheta_rate(theta_pot, dt-delay_pre);
     r_dep = Ca_topTheta_rate(theta_dep, dt-delay_pre) - r_pot;
     % ...then get the analytic STDP curve
-    a = exp(-(r_dep*gamma_dep + r_pot*(gamma_dep+gamma_pot))/((freq/1000)*tau));
-    b = rho_max*(gamma_pot/(gamma_pot + gamma_dep)) * exp(-(r_dep*gamma_dep)/(tau*(freq/1000))) .* (1 - exp(-(r_pot*(gamma_pot+gamma_dep))/(tau*(freq/1000))));
-    c = sigma * sqrt((r_pot + r_dep)./(tau*freq));
+    a = exp(-(r_dep*gamma_dep + r_pot*(gamma_dep+gamma_pot))/((freq/1000)*tau_rho));
+    b = rho_max*(gamma_pot/(gamma_pot + gamma_dep)) * exp(-(r_dep*gamma_dep)/(tau_rho*(freq/1000))) .* (1 - exp(-(r_pot*(gamma_pot+gamma_dep))/(tau_rho*(freq/1000))));
+    c = sigma * sqrt((r_pot + r_dep)./(tau_rho*freq));
     
     rho_lim = b ./ (1-a);
     rho_lim(isnan(rho_lim)) = rho_0;
@@ -171,26 +189,37 @@ if perm_regime
         + c .* sqrt((1 - a.^(2.*n_iter))./(1 - a.^2)) .* randn(1,n_points); % final EPSP amplitude
 
     rho(isnan(rho)) = rho_0;
-    
-    if strcmp(mode, 'rel')
-        STDP_prepost = transpose(cat(1, n_iter, rho/rho_0));
-    elseif strcmp(mode, 'abs')
-        STDP_prepost = transpose(cat(1, n_iter, rho));
-    elseif strcmp(mode, 'lim')
-        STDP_prepost = transpose(cat(1, n_iter, rho_lim));
-    else
-        error('Unknown mode')
+
+    if strcmp(model, 'naive')
+        if strcmp(mode, 'rel')
+            STDP_prepost = transpose(cat(1, n_iter, rho/rho_0));
+        elseif strcmp(mode, 'abs')
+            STDP_prepost = transpose(cat(1, n_iter, rho));
+        elseif strcmp(mode, 'lim')
+            STDP_prepost = transpose(cat(1, n_iter, rho_lim));
+        else
+            error('Unknown mode')
+        end
+    elseif strcmp(model, 'pheno')
+        if strcmp(mode, 'rel')
+            STDP_prepost = transpose(cat(1, n_iter, transfer(rho, S_attr, sigma)./w_0));
+        elseif strcmp(mode, 'abs')
+            STDP_prepost = transpose(cat(1, n_iter, transfer(rho, S_attr, sigma)));
+        elseif strcmp(mode, 'lim')
+            STDP_prepost = transpose(cat(1, n_iter, transfer(rho_lim, S_attr, sigma)));
+        else
+            error('Unknown mode')
+        end
     end
-    
     
     
     % Same for post-pre stimulation now...
     r_pot = Ca_topTheta_rate(theta_pot, -dt-delay_pre);
     r_dep = Ca_topTheta_rate(theta_dep, -dt-delay_pre) - r_pot;
     % ...then get the analytic STDP curve
-    a = exp(-(r_dep*gamma_dep + r_pot*(gamma_dep+gamma_pot))/((freq/1000)*tau));
-    b = rho_max*(gamma_pot/(gamma_pot + gamma_dep)) * exp(-(r_dep*gamma_dep)/(tau*(freq/1000))) .* (1 - exp(-(r_pot*(gamma_pot+gamma_dep))/(tau*(freq/1000))));
-    c = sigma * sqrt((r_pot + r_dep)./(tau*freq));
+    a = exp(-(r_dep*gamma_dep + r_pot*(gamma_dep+gamma_pot))/((freq/1000)*tau_rho));
+    b = rho_max*(gamma_pot/(gamma_pot + gamma_dep)) * exp(-(r_dep*gamma_dep)/(tau_rho*(freq/1000))) .* (1 - exp(-(r_pot*(gamma_pot+gamma_dep))/(tau_rho*(freq/1000))));
+    c = sigma * sqrt((r_pot + r_dep)./(tau_rho*freq));
     
     rho_lim = b ./ (1-a);
     rho_lim(isnan(rho_lim)) = rho_0;
@@ -200,21 +229,33 @@ if perm_regime
 
     rho(isnan(rho)) = rho_0;
     
-    if strcmp(mode, 'rel')
-        STDP_postpre = transpose(cat(1, n_iter, rho/rho_0));
-    elseif strcmp(mode, 'abs')
-        STDP_postpre = transpose(cat(1, n_iter, rho));
-    elseif strcmp(mode, 'lim')
-        STDP_postpre = transpose(cat(1, n_iter, rho_lim));
-    else
-        error('Unknown mode')
+    if strcmp(model, 'naive')
+        if strcmp(mode, 'rel')
+            STDP_postpre = transpose(cat(1, n_iter, rho/rho_0));
+        elseif strcmp(mode, 'abs')
+            STDP_postpre = transpose(cat(1, n_iter, rho));
+        elseif strcmp(mode, 'lim')
+            STDP_postpre = transpose(cat(1, n_iter, rho_lim));
+        else
+            error('Unknown mode')
+        end
+    elseif strcmp(model, 'pheno')
+        if strcmp(mode, 'rel')
+            STDP_postpre = transpose(cat(1, n_iter, transfer(rho, S_attr, sigma)./w_0));
+        elseif strcmp(mode, 'abs')
+            STDP_postpre = transpose(cat(1, n_iter, transfer(rho, S_attr, sigma)));
+        elseif strcmp(mode, 'lim')
+            STDP_postpre = transpose(cat(1, n_iter, transfer(rho_lim, S_attr, sigma)));
+        else
+            error('Unknown mode')
+        end
     end
  
 else
     
     % When we cannot consider that pairs of spikes are independent, we
     % compute the curve by individual simulations...
-    for n_iter = linspace(1, n_iter, n_points)
+    for n_iter = linspace(1, pairs_max, n_points)
         % Define the calcium bumps history
 
         pre_spikes_hist = linspace(0, 1000*(n_iter-1)/freq, n_iter);
@@ -223,19 +264,31 @@ else
         % Simulate the evolution of synaptic strength through model -
         % COMPARE TO ANALYTIC
         if strcmp(model, 'naive')
-            params(1) = 1000*(n_iter-1)/freq + 10*tau_Ca;
-            [rho_hist, ~] = naive_model(pre_spikes_hist, post_spikes_hist, params(1:12), int_scheme, int_step);
+            [rho_hist, ~] = naive_model(pre_spikes_hist, post_spikes_hist, params(1:13), int_scheme, int_step);
             q_rho = rho_hist(end)/rho_hist(1);
             
             if strcmp(mode, 'rel')
-                STDP_prepost = cat(1, STDP, [n_iter, q_rho]);
+                STDP_prepost = cat(1, STDP_prepost, [n_iter, q_rho]);
             elseif strcmp(mode, 'abs')
-                STDP_prepost = cat(1, STDP, [n_iter, rho_hist(end)]);
+                STDP_prepost = cat(1, STDP_prepost, [n_iter, rho_hist(end)]);
             elseif strcmp(mode, 'lim')
                 error('Limit mode not supported for transient mode of activity. Please lower frequency')
             else
                 error('Unknown mode')
             end
+        elseif strcmp(model, 'pheno')
+            [~, w_hist, ~] = pheno_model(pre_spikes_hist, post_spikes_hist, params(1:16), int_scheme, int_step);
+            q_w = w_hist(end)/w_hist(1);
+            
+            if strcmp(mode, 'rel')
+                STDP_prepost = cat(1, STDP_prepost, [n_iter, q_w]);
+            elseif strcmp(mode, 'abs')
+                STDP_prepost = cat(1, STDP_prepost, [n_iter, w_hist(end)]);
+            elseif strcmp(mode, 'lim')
+                error('Limit mode not supported for transient mode of activity. Please lower frequency')
+            else
+                error('Unknown mode')
+            end 
         end
         
         
@@ -243,19 +296,31 @@ else
         pre_spikes_hist = post_spikes_hist + dt;
         
         if strcmp(model, 'naive')
-            params(1) = 1000*(n_iter-1)/freq + 10*tau_Ca;
-            [rho_hist, ~] = naive_model(pre_spikes_hist, post_spikes_hist, params(1:12), int_scheme, int_step);
+            [rho_hist, ~] = naive_model(pre_spikes_hist, post_spikes_hist, params(1:13), int_scheme, int_step);
             q_rho = rho_hist(end)/rho_hist(1);
             
             if strcmp(mode, 'rel')
-                STDP_postpre = cat(1, STDP, [n_iter, q_rho]);
+                STDP_postpre = cat(1, STDP_postpre, [n_iter, q_rho]);
             elseif strcmp(mode, 'abs')
-                STDP_postpre = cat(1, STDP, [n_iter, rho_hist(end)]);
+                STDP_postpre = cat(1, STDP_postpre, [n_iter, rho_hist(end)]);
             elseif strcmp(mode, 'lim')
                 error('Limit mode not supported for transient mode of activity. Please lower frequency')
             else
                 error('Unknown mode')
             end
+        elseif strcmp(model, 'pheno')
+            [~, w_hist, ~] = pheno_model(pre_spikes_hist, post_spikes_hist, params(1:16), int_scheme, int_step);
+            q_w = w_hist(end)/w_hist(1);
+            
+            if strcmp(mode, 'rel')
+                STDP_postpre = cat(1, STDP_postpre, [n_iter, q_w]);
+            elseif strcmp(mode, 'abs')
+                STDP_postpre = cat(1, STDP_postpre, [n_iter, w_hist(end)]);
+            elseif strcmp(mode, 'lim')
+                error('Limit mode not supported for transient mode of activity. Please lower frequency')
+            else
+                error('Unknown mode')
+            end 
         end
         
     end
