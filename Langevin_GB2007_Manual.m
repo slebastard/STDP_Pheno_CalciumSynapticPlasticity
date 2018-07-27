@@ -151,17 +151,19 @@ params.rate_PSD = 0.05;
 
 V=(1e-15)*params.hgt*pi*params.rad_psd^2;
 
-simu_bootstrap.t0=0; simu_bootstrap.tfinal=50;
+simu_bootstrap.t0=0; simu_bootstrap.tfinal=40;
 simu_bootstrap.base_step = 1;
-simu_bootstrap.n_threads = 1;
+simu_bootstrap.n_threads = 10;
 simu_bootstrap.n_repetes = 1;
 simu_bootstrap.sigma = 0; %1/sqrt(V*params.NA);
+simu_bootstrap.tol = 1e-2;
 
-simu.t0=0; simu.tfinal=50;
+simu.t0=0; simu.tfinal=30;
 simu.base_step = 1;
-simu.n_threads = 1;
+simu.n_threads = 10;
 simu.n_repetes = 1;
 simu.sigma = 0; %1/sqrt(V*params.NA);
+simu.tol = 1e-2;
 
 % Sample uniformly and boostrap to get set of natural conditions
 
@@ -318,6 +320,7 @@ function [y,ts] = stimulate(in_CaInit, tstim, p, v, s)
     t = s.t0*ones(1,s.n_threads*s.n_repetes); ts = t;
     dt = s.base_step*ones(1,s.n_threads*s.n_repetes);
 
+    err = 1;
     while any(t < s.tfinal)
         % ODEs update
         tCa = Ca;
@@ -338,9 +341,11 @@ function [y,ts] = stimulate(in_CaInit, tstim, p, v, s)
         tI1P = I1P;
         tmu = mu;
 
-        err = 1; tol=5e-2; stop_dt_eval=0;
+        stop_dt_eval = 0;    
         while ~stop_dt_eval
             
+            dt = 0.9*dt.*min(max((s.tol./abs(err)),0.1),5);
+
             Ca_0 = tCa + (t>tstim).*dt.*( -1./(tauCa).*(tCa - CaBas));
             B1_0 = tB1 + dt.*( 6.*k6.*gam_u.^2.*B0 - 4.*k6.*gam_u.^2.*tB1 - chi.*gam_u.*tB1 + nu.*(2.*(tB2+tB3+tB4)-tB1));
             B2_0 = tB2 + dt.*( k6.*gam_u.^2.*tB1 + chi.*gam_u.*tB1 + nu.*(3.*(tB5+tB6+tB7+tB8)-2.*tB2) - 3.*k6.*gam_u.^2.*tB2 - chi.*gam_u.*tB2);
@@ -359,6 +364,21 @@ function [y,ts] = stimulate(in_CaInit, tstim, p, v, s)
             I1P_0 = tI1P + dt.*( -k11.*tI1P.*tPP1 + km11.*(PP10 - tPP1) + vPKA_I1.*(I10-tI1P) - vCaN_I1.*tI1P);
             mu_0 = tmu + dt.*( 6.*(M-tmu).*(kbc.*gam_u).*S0 + (M-tmu).*(kbpc.*gam_p + kbp.*(1-gam_p) - kbc.*gam_u).*Sp);
     
+            C_0 = CaM./(1 + L4./Ca_0 + L3.*L4./(Ca_0.^2) + L2.*L3.*L4./(Ca_0.^3) + L1.*L2.*L3.*L4./(Ca_0.^4));
+            gam_u_0 = C_0./(K5 + C_0);
+            gam_p_0 = C_0./(K9 + C_0); 
+            S0_0 = B1_0 + B2_0 + B3_0 + B4_0 + B5_0 + B6_0 + B7_0 + B8_0 + B9_0 + B10_0 + B11_0 + B12_0 + B13_0;
+            B0_0 = Stot - S0_0;
+            Sp_0 = B1_0 + 2.*(B2_0 + B3_0 + B4_0) + 3.*(B5_0 + B6_0 + B7_0 + B8_0) + 4.*(B9_0 + B10_0 + B11_0) + 5.*B12_0 + 6.*B13_0;
+            Su_0 = 6.*Stot - Sp_0; 
+            k10_0 = k12./(KM + Sp_0);   
+            Cb_0 = gam_u_0.*Su_0 + gam_p_0.*Sp_0;
+            chi_0 = k7.*gam_p_0 + k8.*(1 - gam_p_0);
+            nu_0 = k10_0.*PP1_0;
+            AMPA_bnd_0 = 2.*(B2_0+B3_0+B4_0) + 6.*(B5_0+B6_0+B7_0+B8_0) + 12.*(B9_0+B10_0+B11_0) + 20.*B12_0 + 30.*B13_0;
+            vPKA_I1_0 = kpka0_I1 + kpka_I1./(1 + (Kdpka./(C_0-Cb_0)).^npka);
+            vCaN_I1_0 = kcan0_I1 + kcan_I1./(1 + (Kdcan./(C_0-Cb_0)).^ncan);
+
             Ca_demi = Ca + 0.5*(t>tstim).*dt.*( -1./(tauCa).*(tCa - CaBas));
             B1_demi = tB1 + 0.5*dt.*( 6.*k6.*gam_u.^2.*B0 - 4.*k6.*gam_u.^2.*tB1 - chi.*gam_u.*tB1 + nu.*(2.*(tB2+tB3+tB4)-tB1));
             B2_demi = tB2 + 0.5*dt.*( k6.*gam_u.^2.*tB1 + chi.*gam_u.*tB1 + nu.*(3.*(tB5+tB6+tB7+tB8)-2.*tB2) - 3.*k6.*gam_u.^2.*tB2 - chi.*gam_u.*tB2);
@@ -429,45 +449,44 @@ function [y,ts] = stimulate(in_CaInit, tstim, p, v, s)
             err_mu = zeros(1,s.n_threads*s.n_repetes);
     
             err = max([err_Ca; err_B1; err_B2; err_B3; err_B4; err_B5; err_B6; err_B7; err_B8; err_B9; err_B10; err_B11; err_B12; err_B13; err_PP1; err_I1P; err_mu]);
-            stop_dt_eval = ~any(err > tol);         
-            
-            dt = 0.9*dt.*min(max((tol./abs(err)),0.2),5);
+            stop_dt_eval = ~any(err > s.tol);
         end
 
-        Ca = Ca_1 + s.sigma.*sqrt(dt.*( 6.*k6.*gam_u.^2.*B0 + 4.*k6.*gam_u.^2.*tB1 + chi.*gam_u.*tB1 + nu.*(2.*(tB2+tB3+tB4)-tB1) )) .* randn(1, s.n_threads*s.n_repetes);
-        B1 = B1_1 + s.sigma.*sqrt(dt.*( k6.*gam_u.^2.*tB1 + chi.*gam_u.*tB1 + nu.*(3.*(tB5+tB6+tB7+tB8)-2.*tB2) + 3.*k6.*gam_u.^2.*tB2 + chi.*gam_u.*tB2 )) .* randn(1, s.n_threads*s.n_repetes);
-        B2 = B2_1 + s.sigma.*sqrt(dt.*( 2.*k6.*gam_u.^2.*tB1 + nu.*(3.*(tB5+tB6+tB7+tB8)-2.*tB3) + 3.*k6.*gam_u.^2.*tB3 + chi.*gam_u.*tB3 )) .* randn(1, s.n_threads*s.n_repetes);
-        B3 = B3_1 + s.sigma.*sqrt(dt.*( k6.*gam_u.^2.*tB1 + nu.*(3.*(tB5+tB6+tB7+tB8)-2.*tB4) + 2.*k6.*gam_u.^2.*tB4 + 2.*chi.*gam_u.*tB4 )) .* randn(1, s.n_threads*s.n_repetes);
-        B4 = B4_1 + s.sigma.*sqrt(dt.*( k6.*gam_u.^2.*(tB2+tB3) + chi.*gam_u.*tB2 + nu.*(4.*(tB9+tB10+tB11)-3.*tB5) + 2.*k6.*gam_u.^2.*tB5 + chi.*gam_u.*tB5 )) .* randn(1, s.n_threads*s.n_repetes);
-        B5 = B5_1 + s.sigma.*sqrt(dt.*( k6.*gam_u.^2.*(tB2+tB3) + 2.*chi.*gam_u.*tB4 + nu.*(4.*(tB9+tB10+tB11)-3.*tB6) + k6.*gam_u.^2.*tB6 + 2.*chi.*gam_u.*tB6 )) .* randn(1, s.n_threads*s.n_repetes);
-        B6 = B6_1 + s.sigma.*sqrt(dt.*( k6.*gam_u.^2.*(tB2+2.*tB4) + chi.*gam_u.*tB3 + nu.*(4.*(tB9+tB10+tB11)-3.*tB7) + k6.*gam_u.^2.*tB7 + 2.*chi.*gam_u.*tB7 )) .* randn(1, s.n_threads*s.n_repetes);
-        B7 = B7_1 + s.sigma.*sqrt(dt.*( k6.*gam_u.^2.*tB3 + nu.*(4.*(tB9+tB10+tB11)-3.*tB8) + 3.*chi.*gam_u.*tB8 )) .* randn(1, s.n_threads*s.n_repetes);
-        B8 = B8_1 + s.sigma.*sqrt(dt.*( k6.*gam_u.^2.*tB5 + chi.*gam_u.*(tB6+tB7) + nu.*(5.*tB12-4.*tB9) + k6.*gam_u.^2.*tB9 + chi.*gam_u.*tB9 )) .* randn(1, s.n_threads*s.n_repetes);
-        B9 = B9_1 + s.sigma.*sqrt(dt.*( k6.*gam_u.^2.*(tB5+tB6) + chi.*gam_u.*(tB7+tB8) + nu.*(5.*tB12-4.*tB10) + 2.*chi.*gam_u.*tB10 )) .* randn(1, s.n_threads*s.n_repetes);
-        B10 = B10_1 + s.sigma.*sqrt(dt.*( k6.*gam_u.^2.*tB7 + chi.*gam_u.*tB6 + nu.*(5.*tB12-4.*tB11) + 2.*chi.*gam_u.*tB11 )) .* randn(1, s.n_threads*s.n_repetes);
-        B11 = B11_1 + s.sigma.*sqrt(dt.*( k6.*gam_u.^2.*tB9 + chi.*gam_u.*(tB9+2.*tB10+2.*tB11) + nu.*(6.*tB13-5.*tB12) + chi.*gam_u.*tB12 )) .* randn(1, s.n_threads*s.n_repetes);
-        B12 = B12_1 + s.sigma.*sqrt(dt.*( chi.*gam_u.*tB12 + nu.*6.*tB13 )) .* randn(1, s.n_threads*s.n_repetes);
-        B13 = B13_1 + s.sigma.*sqrt(dt.*( k11.*tI1P.*tPP1 + km11.*(PP10-tPP1) )) .* randn(1, s.n_threads*s.n_repetes);
-        PP1 = PP1_1 + s.sigma.*sqrt(dt.*( k11.*tI1P.*tPP1 + km11.*(PP10-tPP1) + vPKA_I1.*(I10-tI1P) + vCaN_I1.*tI1P )) .* randn(1, s.n_threads*s.n_repetes);
-        mu = mu_1 + s.sigma.*sqrt(dt.*(6.*(M-tmu).*(kbc.*gam_u).*S0 + (M-tmu).*(kbpc.*gam_p + kbp.*(1-gam_p) + kbc.*gam_u).*Sp )) .* randn(1, s.n_threads*s.n_repetes);
+        Ca = Ca_1;
+        B1 = B1_1 + s.sigma.*sqrt(dt.*( 6.*k6.*gam_u.^2.*B0 + 4.*k6.*gam_u.^2.*tB1 + chi.*gam_u.*tB1 + nu.*(2.*(tB2+tB3+tB4)-tB1))) .* randn(1, s.n_threads*s.n_repetes);
+        B2 = B2_1 + s.sigma.*sqrt(dt.*( k6.*gam_u.^2.*tB1 + chi.*gam_u.*tB1 + nu.*(3.*(tB5+tB6+tB7+tB8)-2.*tB2) + 3.*k6.*gam_u.^2.*tB2 + chi.*gam_u.*tB2)) .* randn(1, s.n_threads*s.n_repetes);
+        B3 = B3_1 + s.sigma.*sqrt(dt.*( 2.*k6.*gam_u.^2.*tB1 + nu.*(3.*(tB5+tB6+tB7+tB8)-2.*tB3) + 3.*k6.*gam_u.^2.*tB3 + chi.*gam_u.*tB3)) .* randn(1, s.n_threads*s.n_repetes);
+        B4 = B4_1 + s.sigma.*sqrt(dt.*( k6.*gam_u.^2.*tB1 + nu.*(3.*(tB5+tB6+tB7+tB8)-2.*tB4) + 2.*k6.*gam_u.^2.*tB4 + 2.*chi.*gam_u.*tB4)) .* randn(1, s.n_threads*s.n_repetes);
+        B5 = B5_1 + s.sigma.*sqrt(dt.*( k6.*gam_u.^2.*(tB2+tB3) + chi.*gam_u.*tB2 + nu.*(4.*(tB9+tB10+tB11)-3.*tB5) + 2.*k6.*gam_u.^2.*tB5 + chi.*gam_u.*tB5)) .* randn(1, s.n_threads*s.n_repetes);
+        B6 = B6_1 + s.sigma.*sqrt(dt.*( k6.*gam_u.^2.*(tB2+tB3) + 2.*chi.*gam_u.*tB4 + nu.*(4.*(tB9+tB10+tB11)-3.*tB6) + k6.*gam_u.^2.*tB6 + 2.*chi.*gam_u.*tB6)) .* randn(1, s.n_threads*s.n_repetes);
+        B7 = B7_1 + s.sigma.*sqrt(dt.*( k6.*gam_u.^2.*(tB2+2.*tB4) + chi.*gam_u.*tB3 + nu.*(4.*(tB9+tB10+tB11)-3.*tB7) + k6.*gam_u.^2.*tB7 + 2.*chi.*gam_u.*tB7)) .* randn(1, s.n_threads*s.n_repetes);
+        B8 = B8_1 + s.sigma.*sqrt(dt.*( k6.*gam_u.^2.*tB3 + nu.*(4.*(tB9+tB10+tB11)-3.*tB8) + 3.*chi.*gam_u.*tB8 )) .* randn(1, s.n_threads*s.n_repetes);
+        B9 = B9_1 + s.sigma.*sqrt(dt.*( k6.*gam_u.^2.*tB5 + chi.*gam_u.*(tB6+tB7) + nu.*(5.*tB12-4.*tB9) + k6.*gam_u.^2.*tB9 - chi.*gam_u.*tB9)) .* randn(1, s.n_threads*s.n_repetes);
+        B10 = B10_1 + s.sigma.*sqrt(dt.*( k6.*gam_u.^2.*(tB5+tB6) + chi.*gam_u.*(tB7+tB8) + nu.*(5.*tB12-4.*tB10) + 2.*chi.*gam_u.*tB10)) .* randn(1, s.n_threads*s.n_repetes);
+        B11 = B11_1 + s.sigma.*sqrt(dt.*( k6.*gam_u.^2.*tB7 + chi.*gam_u.*tB6 + nu.*(5.*tB12-4.*tB11) + 2.*chi.*gam_u.*tB11)) .* randn(1, s.n_threads*s.n_repetes);
+        B12 = B12_1 + s.sigma.*sqrt(dt.*( k6.*gam_u.^2.*tB9 + chi.*gam_u.*(tB9+2.*tB10+2.*tB11) + nu.*(6.*tB13-5.*tB12) + chi.*gam_u.*tB12)) .* randn(1, s.n_threads*s.n_repetes);
+        B13 = B13_1 + s.sigma.*sqrt(dt.*( chi.*gam_u.*tB12 + nu.*6.*tB13)) .* randn(1, s.n_threads*s.n_repetes);
+        PP1 = PP1_1 + s.sigma.*sqrt(dt.*( k11.*tI1P.*tPP1 + km11.*(PP10-tPP1))) .* randn(1, s.n_threads*s.n_repetes);
+        I1P = I1P_1 + s.sigma.*sqrt(dt.*( k11.*tI1P.*tPP1 + km11.*(PP10-tPP1) + vPKA_I1.*(I10-tI1P) + vCaN_I1.*tI1P)) .* randn(1, s.n_threads*s.n_repetes);
+        mu = mu_1 + s.sigma.*sqrt(dt.*( 6.*(M-tmu).*(kbc.*gam_u).*S0 + (M-tmu).*(kbpc.*gam_p + kbp.*(1-gam_p) + kbc.*gam_u).*Sp)) .* randn(1, s.n_threads*s.n_repetes);
         
-         Cas = [Cas; Ca];
-         B1s = [B1s; B1];
-         B2s = [B2s; B2];
-         B3s = [B3s; B3];
-         B4s = [B4s; B4];
-         B5s = [B5s; B5];
-         B6s = [B6s; B6];
-         B7s = [B7s; B7];
-         B8s = [B8s; B8];
-         B9s = [B9s; B9];
-         B10s = [B10s; B10];
-         B11s = [B11s; B11];
-         B12s = [B12s; B12];
-         B13s = [B13s; B13];
-         PP1s = [PP1s; PP1];
-         I1Ps = [I1Ps; I1P];
-         mus = [mus; mu];
+        Cas = [Cas; Ca];
+        B1s = [B1s; B1];
+        B2s = [B2s; B2];
+        B3s = [B3s; B3];
+        B4s = [B4s; B4];
+        B5s = [B5s; B5];
+        B6s = [B6s; B6];
+        B7s = [B7s; B7];
+        B8s = [B8s; B8];
+        B9s = [B9s; B9];
+        B10s = [B10s; B10];
+        B11s = [B11s; B11];
+        B12s = [B12s; B12];
+        B13s = [B13s; B13];
+        PP1s = [PP1s; PP1];
+        I1Ps = [I1Ps; I1P];
+        mus = [mus; mu];
 
          % Linear entities update
 
