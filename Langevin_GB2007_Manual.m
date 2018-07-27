@@ -113,7 +113,7 @@ savePlots = false;
 
 % VARIABLES AND PARAMETERS
 params.tauCa = 0.012;
-params.CaBas = 0.1;
+params.CaBas = 0.4;
 params.Stot = 33.3;
 params.CaM = in_CaM;
 params.K5 = 0.1;
@@ -155,13 +155,13 @@ simu_bootstrap.t0=0; simu_bootstrap.tfinal=50;
 simu_bootstrap.base_step = 1;
 simu_bootstrap.n_threads = 1;
 simu_bootstrap.n_repetes = 1;
-simu_bootstrap.sigma = 1/sqrt(V*params.NA);
+simu_bootstrap.sigma = 0; %1/sqrt(V*params.NA);
 
 simu.t0=0; simu.tfinal=50;
 simu.base_step = 1;
 simu.n_threads = 1;
 simu.n_repetes = 1;
-simu.sigma = 1/sqrt(V*params.NA);
+simu.sigma = 0; %1/sqrt(V*params.NA);
 
 % Sample uniformly and boostrap to get set of natural conditions
 
@@ -188,7 +188,7 @@ vars.B11 = initConds(12,:);
 vars.B12 = initConds(13,:);
 vars.B13 = initConds(14,:);
 
-[y_init,~] = stimulate(Ca_stim, t_stim, params, vars, simu_bootstrap);
+[y_init,t_init] = stimulate(Ca_stim, t_stim, params, vars, simu_bootstrap);
 
 % Use those states as initial conditions and stimulate
 vars.B0 = y_init.B0(end,:);
@@ -393,8 +393,8 @@ function [y,ts] = stimulate(in_CaInit, tstim, p, v, s)
             vCaN_I1_demi = kcan0_I1 + kcan_I1./(1 + (Kdcan./(C_demi-Cb_demi)).^ncan);
     
             Ca_1 = Ca_demi + 0.5*(t>tstim).*dt.*( -1./(tauCa).*(Ca_demi - CaBas));
-            B1_1 = B1_demi + 0.5*dt.*( 6.*k6.*gam_u_demi.^2.*B0_demi - 4.*k6.*gam_u_demi.^2.*B1_demi - chi_demi.*gam_u.*B1_demi + nu_demi.*(2.*(B2_demi+B3_demi+B4_demi)-B1_demi));
-            B2_1 = B2_demi + 0.5*dt.*( k6.*gam_u_demi.^2.*B1_demi + chi_demi.*gam_u.*B1_demi + nu_demi.*(3.*(B5_demi+B6_demi+B7_demi+B8_demi)-2.*B2_demi) - 3.*k6.*gam_u_demi.^2.*B2_demi - chi_demi.*gam_u_demi.*B2_demi);
+            B1_1 = B1_demi + 0.5*dt.*( 6.*k6.*gam_u_demi.^2.*B0_demi - 4.*k6.*gam_u_demi.^2.*B1_demi - chi_demi.*gam_u_demi.*B1_demi + nu_demi.*(2.*(B2_demi+B3_demi+B4_demi)-B1_demi));
+            B2_1 = B2_demi + 0.5*dt.*( k6.*gam_u_demi.^2.*B1_demi + chi_demi.*gam_u_demi.*B1_demi + nu_demi.*(3.*(B5_demi+B6_demi+B7_demi+B8_demi)-2.*B2_demi) - 3.*k6.*gam_u_demi.^2.*B2_demi - chi_demi.*gam_u_demi.*B2_demi);
             B3_1 = B3_demi + 0.5*dt.*( 2.*k6.*gam_u_demi.^2.*B1_demi + nu_demi.*(3.*(B5_demi+B6_demi+B7_demi+B8_demi)-2.*B3_demi) - 3.*k6.*gam_u_demi.^2.*B3_demi - chi_demi.*gam_u_demi.*B3_demi);
             B4_1 = B4_demi + 0.5*dt.*( k6.*gam_u_demi.^2.*B1_demi + nu_demi.*(3.*(B5_demi+B6_demi+B7_demi+B8_demi)-2.*B4_demi) - 2.*k6.*gam_u_demi.^2.*B4_demi - 2.*chi_demi.*gam_u_demi.*B4_demi);
             B5_1 = B5_demi + 0.5*dt.*( k6.*gam_u_demi.^2.*(B2_demi+B3_demi) + chi_demi.*gam_u_demi.*B2_demi + nu_demi.*(4.*(B9_demi+B10_demi+B11_demi)-3.*B5_demi) - 2.*k6.*gam_u_demi.^2.*B5_demi - chi_demi.*gam_u_demi.*B5_demi);
@@ -407,7 +407,7 @@ function [y,ts] = stimulate(in_CaInit, tstim, p, v, s)
             B12_1 = B12_demi + 0.5*dt.*( k6.*gam_u_demi.^2.*B9_demi + chi_demi.*gam_u_demi.*(B9_demi+2.*B10_demi+2.*B11_demi) + nu_demi.*(6.*B13_demi-5.*B12_demi) - chi_demi.*gam_u_demi.*B12_demi);
             B13_1 = B13_demi + 0.5*dt.*( chi_demi.*gam_u_demi.*B12_demi - nu_demi.*6.*B13_demi);
             PP1_1 = PP1_demi + 0.5*dt.*( -k11.*I1P_demi.*PP1_demi + km11.*(PP10 - PP1_demi));
-            I1P_1 = I1P_demi + 0.5*dt.*( -k11.*I1P_demi.*PP1_demi + km11.*(PP10 - PP1_demi) + vPKA_I1.*(I10-tI1P) - vCaN_I1.*tI1P);
+            I1P_1 = I1P_demi + 0.5*dt.*( -k11.*I1P_demi.*PP1_demi + km11.*(PP10 - PP1_demi) + vPKA_I1_demi.*(I10-I1P_demi) - vCaN_I1_demi.*I1P_demi);
             mu_1 = mu_demi + 0.5*dt.*( 6.*(M-mu_demi).*(kbc.*gam_u_demi).*S0_demi + (M-mu_demi).*(kbpc.*gam_p_demi + kbp.*(1-gam_p_demi) - kbc.*gam_u_demi).*Sp_demi);
     
             err_Ca = abs((Ca>0).*(Ca_1 - Ca_0)./Ca);
