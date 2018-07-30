@@ -18,16 +18,18 @@
 
 mode = 'STDP';
 
+freq_data = csvread('STDP_Frequency.csv',1,0);
+
+
 %% 0) Define the environment
 
 T = 10;
 rho_0 = 35; % must be between 0 and
 rho_max = 200;
 S_attr = 40;
-w_0 = transfer(rho_0, S_attr, 10);
 
-C_pre = 1;
-C_post = 2;
+C_pre = 0.8;
+C_post = 1.5;
 tau_Ca = 20;
 delay_pre = 5;
 Ca_params = [C_pre, C_post, tau_Ca, delay_pre];
@@ -37,21 +39,22 @@ gamma_dep = 200;
 dep_params = [theta_dep, gamma_dep];
 
 theta_pot = 1.3;
-gamma_pot = balance_coefs(C_pre, C_post, theta_dep, theta_pot, gamma_dep);
-% gamma_pot = 321;
+% gamma_pot = balance_coefs(C_pre, C_post, theta_dep, theta_pot, gamma_dep);
+gamma_pot = 200;
 pot_params = [theta_pot, gamma_pot];
 
 tau_rho = 1500; % this is larger than I expected. Ask Brunel about this
-tau_w = 2000;
+tau_w = 5000;
 
-N_A = 6.02e23; %mol^(-1)
+N_A = 6.02e17; %mumol^(-1)
 V = 2.5e-16; %L
-theta_act = 0.6;
+theta_act = theta_dep;
 
 % Modeling noise
-noise_lvl = 0; %1/sqrt(N_A*V);
+noise_lvl = 20; %1/sqrt(N_A*V);
+w_0 = transfer(rho_0, S_attr, noise_lvl);
 
-n_iter = 10;
+n_iter = 100;
 frequency = 1;
 
 model = 'pheno'; %naive or pheno
@@ -67,9 +70,9 @@ scheme_step = 0.5;
 
 %% 1) Define the stimulation history
 d_t = 20;
-pre_spikes_hist = linspace(0, 1000*(n_iter-1)/frequency, n_iter);
+pre_spikes_hist = linspace(0, 1000*(n_iter-1)./frequency, n_iter);
 post_spikes_hist = pre_spikes_hist + d_t;
-T = 1000*(n_iter-1)/frequency + abs(d_t) + 10*tau_w;
+T = max(1000*(n_iter-1)./frequency + abs(d_t) + 10*tau_w);
 model_params(1) = T;
 
 %% 2) Full evolution of syn plast on a single simulation
@@ -127,15 +130,15 @@ if strcmp(mode, 'STDP') || strcmp(mode, 'all')
     dt = 0.5;
 
     stdp_params = [model_params, t_min, t_max, dt, n_iter, frequency];
-    STDP = get_STDP(model, 'rel', stdp_params, int_scheme, scheme_step);
+    %STDP = get_STDP(model, 'rel', stdp_params, int_scheme, scheme_step);
     % Validation against simulation
-    % [STDP_an, STDP_sim] = get_both_STDP(model, 'rel', stdp_params, int_scheme, scheme_step);
+    [STDP_an, STDP_sim] = get_both_STDP(model, 'rel', stdp_params, int_scheme, scheme_step);
 
     figure(3)
-    plot(STDP(:,1), STDP(:,2), '+r');
-%     plot(STDP_an(:,1), STDP_an(:,2), '+r');
-%     hold on
-%     plot(STDP_sim(:,1), STDP_sim(:,2), 'xg');
+    % plot(STDP(:,1), STDP(:,2), '+r');
+    plot(STDP_an(:,1), STDP_an(:,2), '+r');
+    hold on
+    plot(STDP_sim(:,1), STDP_sim(:,2), 'xg');
     
     title('Plasticity as a function of pre-post spike delay')
     xlabel('Pre-post spike delay (ms)')
@@ -200,25 +203,70 @@ end
 %     hold off
 % end
 % 
-%% Frequency - dt - heatmap
-% if strcmp(mode, 'freq_heat')
-%     tmin = -75;
-%     tmax = 75;
-%     dt = 3;
-%     freq_min = 1;
-%     freq_max = 2;
-%     freq_step = 2;
-%     n_iter = 10;
-%     heatmap_params = [tmin, tmax, dt, freq_min, freq_max, freq_step, n_iter];
-%     
-%     heatmap = get_freq_heatmap(model, model_params, heatmap_params, int_scheme, int_step);
-%     
-%     figure(6)
-%     heatfreq_plot = heatmap(heatmap(:,3),heatmap(:,1),heatmap(:,2));
-%     heatfreq_plot.Title = 'Relative change in syn plast as a function of frequency and dt';
-%     heatfreq_plot.XLabel = 'Frequency';
-%     heatfreq_plot.YLabel = 'dt';
-% end
+%% Frequency - dt - scatter3
+
+if strcmp(mode, 'freq3')
+    dtmin = -50;
+    dtmax = 50;
+    step_dt = 10;
+    dt_params=[dtmin, dtmax, step_dt];
+    
+    freq_max = 20;
+    freq_step = 2;
+    freq_params = [freq_max, freq_step];
+    
+    n_iter = 100;
+    
+    heatmap_params = [model_params, n_iter];
+    frq_htmp = get_freq_heatmap(model, 'rel', heatmap_params, int_scheme, dt_params, freq_params);
+    
+    figure(6)
+    scatter3(frq_htmp(:,1),frq_htmp(:,2),frq_htmp(:,3));
+    title = 'Relative change in syn plast as a function of frequency and dt';
+    xlabel = 'Frequency';
+    ylabel = 'dt';
+end
+
+%% NIGHTRUN - Freq-dt scatter 3
+
+if strcmp(mode, 'Nightrun_freq3')
+    dtmin = -50;
+    dtmax = 50;
+    step_dt = 10;
+    
+    noisemin = 1;
+    noisemax = 101;
+    noisestep = 5;
+    
+    n_noises = 1+(noisemax-noisemin)/noisestep;
+    
+    freq_maps = [];
+    
+    for id=1:n_noises
+        
+        noise_lvl = 20; %1/sqrt(N_A*V);
+        w_0 = transfer(rho_0, S_attr, noise_lvl);
+
+        if strcmp(model, 'naive')
+            model_params = [T, rho_0, rho_max, Ca_params, dep_params, pot_params, tau_rho, noise_lvl];
+        elseif strcmp(model, 'pheno')
+            model_params = [T, rho_0, rho_max, Ca_params, dep_params, pot_params, tau_rho, noise_lvl, w_0, tau_w, theta_act];
+        end
+
+        dt_params=[dtmin, dtmax, step_dt];
+
+        freq_max = 20;
+        freq_step = 2;
+        freq_params = [freq_max, freq_step];
+
+        n_iter = 100;
+
+        heatmap_params = [model_params, n_iter];
+        freq_maps = cat(3,freq_maps,get_freq_heatmap(model, 'rel', heatmap_params, int_scheme, dt_params, freq_params));
+    end
+end
+
+
 
 %% Nb Pairs - STDP
 if strcmp(mode, 'pairs')
@@ -226,13 +274,7 @@ if strcmp(mode, 'pairs')
     step_pairs = 1;
     
     pairs_params = [model_params, frequency];
-    if strcmp(model, 'naive')
-        [numpairs_prepost, numpairs_postpre] = get_pairsSTDP(model, 'rel', pairs_params, int_scheme, d_t, max_pairs, step_pairs);
-    elseif strcmp(model, 'pheno')
-        [rho_prepost, rho_postpre] = get_pairsSTDP(model, 'abs', pairs_params, int_scheme, d_t, max_pairs, step_pairs);
-        numpairs_prepost = [rho_prepost(:,1),transfer(rho_prepost(:,2), S_attr, noise_lvl)./w_0];
-        numpairs_postpre = [rho_postpre(:,1),transfer(rho_postpre(:,2), S_attr, noise_lvl)./w_0];        
-    end
+    [numpairs_prepost, numpairs_postpre] = get_pairsSTDP(model, 'rel', pairs_params, int_scheme, d_t, max_pairs, step_pairs);
     
     figure(4)
     plot(numpairs_prepost(:,1), numpairs_prepost(:,2), '+g')

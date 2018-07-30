@@ -116,6 +116,7 @@ elseif strcmp(model, 'pheno')
 end
 
 int_step = 0.5;
+S_attr = 40;
 
 %% Running simulations, returning STDP curve
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
