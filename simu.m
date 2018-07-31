@@ -16,7 +16,7 @@
 % pairs     Step 6 only
 % all       Steps 2 to 4
 
-mode = 'STDP';
+mode = 'single';
 
 freq_data = csvread('STDP_Frequency.csv',1,0);
 
@@ -80,7 +80,7 @@ if strcmp(mode, 'single') || strcmp(mode, 'all')
     if strcmp(model, 'naive')
         [rho_hist, c_hist] = naive_model(pre_spikes_hist, post_spikes_hist, model_params, int_scheme, scheme_step);
     elseif strcmp(model, 'pheno')
-        [rho_hist, w_hist, c_hist] = pheno_model(pre_spikes_hist, post_spikes_hist, model_params, int_scheme, scheme_step);
+        [rho_hist, w_hist, c_hist] = pheno_model_efficient(pre_spikes_hist, post_spikes_hist, model_params, int_scheme, scheme_step);
     end
 
     % Plotting rho as a function of time
@@ -233,37 +233,22 @@ if strcmp(mode, 'Nightrun_freq3')
     dtmin = -50;
     dtmax = 50;
     step_dt = 10;
+    dt_params=[dtmin, dtmax, step_dt];
     
-    noisemin = 1;
-    noisemax = 101;
-    noisestep = 5;
+    freq_max = 20;
+    freq_step = 2;
+    freq_params = [freq_max, freq_step];
     
-    n_noises = 1+(noisemax-noisemin)/noisestep;
+    n_iter = 100;
     
-    freq_maps = [];
+    heatmap_params = [model_params, n_iter];
+    frq_htmp = get_freq_heatmap(model, 'rel', heatmap_params, int_scheme, dt_params, freq_params);
     
-    for id=1:n_noises
-        
-        noise_lvl = 20; %1/sqrt(N_A*V);
-        w_0 = transfer(rho_0, S_attr, noise_lvl);
-
-        if strcmp(model, 'naive')
-            model_params = [T, rho_0, rho_max, Ca_params, dep_params, pot_params, tau_rho, noise_lvl];
-        elseif strcmp(model, 'pheno')
-            model_params = [T, rho_0, rho_max, Ca_params, dep_params, pot_params, tau_rho, noise_lvl, w_0, tau_w, theta_act];
-        end
-
-        dt_params=[dtmin, dtmax, step_dt];
-
-        freq_max = 20;
-        freq_step = 2;
-        freq_params = [freq_max, freq_step];
-
-        n_iter = 100;
-
-        heatmap_params = [model_params, n_iter];
-        freq_maps = cat(3,freq_maps,get_freq_heatmap(model, 'rel', heatmap_params, int_scheme, dt_params, freq_params));
-    end
+    figure(6)
+    scatter3(frq_htmp(:,1),frq_htmp(:,2),frq_htmp(:,3));
+    title = 'Relative change in syn plast as a function of frequency and dt';
+    xlabel = 'Frequency';
+    ylabel = 'dt';
 end
 
 
