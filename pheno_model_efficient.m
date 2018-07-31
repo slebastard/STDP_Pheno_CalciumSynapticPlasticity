@@ -15,7 +15,7 @@ def_params = [...
     3 ...           % delay_pre
     1 ...           % theta_dep
     200 ...         % gamma_dep
-    1.3 ...         % theta_pot
+    1.3 ...        pheno % theta_pot
     321 ...         % gamma_pot
     150 ...         % tau_rho           syn plast time cst  (ms)
     0.6 ...         % theta_act
@@ -125,14 +125,15 @@ c_hist = [];
 % Check whether simulation is trivial %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 if isempty(evts)
-    rho_hist = rho_0 * ones(n_steps);
+    rho_hist = [];
+    w_end = w_0;
 else
 
     times = [];
     % Figure out the calcium history %
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-    for bump_id = 1:length(evts)
+    for bump_id = 1:size(evts,1)
         tn = evts(bump_id, 1);
         times = [times; tn];
         c = evts(bump_id, 2) + c*exp(-(tn-t)/tau_Ca);
@@ -163,6 +164,7 @@ else
     t_dur = sortrows(t_dur, [1 2]);
 
     t_durOverlap = (circshift(t_dur(:,1),1) - t_dur(:,1) == 0);
+    t_durOverlap(1) = 0;
     substitute = circshift(t_dur(:,2),1);
     t_dur(t_durOverlap,1) = substitute(t_durOverlap);
 
@@ -170,7 +172,7 @@ else
     % Finding rho %
     %%%%%%%%%%%%%%%%%%%%%%
 
-    for id=1:length(t_dur)
+    for id=1:size(t_dur,1)
         rho_f = ((rho - rho_max*gamma_pot/(gamma_pot+gamma_dep))*exp(-(t_dur(id,2)-t_dur(id,1))*(gamma_pot+gamma_dep)/tau_rho) + rho_max*gamma_pot/(gamma_pot+gamma_dep)) .* (t_dur(id,3)==1) ...
             + rho.* exp(-gamma_dep*(t_dur(id,2)-t_dur(id,1))/tau_rho) .*(t_dur(id,3)==-1);
         rho = rho_f;

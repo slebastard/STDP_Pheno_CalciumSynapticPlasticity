@@ -1,4 +1,4 @@
-function STDP = get_npairs_heatmap(model, model_params, heatmap_params, int_scheme, int_step)
+function STDP = get_npairs_heatmap(model, mode, params, int_scheme, dt_params, pairs_params)
 
 % STDP - HEATMAP OF SYNAPTIC PLASTICITY AS A FUNCTION OF dt AND n_pairs
 
@@ -20,97 +20,179 @@ def_model_params = [...
     150 ...         % tau       syn plast time cst  (ms)
     ];
 
-def_heatmap_params = [...
-    -75 ...         % dt_min
-    75 ...          % dt_max
-    3               % dt_step
-    100 ...         % n_iter_max
-    2 ...           % n_iter_step
-    60 ...          % freq
-    ];
-
 switch nargin
     case 0
         model = 'naive';
-        model_params = def_model_params;
-        heatmap_params = def_heatmap_params;
+        mode = 'rel';
+        params = def_params;
         int_scheme = 'euler_expl';
-        int_step = 0.1;
-        fprintf('All arguments set to default values')
+        dt_params = [-50, 50, 2];
+        pairs_params = [100, 1];
     case 1
-        model_params = def_model_params;
-        heatmap_params = def_heatmap_params;
+        mode = 'rel';
+        params = def_params;
         int_scheme = 'euler_expl';
-        int_step = 0.1;
+        dt_params = [-50, 50, 2];
+        pairs_params = [100, 1];
     case 2
-        heatmap_params = def_heatmap_params;
+        params = def_params;
         int_scheme = 'euler_expl';
-        int_step = 0.1;
+        dt_params = [-50, 50, 2];
+        pairs_params = [100, 1];
     case 3
         int_scheme = 'euler_expl';
-        int_step = 0.1;
+        dt_params = [-50, 50, 2];
+        pairs_params = [100, 1];
     case 4
-        int_step = 0.1;
+        dt_params = [-50, 50, 2];
+        pairs_params = [100, 1];
     case 5
+        pairs_params = [100, 1];
+    case 6
     otherwise
-        error('5 input groups max are accepted')
+        error('6 inputs max are accepted. Please provide freq and dt parameters as arrays')
 end
 
+
 %%%%%%%%%%%%%%%%%%%%
-% Unpacking model_params %
+% Unpacking params %
 %%%%%%%%%%%%%%%%%%%%
 
-% model_params
-T = model_params(1);
-step = int_step;
-n_steps = T / step;
+if strcmp(model, 'naive')
+    T = params(1);
+    rho_0 = params(2);
+    rho_max = params(3);
+    C_pre = params(4);
+    C_post = params(5);
+    tau_Ca = params(6);
+    delay_pre = params(7);
 
-rho_0 = model_params(2);
-C_pre = model_params(3);
-C_post = model_params(4);
-tau_Ca = model_params(5);
-delay_pre = model_params(6);
+    theta_dep = params(8);
+    gamma_dep = params(9);
 
-theta_dep = model_params(7);
-gamma_dep = model_params(8);
+    theta_pot = params(10);
+    gamma_pot = params(11);
 
-theta_pot = model_params(9);
-gamma_pot = model_params(10);
+    tau_rho = params(12);
+    sigma = params(13);
 
-tau = model_params(11);
+    freq = params(14);
+elseif strcmp(model, 'pheno')
+    T = params(1);
+    rho_0 = params(2);
+    rho_max = params(3);
+    C_pre = params(4);
+    C_post = params(5);
+    tau_Ca = params(6);
+    delay_pre = params(7);
 
-dt = model_params(12);
+    theta_dep = params(8);
+    gamma_dep = params(9);
 
-dt_min = heatmap_params(1);
-dt_max = heatmap_params(2);
-dt_step = heatmap_params(3);
-n_iter_max = heatmap_params(4);
-n_iter_step = heatmap_params(5);
-freq = heatmap_params(6);
+    theta_pot = params(10);
+    gamma_pot = params(11);
 
-n_dt = (t_max - t_min) / dt;
-n_niter = (n_iter_max - 1) / n_iter_step;
+    tau_rho = params(12);
+    sigma = params(13);
 
-%% Running all simulations
-%%%%%%%%%%%%%%%%%%%%%
+    w_0 = params(14);
+    tau_w = params(15);
+    theta_act = params(16);
+    
+    freq = params(17);
+end
+
+dt_min = dt_params(1);
+dt_max = dt_params(2);
+step_dt = dt_params(3);
+
+pairs_max = pairs_params(1);
+step_pairs = pairs_params(2);
+
+int_step = 0.5;
+S_attr = 40;
+
+%% Running simulations, returning STDP curve
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+n_points_pairs = floor(pairs_max/step_pairs)-1;
+n_points_dt = floor((dt_max-dt_min)/step_dt);
+
+dts = linspace(dt_min, dt_max, n_points_dt);
+pairs = linspace(1, pairs_max, n_points_pairs);
 
 STDP = [];
 
-for dt = linspace(t_min, t_max, n_dt)
-    for n_iter = linspace(1, n_iter_max, n_niter)
-        % 0) Compute the simulation parameters
-        T = n_iter/(1000*freq) + 200;
-        naive_params = [T, rho_0, C_pre, C_post, tau_Ca, delay_pre, theta_dep, gamma_dep, theta_pot, gamma_pot, tau];
+for npairs_id = 1:n_points_pairs
+    n_iter = pairs(1,npairs_id);
+    for dt_id = 1:n_points_dt
+        dt = dts(dt_id);
+        T = max(1000*(n_iter-1)./freq + abs(dt) + 10*tau_Ca);
+        params(1) = T;
+        if dt >= 0
+            pre_spikes_hist = linspace(0, 1000*(n_iter-1)/freq, n_iter);
+            post_spikes_hist = pre_spikes_hist + dt;
 
-        % 1) Simulation
-        pre_spikes_hist = linspace(0, n_iter/(1000*freq), n_iter);
-        post_spikes_hist = pre_spikes_hist + dt;
-        if strcmp(model, 'naive')
-            rho_hist = naive_model(pre_spikes_hist, post_spikes_hist, naive_params, int_scheme, int_step);
-            q_rho = rho_hist(end)/rho_hist(1);
-            STDP = cat(1, STDP, [dt, n_iter, q_rho]);
+            if strcmp(model, 'naive')
+                [rho_hist, ~] = naive_model(pre_spikes_hist, post_spikes_hist, params(1:13), int_scheme, int_step);
+                q_rho = rho_hist(end)/rho_0;
+
+                if strcmp(mode, 'rel')
+                    STDP = cat(1, STDP, [n_iter, dt, q_rho]);
+                elseif strcmp(mode, 'abs')
+                    STDP = cat(1, STDP, [n_iter, dt, rho_hist(end)]);
+                elseif strcmp(mode, 'lim')
+                    error('Limit mode not supported for transient mode of activity. Please lower frequency')
+                else
+                    error('Unknown mode')
+                end
+            elseif strcmp(model, 'pheno')
+                [~, w_end, ~] = pheno_model_efficient(pre_spikes_hist, post_spikes_hist, params(1:16), int_scheme, int_step);
+                q_w = w_end/w_0;
+
+                if strcmp(mode, 'rel')
+                    STDP = cat(1, STDP, [n_iter, dt, q_w]);
+                elseif strcmp(mode, 'abs')
+                    STDP = cat(1, STDP, [n_iter, dt, w_end]);
+                elseif strcmp(mode, 'lim')
+                    error('Limit mode not supported for transient mode of activity. Please lower frequency')
+                else
+                    error('Unknown mode')
+                end 
+            end
+
+        else
+            post_spikes_hist = linspace(0, 1000*(n_iter-1)/freq, n_iter);
+            pre_spikes_hist = post_spikes_hist - dt;
+            
+            if strcmp(model, 'naive')
+                [rho_hist, ~] = naive_model(pre_spikes_hist, post_spikes_hist, params(1:13), int_scheme, int_step);
+                q_rho = rho_hist(end)/rho_0;
+
+                if strcmp(mode, 'rel')
+                    STDP = cat(1, STDP, [n_iter, dt, q_rho]);
+                elseif strcmp(mode, 'abs')
+                    STDP = cat(1, STDP, [n_iter, dt, rho_hist(end)]);
+                elseif strcmp(mode, 'lim')
+                    error('Limit mode not supported for transient mode of activity. Please lower frequency')
+                else
+                    error('Unknown mode')
+                end
+            elseif strcmp(model, 'pheno')
+                [~, w_end, ~] = pheno_model_efficient(pre_spikes_hist, post_spikes_hist, params(1:16), int_scheme, int_step);
+                q_w = w_end/w_0;
+
+                if strcmp(mode, 'rel')
+                    STDP = cat(1, STDP, [n_iter, dt, q_w]);
+                elseif strcmp(mode, 'abs')
+                    STDP = cat(1, STDP, [n_iter, dt, w_end]);
+                elseif strcmp(mode, 'lim')
+                    error('Limit mode not supported for transient mode of activity. Please lower frequency')
+                else
+                    error('Unknown mode')
+                end 
+            end
         end
     end
-end
 
 end

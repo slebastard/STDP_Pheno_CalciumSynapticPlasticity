@@ -244,13 +244,13 @@ else
                 error('Unknown mode')
             end
         elseif strcmp(model, 'pheno')
-            [~, w_hist, ~] = pheno_model(pre_spikes_hist, post_spikes_hist, params(1:16), int_scheme, int_step);
-            q_w = w_hist(end)/w_hist(1);
+            [~, w_end, ~] = pheno_model_efficient(pre_spikes_hist, post_spikes_hist, params(1:16), int_scheme, int_step);
+            q_w = w_end/w_0;
             
             if strcmp(mode, 'rel')
                 STDP = cat(1, STDP, [dt, q_w]);
             elseif strcmp(mode, 'abs')
-                STDP = cat(1, STDP, [dt, w_hist(end)]);
+                STDP = cat(1, STDP, [dt, w_end]);
             elseif strcmp(mode, 'lim')
                 error('Limit mode not supported for transient mode of activity. Please lower frequency')
             else

@@ -216,10 +216,13 @@ STDP_postpre_nonstat = [];
 
 for id = linspace(1, length(freq_nonstat), length(freq_nonstat))
     frq = freq_nonstat(1,id);
-
+    T = max(1000*(n_iter-1)./frq + abs(dt) + 10*tau_Ca);
+    params(1) = T;
+   
+    
     pre_spikes_hist = linspace(0, 1000*(n_iter-1)/frq, n_iter);
     post_spikes_hist = pre_spikes_hist + dt;
-
+    
     if strcmp(model, 'naive')
         [rho_hist, ~] = naive_model(pre_spikes_hist, post_spikes_hist, params(1:13), int_scheme, int_step);
         q_rho = rho_hist(end)/rho_0;
@@ -234,23 +237,23 @@ for id = linspace(1, length(freq_nonstat), length(freq_nonstat))
             error('Unknown mode')
         end
     elseif strcmp(model, 'pheno')
-        [~, w_hist, ~] = pheno_model(pre_spikes_hist, post_spikes_hist, params(1:16), int_scheme, int_step);
-        q_w = w_hist(end)/w_0;
+        [~, w_end, ~] = pheno_model_efficient(pre_spikes_hist, post_spikes_hist, params(1:16), int_scheme, int_step);
+        q_w = w_end/w_0;
 
         if strcmp(mode, 'rel')
             STDP_prepost_nonstat = cat(1, STDP_prepost_nonstat, [frq, q_w]);
         elseif strcmp(mode, 'abs')
-            STDP_prepost_nonstat = cat(1, STDP_prepost_nonstat, [frq, w_hist(end)]);
+            STDP_prepost_nonstat = cat(1, STDP_prepost_nonstat, [frq, w_end]);
         elseif strcmp(mode, 'lim')
             error('Limit mode not supported for transient mode of activity. Please lower frequency')
         else
             error('Unknown mode')
         end 
     end
-
+    
 
     post_spikes_hist = linspace(0, 1000*(n_iter-1)/frq, n_iter);
-    pre_spikes_hist = post_spikes_hist + dt;
+    pre_spikes_hist = post_spikes_hist - dt;
 
     if strcmp(model, 'naive')
         [rho_hist, ~] = naive_model(pre_spikes_hist, post_spikes_hist, params(1:13), int_scheme, int_step);
@@ -266,13 +269,13 @@ for id = linspace(1, length(freq_nonstat), length(freq_nonstat))
             error('Unknown mode')
         end
     elseif strcmp(model, 'pheno')
-        [~, w_hist, ~] = pheno_model(pre_spikes_hist, post_spikes_hist, params(1:16), int_scheme, int_step);
-        q_w = w_hist(end)/w_0;
+        [~, w_end, ~] = pheno_model_efficient(pre_spikes_hist, post_spikes_hist, params(1:16), int_scheme, int_step);
+        q_w = w_end/w_0;
 
         if strcmp(mode, 'rel')
             STDP_postpre_nonstat = cat(1, STDP_postpre_nonstat, [frq, q_w]);
         elseif strcmp(mode, 'abs')
-            STDP_postpre_nonstat = cat(1, STDP_postpre_nonstat, [frq, w_hist(end)]);
+            STDP_postpre_nonstat = cat(1, STDP_postpre_nonstat, [frq, w_end]);
         elseif strcmp(mode, 'lim')
             error('Limit mode not supported for transient mode of activity. Please lower frequency')
         else

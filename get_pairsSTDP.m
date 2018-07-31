@@ -278,13 +278,13 @@ else
                 error('Unknown mode')
             end
         elseif strcmp(model, 'pheno')
-            [~, w_hist, ~] = pheno_model(pre_spikes_hist, post_spikes_hist, params(1:16), int_scheme, int_step);
-            q_w = w_hist(end)/w_hist(1);
+            [~, w_end, ~] = pheno_model_efficient(pre_spikes_hist, post_spikes_hist, params(1:16), int_scheme, int_step);
+            q_w = w_end/w_0;
             
             if strcmp(mode, 'rel')
                 STDP_prepost = cat(1, STDP_prepost, [n_iter, q_w]);
             elseif strcmp(mode, 'abs')
-                STDP_prepost = cat(1, STDP_prepost, [n_iter, w_hist(end)]);
+                STDP_prepost = cat(1, STDP_prepost, [n_iter, w_end]);
             elseif strcmp(mode, 'lim')
                 error('Limit mode not supported for transient mode of activity. Please lower frequency')
             else
@@ -294,7 +294,7 @@ else
         
         
         post_spikes_hist = linspace(0, 1000*(n_iter-1)/freq, n_iter);
-        pre_spikes_hist = post_spikes_hist + dt;
+        pre_spikes_hist = post_spikes_hist - dt;
         
         if strcmp(model, 'naive')
             [rho_hist, ~] = naive_model(pre_spikes_hist, post_spikes_hist, params(1:13), int_scheme, int_step);
@@ -310,13 +310,13 @@ else
                 error('Unknown mode')
             end
         elseif strcmp(model, 'pheno')
-            [~, w_hist, ~] = pheno_model(pre_spikes_hist, post_spikes_hist, params(1:16), int_scheme, int_step);
-            q_w = w_hist(end)/w_hist(1);
+            [~, w_end, ~] = pheno_model_efficient(pre_spikes_hist, post_spikes_hist, params(1:16), int_scheme, int_step);
+            q_w = w_end/w_0;
             
             if strcmp(mode, 'rel')
                 STDP_postpre = cat(1, STDP_postpre, [n_iter, q_w]);
             elseif strcmp(mode, 'abs')
-                STDP_postpre = cat(1, STDP_postpre, [n_iter, w_hist(end)]);
+                STDP_postpre = cat(1, STDP_postpre, [n_iter, w_end]);
             elseif strcmp(mode, 'lim')
                 error('Limit mode not supported for transient mode of activity. Please lower frequency')
             else
