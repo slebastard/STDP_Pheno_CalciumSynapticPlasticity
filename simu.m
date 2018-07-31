@@ -16,7 +16,7 @@
 % pairs     Step 6 only
 % all       Steps 2 to 4
 
-mode = 'single';
+mode = 'efficient';
 
 freq_data = csvread('STDP_Frequency.csv',1,0);
 
@@ -43,8 +43,8 @@ theta_pot = 1.3;
 gamma_pot = 200;
 pot_params = [theta_pot, gamma_pot];
 
-tau_rho = 1500; % this is larger than I expected. Ask Brunel about this
-tau_w = 5000;
+tau_rho = 150000; % this is larger than I expected. Ask Brunel about this
+tau_w = 500000;
 
 N_A = 6.02e17; %mumol^(-1)
 V = 2.5e-16; %L
@@ -54,7 +54,7 @@ theta_act = theta_dep;
 noise_lvl = 20; %1/sqrt(N_A*V);
 w_0 = transfer(rho_0, S_attr, noise_lvl);
 
-n_iter = 100;
+n_iter = 10;
 frequency = 1;
 
 model = 'pheno'; %naive or pheno
@@ -72,7 +72,7 @@ scheme_step = 0.5;
 d_t = 20;
 pre_spikes_hist = linspace(0, 1000*(n_iter-1)./frequency, n_iter);
 post_spikes_hist = pre_spikes_hist + d_t;
-T = max(1000*(n_iter-1)./frequency + abs(d_t) + 10*tau_w);
+T = max(1000*(n_iter-1)./frequency + abs(d_t) + 10*tau_Ca);
 model_params(1) = T;
 
 %% 2) Full evolution of syn plast on a single simulation
@@ -80,7 +80,7 @@ if strcmp(mode, 'single') || strcmp(mode, 'all')
     if strcmp(model, 'naive')
         [rho_hist, c_hist] = naive_model(pre_spikes_hist, post_spikes_hist, model_params, int_scheme, scheme_step);
     elseif strcmp(model, 'pheno')
-        [rho_hist, w_hist, c_hist] = pheno_model_efficient(pre_spikes_hist, post_spikes_hist, model_params, int_scheme, scheme_step);
+        [rho_hist, w_hist, c_hist] = pheno_model(pre_spikes_hist, post_spikes_hist, model_params, int_scheme, scheme_step);
     end
 
     % Plotting rho as a function of time
@@ -118,6 +118,46 @@ if strcmp(mode, 'single') || strcmp(mode, 'all')
         xlabel('Time');
         ylabel('Average synaptic strength');
     end
+end
+
+
+if strcmp(mode, 'efficient')
+    if strcmp(model, 'pheno')
+        [rho_int, w_hist, c_int] = pheno_model(pre_spikes_hist, post_spikes_hist, model_params, int_scheme, scheme_step);
+        [rho_hist, w_end, c_hist] = pheno_model_efficient(pre_spikes_hist, post_spikes_hist, model_params, int_scheme, scheme_step);
+    end
+
+    % Plotting rho as a function of time
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+    t = linspace(0, T, T/scheme_step + 1);
+
+    figure(1)
+    plot(t, rho_int, 'r');
+    hold on
+    plot(rho_hist(:,1), rho_hist(:,2), 'xg');
+    title('Evolution of average CaMKII state');
+    xlabel('Time');
+    ylabel('Average CaMKII state');
+
+    % ToDo: add bumps of Ca as colored pins over x-axis
+
+    figure(2)
+    plot(t, c_int, 'r');
+    hold on
+    plot(c_hist(:,1), c_hist(:,2), 'xg')
+    title('Evolution of calcium influx');
+    xlabel('Time');
+    ylabel('Calcium concentration');
+
+    dep_thr = refline([0 theta_dep]);
+    dep_thr.Color = 'r';
+
+    pot_thr = refline([0 theta_pot]);
+    pot_thr.Color = 'g';
+    
+    act_thr = refline([0 theta_act]);
+    act_thr.Color = 'm';
 end
 
 %% 3) STDP curve

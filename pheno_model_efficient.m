@@ -1,4 +1,4 @@
-function [times, rho_hist, w_end, c_hist] = pheno_model( pre_spikes_hist, post_spikes_hist, params, int_scheme, int_step)
+function [rho_hist, w_end, c_hist] = pheno_model( pre_spikes_hist, post_spikes_hist, params, int_scheme, int_step)
 %NAIVE_MODEL Simulates the behavior of a synapse whose behavior follows the
 %naive Calcium_based dynamics
 %   Detailed explanation goes here
@@ -119,7 +119,7 @@ t = 0;
 c = 0;
 
 rho_hist = rho;
-c_hist = 0;
+c_hist = [];
 
 
 % Check whether simulation is trivial %
@@ -128,42 +128,42 @@ if isempty(evts)
     rho_hist = rho_0 * ones(n_steps);
 else
 
-    
+    times = [];
     % Figure out the calcium history %
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-    c_hist = [];
     for bump_id = 1:length(evts)
         tn = evts(bump_id, 1);
+        times = [times; tn];
         c = evts(bump_id, 2) + c*exp(-(tn-t)/tau_Ca);
         c_hist = [c_hist; c];
         t = tn;
     end
-
+    c_hist = cat(2, times, c_hist);
 
     % Extract period objects for which the calcium is above thresholds %
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-    t_openPot = evts(c_hist>theta_pot,1);
-    c_openPot = c_hist(c_hist>theta_pot);
-    t_maxDurPot = tau.*log(c_openPot/theta_pot);
-    t_durPot = min(circshift(t_openPot, 1) - t_openPot, tau_Ca.*log(c_openPot./theta_pot));
-    t_durPot(1) = t_openPot(1);
+    t_openPot = evts(c_hist(:,2)>theta_pot, 1);
+    c_openPot = c_hist(c_hist(:,2)>theta_pot, 2);
+    t_maxDurPot = tau_Ca.*log(c_openPot/theta_pot);
+    t_closePot = t_openPot + min(circshift(t_openPot, -1) - t_openPot, tau_Ca.*log(c_openPot./theta_pot));
+    t_closePot(end) =  t_openPot(end) + t_maxDurPot(end);
 
-    t_openDep = evts(c_hist>theta_dep,1);
-    c_openDep = c_hist(c_hist>theta_dep);
-    t_maxDurDep = tau.*log(c_openDep/theta_dep);
-    t_durDep = min(circshift(t_openDep, 1) - t_openDep, tau_Ca.*log(c_openDep./theta_dep));
-    t_durDep(1) = t_openDep(1);
+    t_openDep = evts(c_hist(:,2)>theta_dep,1);
+    c_openDep = c_hist(c_hist(:,2)>theta_dep, 2);
+    t_maxDurDep = tau_Ca.*log(c_openDep/theta_dep);
+    t_closeDep = t_openDep + min(circshift(t_openDep,-1) - t_openDep, tau_Ca.*log(c_openDep./theta_dep));
+    t_closeDep(end) = t_openDep(end) + t_maxDurDep(end);
 
-    t_durPot = cat(1, t_durPot, ones(length(t_durPot),1));
-    t_durDep = cat(1, t_durDep, -1.*ones(length(t_durDep),1));
+    t_closePot = cat(2, t_openPot, t_closePot, ones(length(t_closePot),1));
+    t_closeDep = cat(2, t_openDep, t_closeDep, -1.*ones(length(t_closeDep),1));
 
-    t_dur = cat(2, t_durPot, t_durDep);
+    t_dur = cat(1, t_closePot, t_closeDep);
     t_dur = sortrows(t_dur, [1 2]);
 
-    t_durOverlap = (t_dur(:,1) - circshift(t_dur(:,1)) == 0);
-    substitute = circshift(t_dur(:,2));
+    t_durOverlap = (circshift(t_dur(:,1),1) - t_dur(:,1) == 0);
+    substitute = circshift(t_dur(:,2),1);
     t_dur(t_durOverlap,1) = substitute(t_durOverlap);
 
 
@@ -171,13 +171,14 @@ else
     %%%%%%%%%%%%%%%%%%%%%%
 
     for id=1:length(t_dur)
-        rho_f = (rho - gam_pot/(gam_pot+gam_dep))*exp(-t_dur(id,2)*(gam_pot+gam_dep)/tau_rho) + gam_pot/(gam_pot+gam_dep) .* (t_dur(id,3)==1) ...
-            +(a).*(t_dur(id,3)==-1);
+        rho_f = ((rho - rho_max*gamma_pot/(gamma_pot+gamma_dep))*exp(-(t_dur(id,2)-t_dur(id,1))*(gamma_pot+gamma_dep)/tau_rho) + rho_max*gamma_pot/(gamma_pot+gamma_dep)) .* (t_dur(id,3)==1) ...
+            + rho.* exp(-gamma_dep*(t_dur(id,2)-t_dur(id,1))/tau_rho) .*(t_dur(id,3)==-1);
         rho = rho_f;
         rho_hist = cat(1, rho_hist, rho);
     end
 
     times = cat(1, t_dur(:,1), t_dur(end,2));
+    rho_hist = cat(2, times, rho_hist);
     w_end = transfer(rho_hist(end),S_attr,sigma);
 end
 
