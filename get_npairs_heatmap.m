@@ -115,8 +115,8 @@ S_attr = 40;
 %% Running simulations, returning STDP curve
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-n_points_pairs = floor(pairs_max/step_pairs)-1;
-n_points_dt = floor((dt_max-dt_min)/step_dt);
+n_points_pairs = 1+floor((pairs_max-1)/step_pairs);
+n_points_dt = 1+floor((dt_max-dt_min)/step_dt);
 
 dts = linspace(dt_min, dt_max, n_points_dt);
 pairs = linspace(1, pairs_max, n_points_pairs);

@@ -27,13 +27,15 @@
 %
 % You should be all set!
 
-mode = 'STDP';
+mode = 'dataFit';
 model = 'pheno';
 
 % Parameters controlling excitation history
 d_t = 30;
 n_iter = 100;
-frequency = 1;
+frequency = 10;
+
+colormap('hot');
 
 %% Environment definition
 
@@ -43,17 +45,17 @@ S_attr = 40;
 
 C_pre = 2;
 C_post = 1;
-tau_Ca = 70;
-delay_pre = -45;
+tau_Ca = 20;
+delay_pre = 5;
 Ca_params = [C_pre, C_post, tau_Ca, delay_pre];
 
-theta_dep = 1.1;
+theta_dep = 1;
 gamma_dep = 200;
 dep_params = [theta_dep, gamma_dep];
 
 theta_pot = 1.3;
 % gamma_pot = balance_coefs(C_pre, C_post, theta_dep, theta_pot, gamma_dep);
-gamma_pot = 100;
+gamma_pot = 410;
 pot_params = [theta_pot, gamma_pot];
 
 N_A = 6.02e17; %mumol^(-1)
@@ -66,7 +68,7 @@ tau_w = 500000;
 noise_lvl = 20; %1/sqrt(N_A*V);
 
 % Initialization of variables
-rho_0 = 50; % must be between 0 and rho_max
+rho_0 = 65; % must be between 0 and rho_max
 w_0 = transfer(rho_0, S_attr, noise_lvl);
 
 if strcmp(model, 'naive')
@@ -174,9 +176,9 @@ end
 % Obtaining STDP curve
 %%%%%%%%%%%%%%%%%%%%%%
 if strcmp(mode, 'STDP') || strcmp(mode, 'all')
-    t_min = -75;
-    t_max = 75;
-    dt = 0.5;
+    t_min = -100;
+    t_max = 100;
+    dt = 0.1;
 
     stdp_params = [model_params, t_min, t_max, dt, n_iter, frequency];
     STDP = get_STDP(model, 'rel', stdp_params, int_scheme, scheme_step);
@@ -184,7 +186,7 @@ if strcmp(mode, 'STDP') || strcmp(mode, 'all')
     % [STDP_an, STDP_sim] = get_both_STDP(model, 'rel', stdp_params, int_scheme, scheme_step);
 
     figure(4)
-    plot(STDP(:,1), STDP(:,2), '+r');
+    plot(STDP(:,1), STDP(:,2), '.b');
     % plot(STDP_an(:,1), STDP_an(:,2), '+r');
     % hold on
     % plot(STDP_sim(:,1), STDP_sim(:,2), 'xg');
@@ -202,23 +204,42 @@ if strcmp(mode, 'STDP') || strcmp(mode, 'all')
     
 end
 
+
 %% mode='freq3') STDP = f(freq,dt) 3D plot
 
 if strcmp(mode, 'freq3')
-    dtmin = -50;
-    dtmax = 50;
+    dtmin = -75;
+    dtmax = 75;
     step_dt = 1;
     dt_params=[dtmin, dtmax, step_dt];
     
-    freq_max = 70;
-    freq_step = 1;
+    freq_max = 40;
+    freq_step = 0.5;
     freq_params = [freq_max, freq_step];
     
     heatmap_params = [model_params, n_iter];
-    frq_htmp = get_freq_heatmap(model, 'rel', heatmap_params, int_scheme, dt_params, freq_params);
+    frq_map = get_freq_heatmap(model, 'rel', heatmap_params, int_scheme, dt_params, freq_params);
+    
+    n_freq = 1+floor((freq_max-1)/freq_step);
+    n_dt = 1+floor((dtmax-dtmin)/step_dt);
+    
+    frq_heat = zeros(n_freq, n_dt);
+    frq_heat(sub2ind([n_freq,n_dt], repelem(1:n_freq,1,n_dt), repmat(1:n_dt,1,n_freq))) = frq_map(:,3);
     
     figure(5)
-    scatter3(frq_htmp(:,1),frq_htmp(:,2),frq_htmp(:,3), '.');
+    
+%     scatter3(frq_map(:,1),frq_map(:,2),frq_map(:,3), '.');
+    
+    imagesc(frq_heat');
+    colorbar;
+    
+    xlabels = 1 + freq_step.*(xticks-1);
+    ylabels = dtmin + step_dt.*(yticks-1);
+    
+    xtickformat('%.1f')
+    set(gca, 'XTickLabel', xlabels);
+    set(gca, 'YTickLabel', ylabels);
+
     title = 'Relative change in syn plast as a function of frequency and dt';
     xlabel 'Frequency';
     ylabel 'dt';
@@ -245,20 +266,38 @@ end
 %% mode='pairs3') STDP = f(n_iter,dt) 3D plot
 
 if strcmp(mode, 'pairs3')
-    dtmin = -50;
-    dtmax = 50;
+    dtmin = -100;
+    dtmax = 100;
     step_dt = 2;
     dt_params=[dtmin, dtmax, step_dt];
     
-    pairs_max = 200;
+    pairs_max = 100;
     pairs_step = 1;
     pairs_params = [pairs_max, pairs_step];
     
     heatmap_params = [model_params, frequency];
-    npairs_htmp = get_npairs_heatmap(model, 'rel', heatmap_params, int_scheme, dt_params, pairs_params);
+    pairs_map = get_npairs_heatmap(model, 'rel', heatmap_params, int_scheme, dt_params, pairs_params);
+    
+    n_pairs = 1+floor((pairs_max-1)/pairs_step);
+    n_dt = 1+floor((dtmax-dtmin)/step_dt);
+    
+    pairs_heat = zeros(n_pairs, n_dt);
+    pairs_heat(sub2ind([n_pairs,n_dt], repelem(1:n_pairs,1,n_dt), repmat(1:n_dt,1,n_pairs))) = pairs_map(:,3);
     
     figure(7)
-    scatter3(npairs_htmp(:,1),npairs_htmp(:,2),npairs_htmp(:,3), '.');
+    
+    % scatter3(pairs_map(:,1),pairs_map(:,2),pairs_map(:,3), '.');
+    
+    imagesc(pairs_heat');
+    colorbar;
+    
+    xlabels = 1 + pairs_step.*(xticks-1);
+    ylabels = dtmin + step_dt.*(yticks-1);
+    
+    xtickformat('%.1f')
+    set(gca, 'XTickLabel', xlabels);
+    set(gca, 'YTickLabel', ylabels);
+    
     title = 'Relative change in syn plast as a function of number of pairings and dt';
     xlabel 'Number of pairings';
     ylabel 'dt';
@@ -286,27 +325,80 @@ end
 % Comparing the model to STDP=f(freq,dt) data from L. Venance (INSERM)
 freq_data = csvread('STDP_Frequency.csv',1,0);
 
+range.S_attr.min = 20; % This will be a function of the other parameters as determined by XPP
+range.S_attr.max = 60; % This will be a function of the other parameters as determined by XPP
+range.S_attr.step = 5;
+
+range.C_post.min = 0.6;
+range.C_post.max = 1.8;
+range.C_post.step = 0.4;
+
+range.tau_Ca.min = 10;
+range.tau_Ca.max = 60;
+range.tau_Ca.step = 10;
+
+range.delay_pre.min = -25;
+range.delay_pre.max = 25;
+range.delay_pre.step = 5;
+
+range.theta_dep.min = 1;
+range.theta_dep.max = 1;
+range.theta_dep.step = 1;
+
+range.gamma_dep.min = 200;
+range.gamma_dep.max = 200;
+range.gamma_dep.step = 200;
+
+range.theta_pot.min = 1.3;
+range.theta_pot.max = 1.3;
+range.theta_pot.step = 1.3;
+
+range.gamma_pot.min = 155;
+range.gamma_pot.max = 155;
+range.gamma_pot.step = 155;
+
+range.tau_rho.min = 150000;
+range.tau_rho.max = 150000;
+range.tau_rho.step = 150000;
+
+
+noise_lvl = 30; %1/sqrt(N_A*V);
+
 if strcmp(mode, 'dataFit')
-    dtmin = -120;
-    dtmax = 120;
+    dtmin = -75;
+    dtmax = 75;
     step_dt = 1;
     dt_params=[dtmin, dtmax, step_dt];
     
-    freq_max = 10;
-    freq_step = 0.5;
-    freq_params = [freq_max, freq_step];
-    
-    heatmap_params = [model_params, n_iter];
-    frq_htmp = get_freq_heatmap(model, 'rel', heatmap_params, int_scheme, dt_params, freq_params);
-    
+%     freq_max = 10;
+%     freq_step = 0.5;
+%     freq_params = [freq_max, freq_step];
+%     
+%     heatmap_params = [model_params, n_iter];
+%     frq_htmp = get_freq_heatmap(model, 'rho_abs', heatmap_params, int_scheme, dt_params, freq_params);
+%     
     figure(9)
-    scatter3(freq_data(:,5),freq_data(:,2),freq_data(:,3)./100, '.b');
-    title = 'Relative change in syn plast as a function of frequency and dt';
-    xlabel 'Frequency';
-    ylabel 'dt';
+%     scatter3(freq_data(:,5),freq_data(:,2),freq_data(:,3)./100, '.b');
+%     title = 'Relative change in syn plast as a function of frequency and dt';
+%     xlabel 'Frequency';
+%     ylabel 'dt';
+%     
+%     hold on
+%     scatter3(frq_htmp(:,1), frq_htmp(:,2), frq_htmp(:,3), '.g')
     
+    data1Hz = freq_data(floor(freq_data(:,5))==1,:);
+    
+    stdp_params = [model_params, dtmin, dtmax, step_dt, 100, 1];
+    STDP = get_STDP(model, 'rel', stdp_params, int_scheme, scheme_step);
+    plot(STDP(:,1), STDP(:,2), '.b')
     hold on
-    scatter3(frq_htmp(:,1), frq_htmp(:,2), frq_htmp(:,3), '.g')
+    plot(data1Hz(:,2),data1Hz(:,3)./100,'xr')
+    neutral_hline = refline([0 1]);
+    neutral_hline.Color = 'b';   
+    title('Plasticity as a function of pre-post spike delay');
+    xlabel('Pre-post spike delay (ms)');
+    ylabel('Relative change in synaptic strength');
+    
 end
 
 

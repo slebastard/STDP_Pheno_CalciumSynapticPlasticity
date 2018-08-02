@@ -120,8 +120,8 @@ S_attr = 40;
 %% Running simulations, returning STDP curve
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-n_points_freq = floor(freq_max/step_freq)-1;
-n_points_dt = floor((dt_max-dt_min)/step_dt);
+n_points_freq = 1+floor((freq_max-1)/step_freq);
+n_points_dt = 1+floor((dt_max-dt_min)/step_dt);
 
 dts = linspace(dt_min, dt_max, n_points_dt);
 freqs = linspace(1, freq_max, n_points_freq);
