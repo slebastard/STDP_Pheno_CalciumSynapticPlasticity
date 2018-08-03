@@ -8,7 +8,8 @@ function [rho_hist, w_end, c_hist] = pheno_model( pre_spikes_hist, post_spikes_h
 
 def_params = [...
     1000 ...        % T             total simu time     (ms)
-    .3 ...          % rho_0         init syn strength
+    35 ...          % rho_0         init syn strength
+    200 ...         % rho_max
     1 ...           % C_pre
     2 ...           % C_post
     20 ...          % tau_Ca
@@ -75,13 +76,13 @@ gamma_pot = params(11);
 tau_rho = params(12);
 sigma = params(13);
 
-w_0 = params(14);
-tau_w = params(15);
-theta_act = params(16);
+tau_w = params(14);
+theta_act = params(15);
 
 eq_thr = 1e-5;
 S_attr = 40;
 rho_max = 200;
+w_0 = transfer(rho_0, S_attr, sigma);
 
 %% Building events list based on calcium hypothesis
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

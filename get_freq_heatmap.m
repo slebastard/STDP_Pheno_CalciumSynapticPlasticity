@@ -100,11 +100,10 @@ elseif strcmp(model, 'pheno')
     tau_rho = params(12);
     sigma = params(13);
 
-    w_0 = params(14);
-    tau_w = params(15);
-    theta_act = params(16);
+    tau_w = params(14);
+    theta_act = params(15);
     
-    n_iter = params(17);
+    n_iter = params(16);
 end
 
 dt_min = dt_params(1);
@@ -116,93 +115,22 @@ step_freq = freq_params(2);
 
 int_step = 0.5;
 S_attr = 40;
+w_0 = transfer(rho_0, S_attr, sigma);
 
 %% Running simulations, returning STDP curve
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 n_points_freq = 1+floor((freq_max-1)/step_freq);
-n_points_dt = 1+floor((dt_max-dt_min)/step_dt);
-
-dts = linspace(dt_min, dt_max, n_points_dt);
 freqs = linspace(1, freq_max, n_points_freq);
 
 STDP = [];
 
 for freq_id = 1:n_points_freq
     frq = freqs(1,freq_id);
-    for dt_id = 1:n_points_dt
-        dt = dts(dt_id);
-        T = max(1000*(n_iter-1)./frq + abs(dt) + 10*tau_Ca);
-        params(1) = T;
-        if dt >= 0
-            pre_spikes_hist = linspace(0, 1000*(n_iter-1)/frq, n_iter);
-            post_spikes_hist = pre_spikes_hist + dt;
-
-            if strcmp(model, 'naive')
-                [rho_hist, ~] = naive_model(pre_spikes_hist, post_spikes_hist, params(1:13), int_scheme, int_step);
-                q_rho = rho_hist(end)/rho_0;
-
-                if strcmp(mode, 'rel')
-                    STDP = cat(1, STDP, [frq, dt, q_rho]);
-                elseif strcmp(mode, 'abs')
-                    STDP = cat(1, STDP, [frq, dt, rho_hist(end)]);
-                elseif strcmp(mode, 'lim')
-                    error('Limit mode not supported for transient mode of activity. Please lower frequency')
-                else
-                    error('Unknown mode')
-                end
-            elseif strcmp(model, 'pheno')
-                [rho_hist, w_end, ~] = pheno_model_efficient(pre_spikes_hist, post_spikes_hist, params(1:16), int_scheme, int_step);
-                q_w = w_end/w_0;
-
-                if strcmp(mode, 'rel')
-                    STDP = cat(1, STDP, [frq, dt, q_w]);
-                elseif strcmp(mode, 'abs')
-                    STDP = cat(1, STDP, [frq, dt, w_end]);
-                elseif strcmp(mode, 'lim')
-                    error('Limit mode not supported for transient mode of activity. Please lower frequency')
-                elseif strcmp(mode, 'rho_abs')
-                    STDP = cat(1, STDP, [frq, dt, rho_hist(end,2)]);
-                else
-                    error('Unknown mode')
-                end 
-            end
-
-        else
-            post_spikes_hist = linspace(0, 1000*(n_iter-1)/frq, n_iter);
-            pre_spikes_hist = post_spikes_hist - dt;
-            
-            if strcmp(model, 'naive')
-                [rho_hist, ~] = naive_model(pre_spikes_hist, post_spikes_hist, params(1:13), int_scheme, int_step);
-                q_rho = rho_hist(end)/rho_0;
-
-                if strcmp(mode, 'rel')
-                    STDP = cat(1, STDP, [frq, dt, q_rho]);
-                elseif strcmp(mode, 'abs')
-                    STDP = cat(1, STDP, [frq, dt, rho_hist(end)]);
-                elseif strcmp(mode, 'lim')
-                    error('Limit mode not supported for transient mode of activity. Please lower frequency')
-                else
-                    error('Unknown mode')
-                end
-            elseif strcmp(model, 'pheno')
-                [rho_hist, w_end, ~] = pheno_model_efficient(pre_spikes_hist, post_spikes_hist, params(1:16), int_scheme, int_step);
-                q_w = w_end/w_0;
-
-                if strcmp(mode, 'rel')
-                    STDP = cat(1, STDP, [frq, dt, q_w]);
-                elseif strcmp(mode, 'abs')
-                    STDP = cat(1, STDP, [frq, dt, w_end]);
-                elseif strcmp(mode, 'lim')
-                    error('Limit mode not supported for transient mode of activity. Please lower frequency')
-                elseif strcmp(mode, 'rho_abs')
-                    STDP = cat(1, STDP, [frq, dt, rho_hist(end,2)]);
-                else
-                    error('Unknown mode')
-                end 
-            end
-        end
-    end
+    stdp_params = [params(1:15), dt_params, params(16), frq];
+    std = get_STDP(model, 'rel', stdp_params, int_scheme, 0.5);
+    std = cat(2, frq*ones(size(std,1),1), std);
+    STDP = cat(1, STDP, std);
 end
 
 end
