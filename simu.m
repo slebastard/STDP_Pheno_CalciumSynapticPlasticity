@@ -22,8 +22,8 @@
 % -------------------------------------------------------------------------
 %
 % 3) Depending on which modes you use, you will want to change the default
-% dt, number of pairings and frequency in the environment section below.
-% Mode-specific parameters are availabel in pertaining section
+% dt, number of pairings and frequency in the environment section
+% below.00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 %
 % You should be all set!
 
