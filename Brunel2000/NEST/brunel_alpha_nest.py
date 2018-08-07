@@ -1,4 +1,5 @@
 import nest
+import nest.raster_plot
 from scipy.special import lambertw
 
 import numpy
@@ -80,7 +81,6 @@ def runBrunelNetwork(g=5., eta=2., dt = 0.1, simtime = 1000.0, delay = 1.5, epsi
     espikes = nest.Create("spike_detector")
     ispikes = nest.Create("spike_detector")
 
-    recdict = {"to_memory" : True, "to_file" : True, "label" : "alpha_test"}
     all_spikes  = nest.Create("spike_detector")
 
     nest.SetStatus(espikes, [{"label": "brunel-py-ex",
@@ -117,11 +117,14 @@ def runBrunelNetwork(g=5., eta=2., dt = 0.1, simtime = 1000.0, delay = 1.5, epsi
 
     numpy.random.seed(1234)
 
+# np.random.random_integers(low, high, size)
+# So sources_ex contains a mapping of CE excitatory synapses from excitatory neurons to each neuron
     sources_ex = numpy.random.random_integers(1, NE, (N_neurons, CE))
     sources_in = numpy.random.random_integers(NE + 1, N_neurons, (N_neurons, CI))
 
     for n in range(N_neurons):
         nest.Connect(list(sources_ex[n]), [n + 1], syn_spec="excitatory")
+        # I guess node lists are indexed from 1. here we map lists of CE synapses to each neuron
 
     for n in range(N_neurons):
         nest.Connect(list(sources_in[n]), [n + 1], syn_spec="inhibitory")
@@ -158,9 +161,9 @@ def runBrunelNetwork(g=5., eta=2., dt = 0.1, simtime = 1000.0, delay = 1.5, epsi
     print("Simulation time   : %.2f s" % sim_time)
 
 
-    #import nest.raster_plot
-    #nest.raster_plot.from_device(espikes, hist=True)
-    
+    nest.raster_plot.from_device(espikes, hist=True)
+    nest.raster_plot.show()
+
     return all_spikes
 
 if __name__ == '__main__':
