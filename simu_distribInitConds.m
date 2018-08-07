@@ -22,12 +22,12 @@
 % -------------------------------------------------------------------------
 %
 % 3) Depending on which modes you use, you will want to change the default
-% dt, number of pairings and frequency in the environment section
-% below.00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+% dt, number of pairings and frequency in the environment section below.
+% Mode-specific parameters are availabel in pertaining section
 %
 % You should be all set!
 
-mode = 'dataFit';
+mode = 'STDP';
 model = 'pheno';
 
 % Parameters controlling excitation history
@@ -42,7 +42,7 @@ rho_max = 200;
 S_attr = 40;
 
 C_pre = 0.4;
-C_post = 0.84;
+C_post = 0.8;
 tau_Ca = 80;
 delay_pre = -15;
 Ca_params = [C_pre, C_post, tau_Ca, delay_pre];
@@ -51,7 +51,8 @@ theta_dep = 1;
 gamma_dep = 200;
 dep_params = [theta_dep, gamma_dep];
 
-theta_pot = 1.08;
+theta_pot = 1.05;
+% gamma_pot = balance_coefs(C_pre, C_post, theta_dep, theta_pot, gamma_dep);
 gamma_pot = 120;
 pot_params = [theta_pot, gamma_pot];
 
@@ -59,14 +60,13 @@ N_A = 6.02e17; %mumol^(-1)
 V = 2.5e-16; %L
 theta_act = theta_dep;
 
-tau_rho = 100000;
+tau_rho = 50000;
 tau_w = 500000;
 
 noise_lvl = 25; %1/sqrt(N_A*V);
 
 % Initialization of variables
 rho_0 = 25; % must be between 0 and rho_max
-w_0 = transfer(rho_0, S_attr, noise_lvl);
 
 if strcmp(model, 'naive')
     model_params = [T, rho_0, rho_max, Ca_params, dep_params, pot_params, tau_rho, noise_lvl];
@@ -175,15 +175,36 @@ end
 if strcmp(mode, 'STDP') || strcmp(mode, 'all')
     t_min = -100;
     t_max = 100;
-    dt = 2;
+    dt = 0.1;
 
-    stdp_params = [model_params, t_min, t_max, dt, n_iter, frequency];
-    STDP = get_STDP(model, 'rel', stdp_params, int_scheme, scheme_step);
+    % Initialization of variables
+    rho0_step = 5;
+    n_rho0 = 1+floor(rho_max/rho0_step);
+    n_dt = 1+floor((t_max - t_min)/dt);
+    STDP = [];
+    
+    muW = 0.5;
+    N = 1000;
+    
+    for rho_0 = 0:rho0_step:rho_max
+        model_params(2) = rho_0;
+        stdp_params = [model_params, t_min, t_max, dt, n_iter, frequency];
+        tmp = get_STDP(model, 'rel', stdp_params, int_scheme, scheme_step);
+        STDP = cat(2, STDP, tmp(:,2));
+    end
+    
+    tmp = transfer(0:rho0_step:rho_max, S_attr, noise_lvl);
+    rhoDistr = (1/(sqrt(2*pi*muW*(1-muW)))) .* exp(-(tmp - muRho*ones(1, 1+floor(rho_max/rho0_step))).^2 ./(2*muW*(1-muW))); 
+    rhoDistr = (1/sum(rhoDistr)).*rhoDistr;
+    avgSTDP = STDP * rhoDistr';
+    avgSTDP = cat(2,avgSTDP,(t_min:dt:t_max)');
+    avgSTDP(:,[1 2]) = avgSTDP(:, [2 1]);
+    
     % Validation against simulation
     % [STDP_an, STDP_sim] = get_both_STDP(model, 'rel', stdp_params, int_scheme, scheme_step);
 
     figure(4)
-    plot(STDP(:,1), STDP(:,2), '.b');
+    plot(avgSTDP(:,1), avgSTDP(:,2), '.b');
     % plot(STDP_an(:,1), STDP_an(:,2), '+r');
     % hold on
     % plot(STDP_sim(:,1), STDP_sim(:,2), 'xg');
@@ -195,6 +216,9 @@ if strcmp(mode, 'STDP') || strcmp(mode, 'all')
     title('Plasticity as a function of pre-post spike delay')
     xlabel('Pre-post spike delay (ms)')
     ylabel('Relative change in synaptic strength')
+%     YL = get(gca,'ylim');
+%     YL(1) = 2 - YL(2);
+%     set(gca, 'ylim', YL)
     
 end
 
@@ -213,8 +237,8 @@ if strcmp(mode, 'freq3')
     heatmap_params = [model_params, n_iter];
     frq_map = get_freq_heatmap(model, 'rel', heatmap_params, int_scheme, dt_params, freq_params);
     
-    n_freq = 1 + floor((freq_max-1)/freq_step);
-    n_dt = 1 + floor((dtmax-dtmin)/step_dt);
+    n_freq = 1+floor((freq_max-1)/freq_step);
+    n_dt = 1+floor((dtmax-dtmin)/step_dt);
     
     frq_heat = zeros(n_freq, n_dt);
     frq_heat(sub2ind([n_freq,n_dt], repelem(1:n_freq,1,n_dt), repmat(1:n_dt,1,n_freq))) = frq_map(:,3);
@@ -320,10 +344,49 @@ end
 freq_data = csvread('STDP_Frequency.csv',1,0);
 n_data = size(freq_data,1);
 
+range.S_attr.min = 20; % This will be a function of the other parameters as determined by XPP
+range.S_attr.max = 60; % This will be a function of the other parameters as determined by XPP
+range.S_attr.step = 5;
+
+range.C_post.min = 0.6;
+range.C_post.max = 1.8;
+range.C_post.step = 0.4;
+
+range.tau_Ca.min = 10;
+range.tau_Ca.max = 60;
+range.tau_Ca.step = 10;
+
+range.delay_pre.min = -25;
+range.delay_pre.max = 25;
+range.delay_pre.step = 5;
+
+range.theta_dep.min = 1;
+range.theta_dep.max = 1;
+range.theta_dep.step = 1;
+
+range.gamma_dep.min = 200;
+range.gamma_dep.max = 200;
+range.gamma_dep.step = 200;
+
+range.theta_pot.min = 1.3;
+range.theta_pot.max = 1.3;
+range.theta_pot.step = 1.3;
+
+range.gamma_pot.min = 155;
+range.gamma_pot.max = 155;
+range.gamma_pot.step = 155;
+
+range.tau_rho.min = 150000;
+range.tau_rho.max = 150000;
+range.tau_rho.step = 150000;
+
+
+noise_lvl = 30; %1/sqrt(N_A*V);
+
 if strcmp(mode, 'dataFit')
     dtmin = -100;
     dtmax = 100;
-    step_dt = 2;
+    step_dt = 1;
     dt_params=[dtmin, dtmax, step_dt];
     
     freq_max = 10;
@@ -331,28 +394,27 @@ if strcmp(mode, 'dataFit')
     freq_params = [freq_max, freq_step];
     
     heatmap_params = [model_params, n_iter];
-    freq_htmp = get_freq_heatmap(model, 'rel', heatmap_params, int_scheme, dt_params, freq_params);
+%     freq_htmp = get_freq_heatmap(model, 'rel', heatmap_params, int_scheme, dt_params, freq_params);
     
-    scatter3(freq_data(:,5), freq_data(:,2), freq_data(:,3)./100, 50*ones(size(freq_data,1),1), '*r')
+%     scatter3(freq_htmp(:,1), freq_htmp(:,2), freq_htmp(:,3), '.g')
+    
+%     [freq_grid, dt_grid] = meshgrid(1:freq_step:freq_max, dtmin:step_dt:dtmax);
+%     STDP_interpol = griddata(freq_htmp(:,1), freq_htmp(:,2), freq_htmp(:,3), freq_grid, dt_grid);
+%     surf(freq_grid, dt_grid, STDP_interpol);
+%     alpha 0.3
+    
+    data1Hz = freq_data(floor(freq_data(:,5))==1,:);
+    
+    stdp_params = [model_params, dtmin, dtmax, step_dt, 100, 1];
+    STDP = get_STDP(model, 'rel', stdp_params, int_scheme, scheme_step);
+    plot(STDP(:,1), STDP(:,2), '.b')
     hold on
-    
-    [freq_grid, dt_grid] = meshgrid(1:freq_step:freq_max, dtmin:step_dt:dtmax);
-    STDP_interpol = griddata(freq_htmp(:,1), freq_htmp(:,2), freq_htmp(:,3), freq_grid, dt_grid);
-    surf(freq_grid, dt_grid, STDP_interpol);
-    alpha 0.3
-    
-%     data1Hz = freq_data(floor(freq_data(:,5))==1,:);
-%     
-%     stdp_params = [model_params, dtmin, dtmax, step_dt, 100, 1];
-%     STDP = get_STDP(model, 'rel', stdp_params, int_scheme, scheme_step);
-%     plot(STDP(:,1), STDP(:,2), '.b')
-%     hold on
-%     plot(data1Hz(:,2),data1Hz(:,3)./100,'xr')
-%     neutral_hline = refline([0 1]);
-%     neutral_hline.Color = 'b';   
-%     ('Plasticity as a function of pre-post spike delay');
-%     xlabel('Pre-post spike delay (ms)');
-%     ylabel('Relative change in synaptic strength');
+    plot(data1Hz(:,2),data1Hz(:,3)./100,'xr')
+    neutral_hline = refline([0 1]);
+    neutral_hline.Color = 'b';   
+    ('Plasticity as a function of pre-post spike delay');
+    xlabel('Pre-post spike delay (ms)');
+    ylabel('Relative change in synaptic strength');
     
 end
 

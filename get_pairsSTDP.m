@@ -108,15 +108,15 @@ elseif strcmp(model, 'pheno')
     tau_rho = params(12);
     sigma = params(13);
 
-    w_0 = params(14);
-    tau_w = params(15);
-    theta_act = params(16);
+    tau_w = params(14);
+    theta_act = params(15);
     
-    freq = params(17);
+    freq = params(16);
 end
 
 int_step = 0.5;
 S_attr = 40;
+w_0 = transfer(rho_0, S_attr, sigma);
 
 %% Running simulations, returning STDP curve
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

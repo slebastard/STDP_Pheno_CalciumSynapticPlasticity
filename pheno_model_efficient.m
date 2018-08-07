@@ -8,7 +8,8 @@ function [rho_hist, w_end, c_hist] = pheno_model( pre_spikes_hist, post_spikes_h
 
 def_params = [...
     1000 ...        % T             total simu time     (ms)
-    .3 ...          % rho_0         init syn strength
+    35 ...          % rho_0         init syn strength
+    200 ...         % rho_max
     1 ...           % C_pre
     2 ...           % C_post
     20 ...          % tau_Ca
@@ -75,13 +76,13 @@ gamma_pot = params(11);
 tau_rho = params(12);
 sigma = params(13);
 
-w_0 = params(14);
-tau_w = params(15);
-theta_act = params(16);
+tau_w = params(14);
+theta_act = params(15);
 
 eq_thr = 1e-5;
 S_attr = 40;
 rho_max = 200;
+w_0 = transfer(rho_0, S_attr, sigma);
 
 %% Building events list based on calcium hypothesis
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -120,46 +121,52 @@ c = 0;
 
 rho_hist = rho;
 c_hist = [];
-
+times = [];
 
 % Check whether simulation is trivial %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 if isempty(evts)
-    rho_hist = [];
+    rho_hist = cat(1, [0, rho_0], [T, rho_0]);
     w_end = w_0;
-else
+    return
+end
+    
+% Figure out the calcium history %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+for bump_id = 1:size(evts,1)
+    tn = evts(bump_id, 1);
+    times = [times; tn];
+    c = evts(bump_id, 2) + c*exp(-(tn-t)/tau_Ca);
+    c_hist = [c_hist; c];
+    t = tn;
+end
+c_hist = cat(2, times, c_hist);
 
-    times = [];
-    % Figure out the calcium history %
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-    for bump_id = 1:size(evts,1)
-        tn = evts(bump_id, 1);
-        times = [times; tn];
-        c = evts(bump_id, 2) + c*exp(-(tn-t)/tau_Ca);
-        c_hist = [c_hist; c];
-        t = tn;
-    end
-    c_hist = cat(2, times, c_hist);
-
-    % Extract period objects for which the calcium is above thresholds %
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
+% Extract period objects for which the calcium is above thresholds %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+if any(c_hist(:,2)>theta_pot)
     t_openPot = evts(c_hist(:,2)>theta_pot, 1);
     c_openPot = c_hist(c_hist(:,2)>theta_pot, 2);
     t_maxDurPot = tau_Ca.*log(c_openPot/theta_pot);
     t_closePot = t_openPot + min(circshift(t_openPot, -1) - t_openPot, tau_Ca.*log(c_openPot./theta_pot));
     t_closePot(end) =  t_openPot(end) + t_maxDurPot(end);
+    t_closePot = cat(2, t_openPot, t_closePot, ones(length(t_closePot),1));
+end
 
+if any(c_hist(:,2)>theta_dep)
     t_openDep = evts(c_hist(:,2)>theta_dep,1);
     c_openDep = c_hist(c_hist(:,2)>theta_dep, 2);
     t_maxDurDep = tau_Ca.*log(c_openDep/theta_dep);
     t_closeDep = t_openDep + min(circshift(t_openDep,-1) - t_openDep, tau_Ca.*log(c_openDep./theta_dep));
-    t_closeDep(end) = t_openDep(end) + t_maxDurDep(end);
-
-    t_closePot = cat(2, t_openPot, t_closePot, ones(length(t_closePot),1));
+    t_closeDep(end) =  t_openDep(end) + t_maxDurDep(end);
     t_closeDep = cat(2, t_openDep, t_closeDep, -1.*ones(length(t_closeDep),1));
+end
 
+if ~(exist('t_closePot', 'var') && exist('t_closeDep', 'var'))
+    rho_hist = cat(1, [0, rho_0], [T, rho_0]);
+    w_end = w_0;
+    return
+else
     t_dur = cat(1, t_closePot, t_closeDep);
     t_dur = sortrows(t_dur, [1 2]);
 
@@ -167,7 +174,6 @@ else
     t_durOverlap(1) = 0;
     substitute = circshift(t_dur(:,2),1);
     t_dur(t_durOverlap,1) = substitute(t_durOverlap);
-
 
     % Finding rho %
     %%%%%%%%%%%%%%%%%%%%%%
