@@ -1,0 +1,193 @@
+# Six Subunit Model of CaMKII
+#
+# Graupner, M. and Brunel, N., STDP in a bistable synapse model based on CaMKII and associated signaling pathways, PLoS Comput Biol, 3(11), e221, 2299-2323 (2007). 
+#
+#   Please note that this file allows to compute the steady-states of the CaMKII 
+#   phosphorylation level with respect to calcium. The parameter used here allow 
+#   to reproduce the data shown in Fig.3C by the blue line (p.2303) in the above 
+#	mentioned paper. 
+#   The steady-state diagram consists of two separate branches which have to be computed
+#   separately. This is the case since the initial point (specified by 'init') has to 
+#   be a fixed point on the respective branch. This file allows to compute the upper branch 
+#   including the UP state. The computation starts at Ca_0 = 0.2 \mu M.
+#   
+#   Note however that all the dynamic simulations of the model were not done with xppaut. 
+#   The dynamics of the CaMKII-system has been implemented in a C++ code. Please contact
+#   the authors for further informations.
+#
+#  this file is set to run:
+#  1. start xppaut and load file
+#     $ xppaut 
+#  2. lauch auto
+#     click -> File -> AUTO
+#  3. run auto
+#     click -> Run -> Steady State 
+#  and you will get the fix-points of the system with the bistability
+#
+# auto parameters
+@ NPR=400, NMAX=40000, DSMAX=0.01, DS=.01, PARMIN=0, PARMAX=2
+@ AUTOXMIN=0, AUTOXMAX=2, AUTOYMIN=0, AUTOYMAX=210, AUTOVAR=Ta
+#
+# note that total receptor pop is conserved
+# so p0+p1+...+p10 is constant
+# this leads to a zero eigenvalue, so we set the total
+# receptor population to be p0i=20 and eliminate p0
+# this allows AUTO to do its thing without 
+# choking
+#
+# initial conditions to start at Ca=0.2
+# required to compute the fix-point island including the UP state
+
+###### VARIABLES ######
+
+init B1=0.0,B2=0.0,B3=0.0,B4=0.0
+init B5=0.0,B6=0.0,B7=0.0
+init B8=0.0,B9=0.0,B10=0.0
+init B11=0.0,B12=0.0,B13=0.0
+init PP1=0.0, I1P=0.0
+init TA=132.3964
+
+init mu=0,U=0
+
+
+###### PARAMS ######
+
+param Ca=0.1
+
+# CaMKII PATHWAY PARAMETERS
+param Btot=33.3, CaM=10
+param K5=0.1, K9=.0001
+param L1=0.1, L2=0.025, L3=0.32, L4=0.40
+param k6=6, k7=6
+param KM=0.4, k12=6000
+param k11=500, km11=0.1, I10=1, PP10=0.2
+
+param Kdcan=0.053, ncan=3, kcan0_I1=0.1, kcan_I1=18
+param Kdcan_endo=0.053, ncan_endo=3, kcan0_endo=0.1, kcan_endo=18
+
+param Kdpka=0.11, npka=8, kpka0_I1=0.00359, kpka_I1=100
+param Kdpka_exo=0.11, npka_exo=8, kpka0_exo=0.00359, kpka_exo=100
+
+
+# CaMKII binding to NR2B
+# param kbc=1, kbpc=1, kbp=1
+param kb=1		
+
+param hgt=0.5, rad_spn=0.2, rad_psd=0.1, NA=6.02e23, rate_PSD=0.05
+param kphos=1, kpase=1
+
+# AMPA TRAFFICKING PARAMETERS
+# conductance of one channel is assumed to be 20pS, and we assume a total of 1000 AMPAr
+param N=1000
+param g0=0.0010, g1=0.0030
+param M=100
+
+####### CONSTRAINTS & DEFINITIONS #######
+
+# CaMKII CONSERVATION
+rr=B1 + B2 + B3 + B4 + B5 + B6 + B7 + B8 + B9 + B10 + B11 + B12 + B13
+B0=Btot-rr
+
+Sp=B1 + 2*(B2 + B3 + B4) + 3*(B5 + B6 + B7 + B8) + 4*(B9 + B10 + B11) + 5*B12 + 6*B13
+Su=6*Btot-Sp
+
+Bp0=flr(max(0,1e-21*rate_PSD*NA*hgt*pi*rad_spn^2*B0))
+Bp1=flr(max(0,1e-21*rate_PSD*NA*hgt*pi*rad_spn^2*B1))
+Bp2=flr(max(0,1e-21*rate_PSD*NA*hgt*pi*rad_spn^2*B2))
+Bp3=flr(max(0,1e-21*rate_PSD*NA*hgt*pi*rad_spn^2*B3))
+Bp4=flr(max(0,1e-21*rate_PSD*NA*hgt*pi*rad_spn^2*B4))
+Bp5=flr(max(0,1e-21*rate_PSD*NA*hgt*pi*rad_spn^2*B5))
+Bp6=flr(max(0,1e-21*rate_PSD*NA*hgt*pi*rad_spn^2*B6))
+Bp7=flr(max(0,1e-21*rate_PSD*NA*hgt*pi*rad_spn^2*B7))
+Bp8=flr(max(0,1e-21*rate_PSD*NA*hgt*pi*rad_spn^2*B8))
+Bp9=flr(max(0,1e-21*rate_PSD*NA*hgt*pi*rad_spn^2*B9))
+Bp10=flr(max(0,1e-21*rate_PSD*NA*hgt*pi*rad_spn^2*B10))
+Bp11=flr(max(0,1e-21*rate_PSD*NA*hgt*pi*rad_spn^2*B11))
+Bp12=flr(max(0,1e-21*rate_PSD*NA*hgt*pi*rad_spn^2*B12))
+Bp13=flr(max(0,1e-21*rate_PSD*NA*hgt*pi*rad_spn^2*B13))
+
+NR0=Bp1 + (Bp2+Bp3+Bp4) + (Bp5+Bp6+Bp7+Bp8) + (Bp9+Bp10+Bp11) + Bp12
+NR1=Bp1 + 2*(Bp2 + Bp3 + Bp4) + 3*(Bp5 + Bp6 + Bp7 + Bp8) + 4*(Bp9 + Bp10 + Bp11) + 5*Bp12 + 6*Bp13
+NR2=2*(Bp2+Bp3+Bp4) + 6*(Bp5+Bp6+Bp7+Bp8) + 12*(Bp9+Bp10+Bp11) + 20*Bp12 + 30*Bp13
+
+###### KINETICS ######
+
+k10=k12*PP1/(KM + Sp)
+C=CaM/(1 + L4/Ca + L3*L4/(Ca^2) + L2*L3*L4/(Ca^3) + L1*L2*L3*L4/(Ca^4))
+gam_u=C/(K5+C)
+gam_p=C/(K9+C)
+
+# PKA activity
+vPKA_I1=kpka0_I1 + kpka_I1/(1 + (Kdpka/C)^npka)
+
+# CaN activity
+vCaN_I1=kcan0_I1 + kcan_I1/(1 + (Kdcan/C)^ncan)
+vCaN_endo=kcan0_endo + kcan_endo/(1 + (Kdcan/C)^ncan)
+
+
+###### DYNAMICS ######
+
+# CaMKII concentration equations
+B1'= 6*k6*gam_u^2*B0 - 4*k6*gam_u^2*B1 - k7*gam_u*B1 - k10*B1 + 2*k10*(B2 + B3 + B4)
+#
+B2'= k7*gam_u*B1 + k6*gam_u^2*B1 - 3*k6*gam_u^2*B2 - k7*gam_u*B2 - 2*k10*B2 + k10*(2*B5 + B6 + B7)
+B3'= 2*k6*gam_u^2*B1 - 2*k7*gam_u*B3 - 2*k6*gam_u^2*B3 - 2*k10*B3 + k10*(B5 + B6 + B7 + 3*B8) 
+B4'= k6*gam_u^2*B1 - 2*k7*gam_u*B4 - 2*k6*gam_u^2*B4 - 2*k10*B4 + k10*(B6 + B7)
+#
+B5'= k7*gam_u*B2 + k7*gam_u*B3 + k6*gam_u^2*B2 - k7*gam_u*B5 - 2*k6*gam_u^2*B5 - 3*k10*B5 + k10*(2*B9 + B10)
+B6'= k6*gam_u^2*B2 + k6*gam_u^2*B3  + 2*k7*gam_u*B4 - k6*gam_u^2*B6 - 2*k7*gam_u*B6 - 3*k10*B6 + k10*(B9 + B10 + 2*B11)
+B7'= k6*gam_u^2*B2 + k7*gam_u*B3 + 2*k6*gam_u^2*B4 - k6*gam_u^2*B7 - 2*k7*gam_u*B7 - 3*k10*B7 + k10*(B9 + B10 + 2*B11)
+B8'= k6*gam_u^2*B3 - 3*k7*gam_u*B8 - 3*k10*B8 + k10*B10
+#
+B9'= k7*gam_u*B5 + k6*gam_u^2*B5 + k7*gam_u*B6 + k7*gam_u*B7 - k6*gam_u^2*B9 - k7*gam_u*B9 - 4*k10*B9 + 2*k10*B12
+B10'= k6*gam_u^2*B5 + k6*gam_u^2*B6 + k7*gam_u*B7 + 3*k7*gam_u*B8 - 2*k7*gam_u*B10 - 4*k10*B10 + 2*k10*B12
+B11'= k7*gam_u*B6 +  k6*gam_u^2*B7 - 2*k7*gam_u*B11 - 4*k10*B11 + k10*B12
+#
+B12'= k7*gam_u*B9 + k6*gam_u^2*B9 + 2*k7*gam_u*B10 + 2*k7*gam_u*B11 - k7*gam_u*B12 - 5*k10*B12 + 6*k10*B13
+#
+B13'= k7*gam_u*B12 - 6*k10*B13
+
+# Phosphatase dynamics
+PP1'= -k11*I1P*PP1 + km11*(PP10 - PP1)
+# ORIGINAL: I1P'= -k11*I1P*PP1 + km11*(PP10 - PP1) + vPKA_I1*I10 - vCaN_I1*I1P
+I1P'= -k11*I1P*PP1 + km11*(PP10 - PP1) + vPKA_I1*(I10-I1P) - vCaN_I1*I1P
+
+# Synaptic strength dynamics
+#U'=(M-mu)*(6*kbc*gam_u - kbpc*gam_p - kbp*(1-gam_p))*NR1 + (M-mu)*(kbpc*gam_p + kbp*(1-gam_p) - kbc*gam_u)*NR2
+#mu'=6*(M-mu)*(kbc*gam_u)*NR0 + (M-mu)*(kbpc*gam_p + kbp*(1-gam_p) - kbc*gam_u)*NR1
+U'=(M-mu)*(6*kb*gam_u - kb*gam_p - kb*(1-gam_p))*NR1 + (M-mu)*(kb*gam_p + kb*(1-gam_p) - kb*gam_u)*NR2
+mu'=6*(M-mu)*(kb*gam_u)*NR0 + (M-mu)*(kb*gam_p + kb*(1-gam_p) - kb*gam_u)*NR1
+n0'=kpase*n1*PP1 - kphos*n0*U
+n1'=kphos*n0*U - kpase*n1*PP1
+
+
+###### AUXILIARIES ######
+
+ta'=-ta+Sp
+aux act=Sp
+aux auxB0=B0
+aux auxC=C
+aux auxW=g0*n0+g1*n1
+aux Bpsd0 = Bp0
+aux Bpsd1 = Bp1
+aux Bpsd2 = Bp2
+aux Bpsd3 = Bp3
+aux Bpsd4 = Bp4
+aux Bpsd5 = Bp5
+aux Bpsd6 = Bp6
+aux Bpsd7 = Bp7
+aux Bpsd8 = Bp8
+aux Bpsd9 = Bp9
+aux Bpsd10 = Bp10
+aux Bpsd11 = Bp11
+aux Bpsd12 = Bp12
+aux Bpsd13 = Bp13
+
+###### CONTROLS ######
+
+@ total=300,dt=0.002
+@ bound=100000
+@ maxstor=100000 
+@ njmp=10
+
+done	

@@ -81,6 +81,8 @@ datapath = strcat(datafolder,datafile);
 int_scheme = 'euler_expl';
 scheme_step = 0.5;
 
+datapath = 'Data/Venance2016/';
+
 % Defining default excitation timeline
 pre_spikes_hist = linspace(0, 1000*(n_iter-1)./frequency, n_iter);
 post_spikes_hist = pre_spikes_hist + d_t;
