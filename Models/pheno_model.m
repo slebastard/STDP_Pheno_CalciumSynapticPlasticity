@@ -1,4 +1,4 @@
-function [rho_hist, w_hist, c_hist] = pheno_model( pre_spikes_hist, post_spikes_hist, params, int_scheme, int_step)
+function [rho_hist, w_hist, c_hist] = pheno_model( pre_spikes_hist, post_spikes_hist, params, simu)
 %NAIVE_MODEL Simulates the behavior of a synapse whose behavior follows the
 %naive Calcium_based dynamics
 %   Detailed explanation goes here
@@ -6,82 +6,51 @@ function [rho_hist, w_hist, c_hist] = pheno_model( pre_spikes_hist, post_spikes_
 %% Default parameter values + unpacking params
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-def_params = [...
-    1000 ...        % T             total simu time     (ms)
-    .3 ...          % rho_0         init syn strength
-    1 ...           % C_pre
-    2 ...           % C_post
-    20 ...          % tau_Ca
-    3 ...           % delay_pre
-    1 ...           % theta_dep
-    200 ...         % gamma_dep
-    1.3 ...         % theta_pot
-    321 ...         % gamma_pot
-    150 ...         % tau_rho           syn plast time cst  (ms)
-    0.6 ...         % theta_act
-    0 ...           % sigma
-    .3 ...          % w_0
-    1000 ...        % tau_w
-    ];
-
 switch nargin
     case 0
         pre_spikes_hist = [];
         post_spikes_hist = [];
-        params = def_params;
-        int_scheme = 'euler_expl';
-        int_step = 0.1;
+        params = def_params();
+        simu = def_simu();
     case 1
         post_spikes_hist = [];
-        params = def_params;
-        int_scheme = 'euler_expl';
-        int_step = 0.1;
+        params = def_params();
+        simu = def_simu();
     case 2
-        params = def_params;
-        int_scheme = 'euler_expl';
-        int_step = 0.1;
+        params = def_params();
+        simu = def_simu();
     case 3
-        int_scheme = 'euler_expl';
-        int_step = 0.1;
+        simu = def_simu();
     case 4
-        int_step = 0.1;
-    case 5
     otherwise
-        error('5 inputs max are accepted')
+        error('4 inputs max are accepted')
 end
 
 %%%%%%%%%%%%%%%%%%%%
 % Unpacking params %
 %%%%%%%%%%%%%%%%%%%%
 
-T = params(1);
-rho_0 = params(2);
-rho_max = params(3);
-
-step = int_step;
+T = simu.T;
+step = simu.int_step;
 n_steps = T / step;
 
-C_pre = params(4);
-C_post = params(5);
-tau_Ca = params(6);
-delay_pre = params(7);
-
-theta_dep = params(8);
-gamma_dep = params(9);
-
-theta_pot = params(10);
-gamma_pot = params(11);
-
-tau_rho = params(12);
-sigma = params(13);
-
-w_0 = params(14);
-tau_w = params(15);
-theta_act = params(16);
+rho_0 = params.rho_0;
+rho_max = params.rho_max;
+C_pre = params.C_pre;
+C_post = params.C_post;
+tau_Ca = params.tau_Ca;
+delay_pre = params.delay_pre;
+theta_dep = params.theta_dep;
+gamma_dep = params.gamma_dep;
+theta_pot = params.theta_pot;
+gamma_pot = params.gamma_pot;
+tau_rho = params.tau_rho;
+sigma = params.noise_lvl;
+tau_w = params.tau_w;
+theta_act = params.theta_act;
+w_0 = params.w_0;
 
 eq_thr = 1e-5;
-S_attr = 40;
-rho_max = 200;
 
 %% Building events list based on calcium hypothesis
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

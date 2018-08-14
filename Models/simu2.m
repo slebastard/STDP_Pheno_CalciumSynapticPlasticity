@@ -27,76 +27,69 @@
 %
 % You should be all set!
 
-mode = 'STDP_SWEEP';
-model = 'pheno';
+simu.mode = 'STDP_SWEEP';
+simu.model = 'pheno';
 
 % Parameters controlling excitation history
-d_t = 30;
-n_iter = 100;
-frequency = 1;
+simu.d_t = 30;
+simu.n_iter = 100;
+simu.frequency = 1;
 
 %% Environment definition
 
 params.T = 10;
-rho_max = 200;
-S_attr = 40;
+params.rho_max = 200;
+params.S_attr = 40;
 
-C_pre = 0.4;
-C_post = 0.84;
-tau_Ca = 80;
-delay_pre = -15;
-Ca_params = [C_pre, C_post, tau_Ca, delay_pre];
+params.C_pre = 0.4;
+params.C_post = 0.84;
+params.tau_Ca = 80;
+params.delay_pre = -15;
+params.Ca_params = [C_pre, C_post, tau_Ca, delay_pre];
 
-theta_dep = 1;
-gamma_dep = 200;
-dep_params = [theta_dep, gamma_dep];
+params.theta_dep = 1;
+params.gamma_dep = 200;
+params.dep_params = [theta_dep, gamma_dep];
 
-theta_pot = 1.08;
-gamma_pot = 120;
-pot_params = [theta_pot, gamma_pot];
+params.theta_pot = 1.08;
+params.gamma_pot = 120;
+params.pot_params = [theta_pot, gamma_pot];
 
 N_A = 6.02e17; %mumol^(-1)
 V = 2.5e-16; %L
-theta_act = theta_dep;
+params.theta_act = theta_dep;
 
-tau_rho = 100000;
-tau_w = 500000;
+params.tau_rho = 100000;
+params.tau_w = 500000;
 
-noise_lvl = 25; %1/sqrt(N_A*V);
+params.noise_lvl = 25; %1/sqrt(N_A*V);
 
 % Initialization of variables
-rho_0 = 25; % must be between 0 and rho_max
-w_0 = transfer(rho_0, S_attr, noise_lvl);
+params.rho_0 = 25; % must be between 0 and rho_max
+params.w_0 = transfer(rho_0, S_attr, noise_lvl);
 
-if strcmp(model, 'naive')
-    model_params = [T, rho_0, rho_max, Ca_params, dep_params, pot_params, tau_rho, noise_lvl];
-elseif strcmp(model, 'pheno')
-    model_params = [T, rho_0, rho_max, Ca_params, dep_params, pot_params, tau_rho, noise_lvl, tau_w, theta_act];
-end
-
-int_scheme = 'euler_expl';
-scheme_step = 0.5;
+simu.int_scheme = 'euler_expl';
+simu.scheme_step = 0.5;
 
 datapath = 'Data/Venance2016/';
 
 % Defining default excitation timeline
-pre_spikes_hist = linspace(0, 1000*(n_iter-1)./frequency, n_iter);
-post_spikes_hist = pre_spikes_hist + d_t;
-T = max(1000*(n_iter-1)./frequency + abs(d_t) + 10*tau_Ca);
-model_params(1) = T;
+pre_spikes_hist = linspace(0, 1000*(simu.n_iter-1)./simu.requency, simu.n_iter);
+post_spikes_hist = pre_spikes_hist + simu.d_t;
+simu.T = max(1000*(simu.n_iter-1)./simu.frequency + abs(simu.d_t) + 10*params.tau_Ca);
 
 %% mode='single') Full evolution of syn plast on a single simulation
 if strcmp(mode, 'single') || strcmp(mode, 'all')
     if strcmp(model, 'naive')
-        [rho_hist, c_hist] = naive_model(pre_spikes_hist, post_spikes_hist, model_params, int_scheme, scheme_step);
+        [rho_hist, c_hist] = naive_model(pre_spikes_hist, post_spikes_hist, params, simu);
     elseif strcmp(model, 'pheno')
-        [rho_hist, w_hist, c_hist] = pheno_model(pre_spikes_hist, post_spikes_hist, model_params, int_scheme, scheme_step);
+        [rho_hist, w_hist, c_hist] = pheno_model(pre_spikes_hist, post_spikes_hist, params, simu);
     end
 
     % Plotting rho as a function of time
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-    t = linspace(0, T, T/scheme_step + 1);
+    t = linspace(0, simu.T, simu.T/simu.scheme_step + 1);
 
     figure(1)
     plot(t, rho_hist);
@@ -112,13 +105,13 @@ if strcmp(mode, 'single') || strcmp(mode, 'all')
     xlabel('Time');
     ylabel('Calcium concentration');
 
-    dep_thr = refline([0 theta_dep]);
+    dep_thr = refline([0 params.theta_dep]);
     dep_thr.Color = 'r';
 
-    pot_thr = refline([0 theta_pot]);
+    pot_thr = refline([0 params.theta_pot]);
     pot_thr.Color = 'g';
     
-    act_thr = refline([0 theta_act]);
+    act_thr = refline([0 params.theta_act]);
     act_thr.Color = 'm';
     
     if strcmp(model, 'pheno')
@@ -130,62 +123,23 @@ if strcmp(mode, 'single') || strcmp(mode, 'all')
     end
 end
 
-
-if strcmp(mode, 'efficient')
-    if strcmp(model, 'pheno')
-        [rho_int, w_hist, c_int] = pheno_model(pre_spikes_hist, post_spikes_hist, model_params, int_scheme, scheme_step);
-        [rho_hist, w_end, c_hist] = pheno_model_efficient(pre_spikes_hist, post_spikes_hist, model_params, int_scheme, scheme_step);
-    end
-
-    % Plotting rho as a function of time
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-    t = linspace(0, T, T/scheme_step + 1);
-
-    figure(1)
-    plot(t, rho_int, 'r');
-    hold on
-    plot(rho_hist(:,1), rho_hist(:,2), 'xg');
-    title('Evolution of average CaMKII state');
-    xlabel('Time');
-    ylabel('Average CaMKII state');
-
-    % ToDo: add bumps of Ca as colored pins over x-axis
-
-    figure(2)
-    plot(t, c_int, 'r');
-    hold on
-    plot(c_hist(:,1), c_hist(:,2), 'xg')
-    title('Evolution of calcium influx');
-    xlabel('Time');
-    ylabel('Calcium concentration');
-
-    dep_thr = refline([0 theta_dep]);
-    dep_thr.Color = 'r';
-
-    pot_thr = refline([0 theta_pot]);
-    pot_thr.Color = 'g';
-    
-    act_thr = refline([0 theta_act]);
-    act_thr.Color = 'm';
-end
-
 %% mode='STDP') Provides a STDP curve for provided frequency and number of pairings
 
 % Obtaining STDP curve
 %%%%%%%%%%%%%%%%%%%%%%
 if strcmp(mode, 'STDP') || strcmp(mode, 'all')
-    t_min = -100;
-    t_max = 100;
-    dt = 2;
+    STDP.dt.min = -100;
+    STDP.dt.max = 100;
+    STDP.dt.step = 2;
+    STDP.n_iter = simu.n_iter;
+    STDP.frequency = simu.frequency;
 
-    stdp_params = [model_params, t_min, t_max, dt, n_iter, frequency];
-    STDP = get_STDP(model, 'rel', stdp_params);
+    STDP.function = get_STDP(model, 'rel', params, STDP);
     % Validation against simulation
     % [STDP_an, STDP_sim] = get_both_STDP(model, 'rel', stdp_params, int_scheme, scheme_step);
 
     figure(4)
-    plot(STDP(:,1), STDP(:,2), '.b');
+    STDP.plot = plot(STDP.function(:,1), STDP.function(:,2), '.b');
     % plot(STDP_an(:,1), STDP_an(:,2), '+r');
     % hold on
     % plot(STDP_sim(:,1), STDP_sim(:,2), 'xg');
@@ -203,29 +157,30 @@ end
 %% mode='freq3') STDP = f(freq,dt) 3D plot
 
 if strcmp(mode, 'freq3')
-    dtmin = -75;
-    dtmax = 75;
-    step_dt = 1;
-    dt_params=[dtmin, dtmax, step_dt];
+    freq3Map.dt.min = -75;
+    freq3Map.dt.max = 75;
+    freq3Map.dt.step = 1;
     
-    freq_max = 40;
-    freq_step = 0.5;
-    freq_params = [freq_max, freq_step];
+    freq3Map.freq.max = 40;
+    freq3Map.freq.step = 0.5;
+    freq3Map.n_iter = simu.n_iter;
+    freq3Map.int_scheme = simu.int_scheme;
+    freq3Map.dt_params = simu.dt_params;
+    freq3Map.freq_params = simu.freq_params;
     
-    heatmap_params = [model_params, n_iter];
-    frq_map = get_freq_heatmap(model, 'rel', heatmap_params, int_scheme, dt_params, freq_params);
+    freq3Map.map = get_freq_heatmap(model, 'rel', freq3Map);
     
     n_freq = 1 + floor((freq_max-1)/freq_step);
     n_dt = 1 + floor((dtmax-dtmin)/step_dt);
     
-    frq_heat = zeros(n_freq, n_dt);
-    frq_heat(sub2ind([n_freq,n_dt], repelem(1:n_freq,1,n_dt), repmat(1:n_dt,1,n_freq))) = frq_map(:,3);
+    freq3Map.heat = zeros(n_freq, n_dt);
+    freq3Map.heat(sub2ind([n_freq,n_dt], repelem(1:n_freq,1,n_dt), repmat(1:n_dt,1,n_freq))) = frq_map(:,3);
     
     figure(5)
     
 %     scatter3(frq_map(:,1),frq_map(:,2),frq_map(:,3), '.');
     
-    imagesc(frq_heat');
+    freq3Map.plot = imagesc(freq3Map.heat');
     colormap('hot');
     colorbar;
     
@@ -243,11 +198,14 @@ end
 
 %% mode='freq') STDP = f(freq) 3D plot for two opposite timings
 if strcmp(mode, 'freq')
-    max_freq = 75;
-    step_freq = 0.5;
-    freq_params = [model_params, n_iter];
+    freqMap.freq.max = 75;
+    freqMap.freq.step = 0.5;
+    freqMap.int_scheme = simu.int_scheme;
+    freqMap.d_t = simu.d_t;
+    freqMap.max_freq = simu.max_freq;
+    freqMap.step_freq = simu.step_freq;
 
-    [freq_prepost, freq_postpre] = get_freqSTDP(model, 'rel', freq_params, int_scheme, d_t, max_freq, step_freq);
+    [freqMap.map.prepost, freqMap.map.postpre] = get_freqSTDP(simu.model, 'rel', freqMap);
     
     figure(6)
     plot(freq_prepost(:,1), freq_prepost(:,2), '+g')
@@ -323,24 +281,22 @@ freq_data = csvread(strcat(datapath, 'STDP_Frequency.csv'),1,0);
 n_data = size(freq_data,1);
 
 if strcmp(mode, 'dataFit')
-    dtmin = -100;
-    dtmax = 100;
-    step_dt = 2;
-    dt_params=[dtmin, dtmax, step_dt];
-    
-    freq_max = 10;
-    freq_step = 0.5;
-    freq_params = [freq_max, freq_step];
-    
-    heatmap_params = [model_params, n_iter];
-    freq_htmp = get_freq_heatmap(model, 'rel', heatmap_params, int_scheme, dt_params, freq_params);
+    dataFit.dt.min = -100;
+    dataFit.dt.max = 100;
+    dataFit.dt.step = 2;
+
+    dataFit.freq.max = 10;
+    dataFit.freq.step = 0.5;
+    dataFit.n_iter = simu.n_iter;
+
+    dataFit.heat = get_freq_heatmap(model, 'rel', dataFit);
     
     scatter3(freq_data(:,5), freq_data(:,2), freq_data(:,3)./100, 50*ones(size(freq_data,1),1), '*r')
     hold on
     
     [freq_grid, dt_grid] = meshgrid(1:freq_step:freq_max, dtmin:step_dt:dtmax);
-    STDP_interpol = griddata(freq_htmp(:,1), freq_htmp(:,2), freq_htmp(:,3), freq_grid, dt_grid);
-    surf(freq_grid, dt_grid, STDP_interpol);
+    dataFit.interpol = griddata(dataFit.heat(:,1), dataFit.heat(:,2), dataFit.heat(:,3), freq_grid, dt_grid);
+    surf(freq_grid, dt_grid, dataFit.interpol);
     alpha 0.3
     
 %     data1Hz = freq_data(floor(freq_data(:,5))==1,:);
