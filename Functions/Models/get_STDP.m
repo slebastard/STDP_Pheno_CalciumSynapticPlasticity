@@ -13,7 +13,7 @@ switch nargin
     case 0
         error('1 inputs min are accepted')
     case 1
-        params = def_params();
+        params = default_params();
     case 2
     otherwise
         error('2 inputs max are accepted')
@@ -23,8 +23,11 @@ end
 % Unpacking params %
 %%%%%%%%%%%%%%%%%%%%
 
-T = STDP.T
+model = STDP.model;
+mode = STDP.mode;
+T = STDP.T;
 step = STDP.int_step;
+scheme = STDP.int_scheme;
 n_steps = T / step;
 
 rho_max = params.rho_max;
@@ -38,6 +41,7 @@ theta_pot = params.theta_pot;
 gamma_pot = params.gamma_pot;
 tau_rho = params.tau_rho;
 sigma = params.noise_lvl;
+S_attr = params.S_attr;
 tau_w = params.tau_w;
 theta_act = params.theta_act;
 S_attr = params.S_attr;
@@ -49,13 +53,11 @@ n_iter = STDP.n_iter;
 freq = STDP.frequency;
 
 rho0_step = 5;
-muW = 0.5;
 
 %% Running simulations, returning STDP curve
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 n_points = 1 + floor((t_max - t_min)/dt);
-STDP = [];
 
 perm_regime = (freq/1000 < 1/(t_max + 10*tau_Ca));
 
@@ -102,7 +104,7 @@ function r = Ca_topTheta_rate(theta, dt)
     end
 end
 
-STDP = ones(1+floor((t_max-t_min)/dt), 1+floor(rho_max/rho0_step));
+indivSTDP = ones(1+floor((t_max-t_min)/dt), 1+floor(rho_max/rho0_step));
 muW = 0.5;
 
 % Can we compute the STDP curve explicitely?
@@ -131,21 +133,21 @@ if perm_regime
 
         if strcmp(model, 'naive')
             if strcmp(mode, 'rel')
-                STDP(:,rho0_id) = rho/rho_0;
+                indivSTDP(:,rho0_id) = rho/rho_0;
             elseif strcmp(mode, 'abs')
-                STDP(:,rho0_id) = rho;
+                indivSTDP(:,rho0_id) = rho;
             elseif strcmp(mode, 'lim')
-                STDP(:,rho0_id) = rho_lim;
+                indivSTDP(:,rho0_id) = rho_lim;
             else
                 error('Unknown mode')
             end
         elseif strcmp(model, 'pheno')
             if strcmp(mode, 'rel')
-                STDP(:,rho0_id) = (1/w_0).*transfer(rho, S_attr, sigma)';
+                indivSTDP(:,rho0_id) = (1/w_0).*transfer(rho, S_attr, sigma)';
             elseif strcmp(mode, 'abs')
-                STDP(:,rho0_id) = transfer(rho, S_attr, sigma)';
+                indivSTDP(:,rho0_id) = transfer(rho, S_attr, sigma)';
             elseif strcmp(mode, 'lim')
-                STDP(:,rho0_id) = transfer(rho_lim, S_attr, sigma)';
+                indivSTDP(:,rho0_id) = transfer(rho_lim, S_attr, sigma)';
             else
                 error('Unknown mode')
             end        
@@ -169,14 +171,14 @@ else
 
         % Simulate the evolution of synaptic strength through model -
         % COMPARE TO ANALYTIC
-        params(1) = 1000*(n_iter-1)/freq + 10*tau_Ca;
+        STDP.T = 1000*(n_iter-1)/freq + 10*tau_Ca;
         for rho_0 = 0:rho0_step:rho_max
             rho0_id = 1 + floor(rho_0/rho0_step);
             w_0 = transfer(rho_0, S_attr, sigma);
-            params(2) = rho_0;
-            [~, w_end, ~] = pheno_model_efficient(pre_spikes_hist, post_spikes_hist, params(1:16), int_scheme, int_step);
+            params.rho_0 = rho_0;
+            [~, w_end, ~] = pheno_model_efficient(pre_spikes_hist, post_spikes_hist, params, STDP);
             q_w = w_end/w_0;
-            STDP(t_id, rho0_id) = q_w;
+            indivSTDP(t_id, rho0_id) = q_w;
         end
     end
     
@@ -185,7 +187,7 @@ end
 tmp = transfer(0:rho0_step:rho_max, S_attr, sigma);
 rhoDistr = (1/(sqrt(2*pi*muW*(1-muW)))) .* exp(-(tmp - muW*ones(1, 1+floor(rho_max/rho0_step))).^2 ./(2*muW*(1-muW))); 
 rhoDistr = (1/sum(rhoDistr)).*rhoDistr;
-avgSTDP = STDP * rhoDistr';
+avgSTDP = indivSTDP * rhoDistr';
 avgSTDP = cat(2,avgSTDP,(t_min:dt:t_max)');
 avgSTDP(:,[1 2]) = avgSTDP(:, [2 1]);
 

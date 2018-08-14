@@ -1,17 +1,24 @@
 % Simulation of the Brunel JCNS 2000 network with electrode recording
 % spikes (for paper Destexhe Touboul on Criticality).
 
+% Modified by S. Lebastard, 2018
+% Should accomodate mutliple models of plasticity, including none
+% Should allow for heterogeneous synapse rules, ie manipulation of matrix
+% of parameters
+
 clear all
 close all
 
 % Add plot tools to path
-addpath('PlotTools')
+addpath(genpath('Functions'))
 
 % Parameters to adjust for the simulation:
 
-Duration=20;
-dt=0.1e-3;
-N=1000;
+syn = get_synapse();
+
+Duration=10;
+dt=5e-4;
+N=200;
 
 Iterations=ceil(Duration/dt);
 
@@ -71,7 +78,12 @@ for i=1:N
     ICells=NE+ICells(1:CI);
     W(i,ICells)=-g*J;
 end
-    
+
+ca = zeros(N,N);
+rho = zeros(N,N);
+%rho = syn.rhoMax.*rand(N);
+actPot = zeros(N,N);
+actDep = zeros(N,N);
 
 % Electrodes are regularly located, we compute the attenuation coefficient
 % due to the distance. 
@@ -89,8 +101,21 @@ end
 DCN=(DCN.^(-2)).*(DCN<10);
 %W=rand(N,N)<=Connectivity;
 
+splNeurons.n = 50;
+splNeurons.IDs = rand(N,splNeurons.n,1);
+splNeurons.V = zeros();
 
+splSynapses.n = 20;
+[synOut, synIn] = find(W);
+perm = randperm(length(synOut));
+rpOut = synOut(perm);
+rpIn = synIn(perm);
 
+splSynapses.OutNeurons = rpOut(1:splSynapses.n);
+splSynapses.InNeurons = rpIn(1:splSynapses.n);
+splSynapses.IDs = sub2ind(size(ca),splSynapses.OutNeurons,splSynapses.InNeurons);
+splSynapses.ca = ca(splSynapses.IDs);
+splSynapses.rho = rho(splSynapses.IDs);
 
 % %%%%%%%%   SIMULATION PARAMETERS %%%%%%%%  
 
@@ -112,8 +137,20 @@ for i=1:Iterations
     end
     
     V=(1-dt/tau)*V+ExInput(:,1+mod(i-1,1e4))+RI(:,1+mod(i-1,N_del));        % Voltage update
+    ca = ca.*exp(-dt/syn.tauCa);
+    
     Current(:,i)=DCN*V;         % Current to the electrodes
-    spike=V>=V_t;               % Spiking neurons have a "1"
+    spike = (V>=V_t);               % Spiking neurons have a "1"
+    spikingNeurons = find(spike);
+    
+    ca(spikingNeurons,:) = ca(spikingNeurons,:) + syn.Cpost;
+    ca(:,spikingNeurons) = ca(:,spikingNeurons) + syn.Cpre;
+    actPot = (ca >= syn.tPot).*(W~=0);
+    actDep = (ca >= syn.tDep).*(W~=0);
+    
+    % W = syn.plast(W, spike, dt);
+    rho = rho + dt./syn.tauRho .* (syn.gPot.*(syn.rhoMax - rho).*actPot - syn.gDep.*rho.*actDep);
+    W = transfer(rho, syn.sAttr, syn.sigma);
     
     V(LS>i-N_del)=V_r;          % Refractory period. 
     
@@ -128,6 +165,9 @@ for i=1:Iterations
     Rasterplot(:,i)=spike;
     allspikes(1,i)=sum(spike); % Each row is (neuron number,spike time)
     
+    % Updating synapse sample history
+    splSynapses.ca(:,i) =  ca(splSynapses.IDs);
+    splSynapses.rho(:,i) =  rho(splSynapses.IDs);
     
     progressbar(i/Iterations);
     
@@ -138,9 +178,21 @@ beep;
 %%
 figure(1)
 % subplot(2,1,1);
-[I1,I2]=find(Rasterplot);
+[I1,I2] = find(Rasterplot);
 plot(I2,I1,'.','MarkerSize',1)
-%~
+
+figure(2)
+imagesc(splSynapses.ca)
+colorbar
+
+figure(3)
+imagesc(splSynapses.rho)
+colorbar
+
+figure(4)
+imagesc(transfer(splSynapses.rho), syn.sAttr, syn.sigma)
+colorbar
+%
 
 % imagesc(Rasterplot)
 % colormap (1-gray)
