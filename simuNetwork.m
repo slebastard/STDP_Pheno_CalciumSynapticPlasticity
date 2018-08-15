@@ -18,7 +18,7 @@ syn = get_synapse();
 
 Duration=10;
 dt=5e-4;
-N=200;
+N=400;
 
 Iterations=ceil(Duration/dt);
 
@@ -67,7 +67,7 @@ NC=NCX*NCY;     % Total number of electrodes
 
 
 
-W=zeros(N,N);
+W=zeros(N,N);   % for index for postsynaptic neuron, second for presynaptic
 
 for i=1:N
     ECells=randperm(NE);
@@ -79,9 +79,11 @@ for i=1:N
     W(i,ICells)=-g*J;
 end
 
+synSign = (W>0) - g.*(W<0);
+
 ca = zeros(N,N);
 rho = zeros(N,N);
-%rho = syn.rhoMax.*rand(N);
+%rho = transferinv(1e3*J.*abs(synSign), syn.sAttr, syn.sigma, syn.rhoMax).*ones(N,N);
 actPot = zeros(N,N);
 actDep = zeros(N,N);
 
@@ -105,15 +107,15 @@ splNeurons.n = 50;
 splNeurons.IDs = rand(N,splNeurons.n,1);
 splNeurons.V = zeros();
 
-splSynapses.n = 20;
+splSynapses.n = 15;
 [synOut, synIn] = find(W);
 perm = randperm(length(synOut));
 rpOut = synOut(perm);
 rpIn = synIn(perm);
 
-splSynapses.OutNeurons = rpOut(1:splSynapses.n);
-splSynapses.InNeurons = rpIn(1:splSynapses.n);
-splSynapses.IDs = sub2ind(size(ca),splSynapses.OutNeurons,splSynapses.InNeurons);
+splSynapses.PostNeurons = rpOut(1:splSynapses.n);
+splSynapses.PreNeurons = rpIn(1:splSynapses.n);
+splSynapses.IDs = sub2ind(size(ca),splSynapses.PostNeurons,splSynapses.PreNeurons);
 splSynapses.ca = ca(splSynapses.IDs);
 splSynapses.rho = rho(splSynapses.IDs);
 
@@ -150,7 +152,7 @@ for i=1:Iterations
     
     % W = syn.plast(W, spike, dt);
     rho = rho + dt./syn.tauRho .* (syn.gPot.*(syn.rhoMax - rho).*actPot - syn.gDep.*rho.*actDep);
-    W = transfer(rho, syn.sAttr, syn.sigma);
+    W = synSign.*transfer(rho, syn.sAttr, syn.sigma);
     
     V(LS>i-N_del)=V_r;          % Refractory period. 
     
@@ -180,19 +182,37 @@ figure(1)
 % subplot(2,1,1);
 [I1,I2] = find(Rasterplot);
 plot(I2,I1,'.','MarkerSize',1)
+title('Spiking activity in neural population')
 
 figure(2)
 imagesc(splSynapses.ca)
+title('Synaptic calcium actvivity in sample synapses')
 colorbar
 
 figure(3)
 imagesc(splSynapses.rho)
+title('Phosphorylation state at sample synapses')
 colorbar
 
+splSynapses.wHist = synSign(splSynapses.IDs).*transfer(splSynapses.rho, syn.sAttr, syn.sigma);
 figure(4)
-imagesc(transfer(splSynapses.rho), syn.sAttr, syn.sigma)
+imagesc(splSynapses.wHist)
+title('Synaptic weight at sample synapses')
 colorbar
 %
+
+splSynapses.stats = cat(2, linspace(1,splSynapses.n,splSynapses.n)', splSynapses.PreNeurons, splSynapses.PostNeurons, splSynapses.wHist(:,1), splSynapses.wHist(:,end))
+
+splSynapses.pres = zeros(3*splSynapses.n, Iterations);
+for i=1:splSynapses.n
+    splSynapses.pres(3*(i-1)+1,:) = 100*Rasterplot(splSynapses.PreNeurons(i,1),:);
+    splSynapses.pres(3*(i-1)+2,:) = 100*Rasterplot(splSynapses.PostNeurons(i,1),:);
+    splSynapses.pres(3*(i-1)+3,:)= synSign(splSynapses.IDs(i)).*splSynapses.rho(i,:);
+end
+
+figure(5)
+imagesc(splSynapses.pres)
+colorbar
 
 % imagesc(Rasterplot)
 % colormap (1-gray)
