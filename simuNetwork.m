@@ -18,7 +18,7 @@ syn = get_synapse();
 
 Duration=10;
 dt=5e-4;
-N=400;
+N=200;
 
 Iterations=ceil(Duration/dt);
 

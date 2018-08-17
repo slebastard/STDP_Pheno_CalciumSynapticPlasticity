@@ -19,6 +19,9 @@
 %           calcium threshold, and noise
 % - pheno   Graupner & Brunel 2012 with plasticity brake, including a
 %           mapping of noise from  the analysis of G&B 2007 realistic model
+% - caProd  Same model as pheno, but the calcium is the product of a
+%           presynaptic and a postsynaptic component. This avoids
+%           plasticity due to unilateral activity
 % -------------------------------------------------------------------------
 %
 % 3) Depending on which modes you use, you will want to change the default
@@ -80,6 +83,8 @@ if strcmp(simu.mode, 'single')
         [rho_hist, c_hist] = naive_model(pre_spikes_hist, post_spikes_hist, params, simu);
     elseif strcmp(simu.model, 'pheno')
         [rho_hist, w_hist, c_hist] = pheno_model(pre_spikes_hist, post_spikes_hist, params, simu);
+    elseif strcmp(simu.model, 'caProd')
+        [rho_hist, w_hist, c_hist] = caProd_model(pre_spikes_hist, post_spikes_hist, params, simu);
     end
 
     % Plotting rho as a function of time

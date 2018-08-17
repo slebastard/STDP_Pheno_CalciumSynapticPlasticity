@@ -36,7 +36,11 @@ heatmap = [];
 for freq_id = 1:n_points_freq
     frq = freqs(1,freq_id);
     STDP.frequency = frq;
-    std = get_STDP(STDP, params);
+    if strcmp(dataFit.model, 'caProd')
+        std = get_STDP_CaProd(STDP, params);
+    else
+        std = get_STDP(STDP, params);
+    end
     std = cat(2, frq*ones(size(std,1),1), std);
     heatmap = cat(1, heatmap, std);
 end
