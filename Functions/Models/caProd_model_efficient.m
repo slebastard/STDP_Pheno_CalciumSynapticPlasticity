@@ -1,4 +1,4 @@
-function [rho_hist, w_end, c_hist] = pheno_model_efficient( pre_spikes_hist, post_spikes_hist, params, simu )
+function [rho_hist, w_end, c_hist] = caProd_model_efficient( pre_spikes_hist, post_spikes_hist, params, simu )
 %NAIVE_MODEL Simulates the behavior of a synapse whose behavior follows the
 %naive Calcium_based dynamics
 %   Detailed explanation goes here
@@ -54,6 +54,7 @@ w_0 = params.w_0;
 
 tau_CaPre = tau_Ca;
 tau_CaPost = tau_Ca;
+tau_x = tau_Ca;
 
 %% Simulating process
 %%%%%%%%%%%%%%%%%%%%%
@@ -63,6 +64,8 @@ tau_CaPost = tau_Ca;
 rho = rho_0;
 w = w_0;
 t = 0;
+x_pre = 1;
+x_post = 1;
 c_pre = 0;
 c_post = 0;
 c = 0;
@@ -74,6 +77,9 @@ c_histPost = [];
 times = [];
 
 evts = [];
+
+len_pre = size(pre_spikes_hist,2);
+len_post = size(post_spikes_hist,2);
 
 if len_pre > 0
     for pre_evtID=1:len_pre
@@ -102,9 +108,17 @@ end
 for bump_id = 1:size(evts,1)
     tn = evts(bump_id, 1);
     times = [times; tn];
-    c_post = C_post.*(evts(bump_id,2)==1) + c_post.*exp(-(tn-t)/tau_CaPost);
-    c_pre = C_pre.*(evts(bump_id,2)==-1) + c_pre.*exp(-(tn-t)/tau_CaPre);
-    c = c_pre.*c_post;
+    x_pre = 1 - exp((tn-t)/tau_x)*(1 - x_pre); % comment this out in prod model
+    x_post = 1 - exp((tn-t)/tau_x)*(1 - x_post); % comment this out in prod model
+    c_post = C_post.*(x_post.^x_pre).*(evts(bump_id,2)==1) + c_post.*exp(-(tn-t)/tau_CaPost);
+    c_pre = C_pre.*(x_pre.^x_post).*(evts(bump_id,2)==-1) + c_pre.*exp(-(tn-t)/tau_CaPre);
+    x_pre = x_pre.*(evts(bump_id,2)~=-1);
+    x_post = x_post.*(evts(bump_id,2)~=1);
+    % PRODUCT MODEL
+    % c = c_pre.*c_post;
+    % ADDITIVE MODELS
+    c = c_pre + c_post;
+    
     c_hist = [c_hist;c];
     t = tn;
 end

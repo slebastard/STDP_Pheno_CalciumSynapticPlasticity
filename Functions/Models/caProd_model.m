@@ -1,4 +1,4 @@
-function [rho_hist, w_hist, c_hist] = pheno_model( pre_spikes_hist, post_spikes_hist, params, simu)
+function [rho_hist, w_hist, c_hist] = caProd_model( pre_spikes_hist, post_spikes_hist, params, simu)
 %NAIVE_MODEL Simulates the behavior of a synapse whose behavior follows the
 %naive Calcium_based dynamics
 %   Detailed explanation goes here
@@ -54,6 +54,7 @@ w_0 = params.w_0;
 
 tau_CaPre = tau_Ca;
 tau_CaPost = tau_Ca;
+tau_x = tau_Ca;
 
 %% Building events list based on calcium hypothesis
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -72,13 +73,15 @@ if strcmp(scheme, 'euler_expl')
     rho = rho_0;
     w = w_0;
     t = 0;
+    x_pre = 1;
+    x_post = 1;
     c_pre = 0;
     c_post = 0;
     c = 0;
     
     rho_hist = rho;
     w_hist = w;
-    c_hist = [0,0];
+    c_hist = 0;
 
     % Check whether simulation is trivial %
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -94,12 +97,26 @@ if strcmp(scheme, 'euler_expl')
             evt_pre = find(and(t - double(pre_spikes_hist) < step, t >= double(pre_spikes_hist)));
             evt_post = find(and(t - double(post_spikes_hist) < step, t >= double(post_spikes_hist)));
             if evt_pre
-                c_pre = c_pre + C_pre; 
+                % PRODUCT MODEL
+                % c_pre = c_pre + C_pre;
+                
+                % SATURATION VARIABLE MODEL
+                c_pre = c_pre + C_pre*x_pre^x_post;
+                x_pre = 0;
             end
             if evt_post
-                c_post = c_post + C_post; 
+                % PRODUCT MODEL
+                % c_post = c_post + C_post;
+                
+                % SATURATION VARIABLE MODEL
+                c_post = c_post + C_post*x_post^x_pre;
+                x_post = 0;                
             end
-            c = c_pre.*c_post;
+            % PRODUCT MODEL
+            % c = c_pre.*c_post;
+            
+            % ADDITIVE MODELS
+            c = c_pre + c_post;
             
             rho = rho + step/tau_rho * (gamma_pot*(rho_max-rho)*(c > theta_pot) - gamma_dep*rho*(c > theta_dep)) * (c > theta_act);
             w_f = 0.5*erfc((S_attr-rho)/sqrt(2*sigma^2));
@@ -107,6 +124,8 @@ if strcmp(scheme, 'euler_expl')
             
             rho_hist = [rho_hist, rho];
             w_hist = [w_hist; w];
+            x_pre = 1 - exp(-step/tau_x)*(1-x_pre);
+            x_post = 1 - exp(-step/tau_x)*(1-x_post);
             c_pre = c_pre * exp(-step/tau_CaPre);
             c_post = c_post * exp(-step/tau_CaPost);
             t = t + step;

@@ -63,7 +63,16 @@ perm_regime = (freq/1000 < 1/(t_max + 10*tau_Ca));
 
 function r = Ca_topTheta_rate(theta, dt)
 
-    if C_pre<=theta && C_post<=theta
+% PRODUCT MODELS
+%     if C_pre*C_post >= theta
+%         dt_crit = log(C_pre*C_post/theta);
+%         r = tau_Ca * (freq/1000) * max(0, dt_crit - abs(dt));
+%     else
+%         r = 0;
+%     end
+
+% ADDITIVE MODELS
+     if C_pre<=theta && C_post<=theta
         dt_crit_low = log((theta-C_pre)/C_post);
         dt_crit_high = log(C_pre/(theta-C_post));
         r = tau_Ca * (freq/1000) * (...
@@ -129,29 +138,16 @@ if perm_regime
             + rho_lim...
             + c .* sqrt((1 - a.^(2*n_iter))./(1 - a.^2)) .* randn(1,n_points); % final EPSP amplitude
 
-        rho(isnan(rho)) = rho_0;
-
-        if strcmp(model, 'naive')
-            if strcmp(mode, 'rel')
-                indivSTDP(:,rho0_id) = rho/rho_0;
-            elseif strcmp(mode, 'abs')
-                indivSTDP(:,rho0_id) = rho;
-            elseif strcmp(mode, 'lim')
-                indivSTDP(:,rho0_id) = rho_lim;
-            else
-                error('Unknown mode')
-            end
-        elseif strcmp(model, 'pheno') || strcmp(model, 'caProd')
-            if strcmp(mode, 'rel')
-                indivSTDP(:,rho0_id) = (1/w_0).*transfer(rho, S_attr, sigma)';
-            elseif strcmp(mode, 'abs')
-                indivSTDP(:,rho0_id) = transfer(rho, S_attr, sigma)';
-            elseif strcmp(mode, 'lim')
-                indivSTDP(:,rho0_id) = transfer(rho_lim, S_attr, sigma)';
-            else
-                error('Unknown mode')
-            end        
-        end
+       rho(isnan(rho)) = rho_0;
+        if strcmp(mode, 'rel')
+            indivSTDP(:,rho0_id) = (1/w_0).*transfer(rho, S_attr, sigma)';
+        elseif strcmp(mode, 'abs')
+            indivSTDP(:,rho0_id) = transfer(rho, S_attr, sigma)';
+        elseif strcmp(mode, 'lim')
+            indivSTDP(:,rho0_id) = transfer(rho_lim, S_attr, sigma)';
+        else
+            error('Unknown mode')
+        end        
     end
  
 else
@@ -176,7 +172,7 @@ else
             rho0_id = 1 + floor(rho_0/rho0_step);
             w_0 = transfer(rho_0, S_attr, sigma);
             params.rho_0 = rho_0;
-            [~, w_end, ~] = pheno_model_efficient(pre_spikes_hist, post_spikes_hist, params, STDP);
+            [~, w_end, ~] = caProd_model_efficient(pre_spikes_hist, post_spikes_hist, params, STDP);
             q_w = w_end/w_0;
             indivSTDP(t_id, rho0_id) = q_w;
         end

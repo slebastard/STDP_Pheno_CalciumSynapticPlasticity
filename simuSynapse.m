@@ -30,13 +30,13 @@
 %
 % You should be all set!
 
-simu.mode = 'dataFit';
-simu.model = 'pheno';
+simu.mode = 'single';
+simu.model = 'caProd';
 
 % Parameters controlling excitation history
-simu.d_t = 30;
+simu.d_t = 10;
 simu.n_iter = 100;
-simu.frequency = 1;
+simu.frequency = 300;
 simu.int_scheme = 'euler_expl';
 simu.int_step = 0.5;
 
@@ -69,13 +69,15 @@ N_A = 6.02e17; %mumol^(-1)
 V = 2.5e-16; %L
 
 
-data.path = 'Data/Venance2016/';
-addpath(genpath('Functions'), 'Data');
+data.path = '../Data/Venance2016/';
+addpath(genpath('Functions'), '../Data');
 
 % Defining default excitation timeline
 pre_spikes_hist = linspace(0, 1000*(simu.n_iter-1)./simu.frequency, simu.n_iter);
 post_spikes_hist = pre_spikes_hist + simu.d_t;
 simu.T = max(1000*(simu.n_iter-1)./simu.frequency + abs(simu.d_t) + 10*params.tau_Ca);
+post_spikes_hist = post_spikes_hist(post_spikes_hist > 0.3*simu.T & post_spikes_hist < 0.6*simu.T );
+
 
 %% mode='single') Full evolution of syn plast on a single simulation
 if strcmp(simu.mode, 'single')
@@ -90,7 +92,7 @@ if strcmp(simu.mode, 'single')
     % Plotting rho as a function of time
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-    t = linspace(0, simu.T, simu.T/simu.scheme_step + 1);
+    t = linspace(0, simu.T, simu.T/simu.int_step + 1);
 
     figure(1)
     plot(t, rho_hist);
@@ -131,12 +133,16 @@ end
 if strcmp(simu.mode, 'STDP')
     
     STDP = simu;
-    STDP.dt.min = -100;
-    STDP.dt.max = 100;
+    STDP.dt.min = -150;
+    STDP.dt.max = 150;
     STDP.dt.step = 2;
     STDP.mode = 'rel';
 
-    STDP.function = get_STDP(STDP, params);
+    if strcmp(simu.model, 'caProd')
+        STDP.function = get_STDP_CaProd(STDP, params);
+    else
+        STDP.function = get_STDP(STDP, params);
+    end
     % Validation against simulation
     % [STDP_an, STDP_sim] = get_both_STDP(model, 'rel', stdp_params, int_scheme, scheme_step);
 
@@ -286,33 +292,42 @@ if strcmp(simu.mode, 'dataFit')
 
     dataFit.dt.min = -100;
     dataFit.dt.max = 100;
-    dataFit.dt.step = 2;
+    dataFit.dt.step = 4;
 
     dataFit.freq.max = 10;
-    dataFit.freq.step = 0.5;
+    dataFit.freq.step = 1;
 
-    dataFit.heat = get_freq_heatmap(dataFit, params);
+    % dataFit.heat = get_freq_heatmap(dataFit, params);
 
-    figure(9)
+    % figure(9)
     data.freqSTDP.freqs=unique(data.freqSTDP.data(:,5));
-    n_data_freqs=length(data.freqSTDP.freqs);
-    for f=1:n_data_freqs
-        ids=find(data.freqSTDP.data(:,5)==data.freqSTDP.freqs(f) & data.freqSTDP.data(:,7)~=0);
-        filtered_freq=data.freqSTDP.data(ids,:);
-        [a,b]=sort(filtered_freq(:,2));
-        plot3(filtered_freq(b,5), filtered_freq(b,2), filtered_freq(b,3)./100, 'r','linewidth',2)
-        hold on
-    end    
+    n_data_freqs=length(data.freqSTDP.freqs); 
 
     % scatter3(data.freqSTDP.data(:,5), data.freqSTDP.data(:,2), data.freqSTDP.data(:,3)./100, 50*ones(size(data.freqSTDP.data,1),1), '*r')
     % hold on
     
-    [freq_grid, dt_grid] = meshgrid(1:dataFit.freq.step:dataFit.freq.max, dataFit.dt.min:dataFit.dt.step:dataFit.dt.max);
-    dataFit.interpol = griddata(dataFit.heat(:,1), dataFit.heat(:,2), dataFit.heat(:,3), freq_grid, dt_grid);
-    ribboncoloredZ(gca,dt_grid,dataFit.interpol);
-    colormap(bluewhitered), colorbar;
+    % [freq_grid, dt_grid] = meshgrid(1:dataFit.freq.step:dataFit.freq.max, dataFit.dt.min:dataFit.dt.step:dataFit.dt.max);
+    % dataFit.interpol = griddata(dataFit.heat(:,1), dataFit.heat(:,2), dataFit.heat(:,3), freq_grid, dt_grid);
+    % ribboncoloredZ(gca,dt_grid,dataFit.interpol);
     % surf(freq_grid, dt_grid, dataFit.interpol);
-    alpha 0.3
+    % colormap(bluewhitered), colorbar;
+    % alpha 0.3
+    
+    for f=1:n_data_freqs
+        % hold on
+        ids=find(data.freqSTDP.data(:,5)==data.freqSTDP.freqs(f) & data.freqSTDP.data(:,7)~=0);
+        filtered_freq=data.freqSTDP.data(ids,:);
+        [a,b]=sort(filtered_freq(:,2));
+        % plot3(filtered_freq(b,5), filtered_freq(b,2), filtered_freq(b,3)./100, 'r','linewidth',2)
+        % h = ribbon(filtered_freq(b,2), filtered_freq(b,3)./100, 0.15);
+        % set(h, 'XData', filtered_freq(b,5)-1 + get(h, 'XData'));
+        figure()
+        plot(filtered_freq(b,2), filtered_freq(b,3)./100)
+        hold on
+        dataFit.frequency = data.freqSTDP.freqs(f);
+        STDP.function = get_STDP_CaProd(dataFit, params);
+        plot(STDP.function(:,1), STDP.function(:,2), '.b')
+    end   
     
 %     dataFit.1Hz = freq_data(floor(freq_data(:,5))==1,:);
 %     
@@ -331,7 +346,7 @@ end
 
 
 %% Find STDP curve attributes as a function of parameters
-if strcmp(stdp.mode, 'STDP_SWEEP')
+if strcmp(simu.mode, 'STDP_SWEEP')
     sweep.caBump.min = 0.5;
     sweep.caBump.max = 3;
     sweep.caBump.step = 0.1;

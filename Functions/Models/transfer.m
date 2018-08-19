@@ -7,7 +7,7 @@ if nargin == 1
     sigma = 0.05; % replace with default sigma from G&B 2007
 end
 
-wf = 0.5*erfc((S_attr-rho)./sqrt(2*sigma^2));
+wf = 0.5*erfc((S_attr-real(rho))./sqrt(2*sigma^2));
 
 end
 
