@@ -18,37 +18,33 @@ close all
 % Add plot tools to path
 addpath(genpath('Functions'))
 
-% Parameters to adjust for the simulation:
+
+%% Parameterization
+
+% %%%%%%%%   PARAMETERS OF THE SIMULATION  %%%%%%%% 
 
 syn = get_synapse();
 
 Duration=1;
 dt=5e-4;
 N=20;
-
 Iterations=ceil(Duration/dt);
+
+plt.all.raster = false;
+plt.spl.ca = true;
+plt.spl.rho = true;
+plt.spl.w = false;
+plt.spl.pres = true;
+plt.spl.hist = true;
+
+gif.graph = true;
+gif.lapl = false;
 
 
 % %%%%%%%%   PARAMETERS OF THE NETWORK  %%%%%%%%   
 
 NE=ceil(0.8*N);      % # excitatory neurons
 NI=N-NE;             % # excitatory neurons
-
-
-
-% Threshold, reset, time constant and refractory period (p.185, 2nd column,
-% Brunel 2000)
-V_t=20e-3;
-V_r=10e-3;
-tau=20e-3;
-t_rp=2e-3;
-
-
-
-% %%%%%% BIFURCATION PARAMETERS %%%%%%%
-J=0.1e-3;                   % Strength of exc. Connections
-g=8;                      % Strength of inh/exc (inh connections -gJ)
-ratioextthresh=0.9;         % nu_ext/nu_thresh
 
 Connectivity=0.4;           % Connectivity coefficients, parameter epsilon in Brunel 2000.
 D=3e-3;                        % Transmission Delay
@@ -57,12 +53,22 @@ CI=round(Connectivity*NI);          % Number of inh connections
 C_ext=CE;
 
 
+% %%%%%%%%   PARAMETERS OF THE NEURONS  %%%%%%%%   
+
+% Threshold, reset, time constant and refractory period (p.185, 2nd column,
+% Brunel 2000)
+V_t=20e-3;
+V_r=10e-3;
+tau=20e-3;
+t_rp=2e-3;
+
+% Bifurcation parameters
+J=0.1e-3;                   % Strength of exc. Connections
+g=8;                      % Strength of inh/exc (inh connections -gJ)
+ratioextthresh=0.9;         % nu_ext/nu_thresh
+
 nu_thresh=V_t/(J*CE*tau);   % Frequency needed for a neuron to reach the threshold. 
 nu_ext=ratioextthresh*nu_thresh;       % external Poisson input rate
-
-
-
-
 
 
 % %%%%%%%%   PARAMETERS OF THE ELECTRODES  %%%%%%%%  
@@ -71,9 +77,12 @@ NCX=8;          % Number of electrodes rows
 NCY=8;          % Number of electrodes columns
 NC=NCX*NCY;     % Total number of electrodes
 
+%% Creating network
 
+% %%%%%% INITIALIZING SYNAPTIC QTIES %%%%%%
 
-W=zeros(N,N);   % 1st index for postsynaptic neuron, 2nd for presynaptic
+% %%% Synaptic weights %%%
+W = zeros(N,N);   % 1st index for postsynaptic neuron, 2nd for presynaptic
 
 for i=1:N
     ECells=randperm(NE);
@@ -89,12 +98,15 @@ end
 
 synSign = (W>0) - g.*(W<0);
 
-% Graph for plotting evolution of network
-G = digraph(W');
 
-% Weight matrix for spectral clustering
-A = abs(W + W'); % Symmetrization, all information on directionnality is lost
+G = digraph(W');    % Graph for plotting evolution of network
+A = abs(W + W'); % Weight matrix for spectral clustering
+% Symmetrization, all information on directionnality is lost
+nbins = 100;
+histRho = zeros(nbins, Iterations);
 
+
+% %%% Other qties %%%
 ca = zeros(N,N);
 xpre = ones(N,N);
 xpost = ones(N,N);
@@ -103,9 +115,8 @@ rho = zeros(N,N);
 actPot = zeros(N,N);
 actDep = zeros(N,N);
 
-nbins = 100;
-histRho = zeros(nbins, Iterations);
 
+% %%% Electrodes wiring %%%
 % Electrodes are regularly located, we compute the attenuation coefficient
 % due to the distance. 
 
@@ -122,10 +133,8 @@ end
 DCN=(DCN.^(-2)).*(DCN<10);
 %W=rand(N,N)<=Connectivity;
 
-splNeurons.n = 50;
-splNeurons.IDs = rand(N,splNeurons.n,1);
-splNeurons.V = zeros();
 
+% Sample synapses
 splSynapses.n = 15;
 [synOut, synIn] = find(W);
 perm = randperm(length(synOut));
@@ -140,6 +149,7 @@ splSynapses.xpre = xpre(splSynapses.IDs);
 splSynapses.xpost = xpost(splSynapses.IDs);
 splSynapses.rho = rho(splSynapses.IDs);
 
+%% Initialization
 % %%%%%%%%   SIMULATION PARAMETERS %%%%%%%%  
 
 N_rp=round(t_rp/dt);        % Refractory (in dt)
@@ -156,33 +166,37 @@ tau_pre = 3*syn.tauCa;
 tau_post = 3*syn.tauCa;
 
 Rasterplot=zeros(N,Iterations);
-tic();
 
+% %%%%%%% INITIALIZING GIFS %%%%%%%
 LWidths = (5.*(G.Edges.Weight>0) + 0.8.*(G.Edges.Weight<0)).*abs(G.Edges.Weight);
 EColors = [0 1 0].*(G.Edges.Weight>0) + [1 0 0].*(G.Edges.Weight<0);
-figure(1)
-plot(G,'LineWidth',LWidths,'EdgeColor',EColors)
-axis tight
+if gif.graph
+    figure(1)
+    plot(G,'LineWidth',LWidths,'EdgeColor',EColors)
+    axis tight
+    set(gca,'nextplot','replacechildren','visible','off')
+    f1 = getframe;
+    [im1,map1] = rgb2ind(f1.cdata,256,'nodither');
+end
 
-set(gca,'nextplot','replacechildren','visible','off')
-f1 = getframe;
-[im1,map1] = rgb2ind(f1.cdata,256,'nodither');
-
-figure(2)
 A = W + W';
 D = diag(sum(A,1));
 L_rw = eye(N) - D^(-1)*A;
 [eVals, ~] = eig(L_rw);
-spc = sort(diag(eVals));
-plot(1:20, spc(1:20), '+r')
-xlabel('Index')
-ylabel('Eigenvalue')
-title('Eigendecomposition at time 0s')
+if gif.lapl
+    figure(2)
+    spc = sort(diag(eVals));
+    plot(1:20, spc(1:20), '+r')
+    xlabel('Index')
+    ylabel('Eigenvalue')
+    title('Eigendecomposition at time 0s')
+    set(gca,'nextplot','replacechildren')
+    f2 = getframe;
+    [im2,map2] = rgb2ind(f2.cdata,256,'nodither');
+end
 
-set(gca,'nextplot','replacechildren')
-f2 = getframe;
-[im2,map2] = rgb2ind(f2.cdata,256,'nodither');
-
+%% Simulation
+tic();
 for i=1:Iterations
     if (1+mod(i-1,1e4))==1
         ExInput=J*poissrnd(nu_ext*C_ext*dt,N,1e4);
@@ -237,86 +251,112 @@ for i=1:Iterations
     
     if mod(i,20)==0
         % Printing network to GIF
-        G = digraph(W');
-        LWidths = (5.*(G.Edges.Weight>0) + 0.8.*(G.Edges.Weight<0)).*abs(G.Edges.Weight);
-        EColors = [0 1 0].*(G.Edges.Weight>0) + [1 0 0].*(G.Edges.Weight<0);
-        figure(1)
-        plot(G,'LineWidth',LWidths,'EdgeColor',EColors)
-        f1 = getframe;
-        im1(:,:,1,floor(i/20)) = rgb2ind(f1.cdata,map1,'nodither');
+        if gif.graph
+            G = digraph(W');
+            LWidths = (5.*(G.Edges.Weight>0) + 0.8.*(G.Edges.Weight<0)).*abs(G.Edges.Weight);
+            EColors = [0 1 0].*(G.Edges.Weight>0) + [1 0 0].*(G.Edges.Weight<0);
+            figure(1)
+            plot(G,'LineWidth',LWidths,'EdgeColor',EColors)
+            f1 = getframe;
+            im1(:,:,1,floor(i/20)) = rgb2ind(f1.cdata,map1,'nodither');
+        end
         
         % Eigendecomposition to find clusters
-        A = abs(W + W');
-        D = diag(sum(A,1));
-        L_rw = eye(N) - D^(-1)*A;
-        [eVals, ~] = eig(L_rw);
-        figure(2)
-        spc = sort(diag(eVals));
-        plot(1:20, spc(1:20), '+r')
-        xlabel('Index')
-        ylabel('Eigenvalue')
-        title(strcat('Eigendecomposition at time ', num2str(dt*i,3),'s'))
-        f2 = getframe;
-        im2(:,:,1,floor(i/20)) = rgb2ind(f2.cdata,map2,'nodither');
+        if gif.lapl
+            A = abs(W + W');
+            D = diag(sum(A,1));
+            L_rw = eye(N) - D^(-1)*A;
+            [eVals, ~] = eig(L_rw);
+            figure(2)
+            spc = sort(diag(eVals));
+            plot(1:20, spc(1:20), '+r')
+            xlabel('Index')
+            ylabel('Eigenvalue')
+            title(strcat('Eigendecomposition at time ', num2str(dt*i,3),'s'))
+            f2 = getframe;
+            im2(:,:,1,floor(i/20)) = rgb2ind(f2.cdata,map2,'nodither');
+        end
     end
+    
     progressbar(i/Iterations);
     
 end
 toc()
 beep;
 
+G = digraph(W');
+LWidths = (5.*(G.Edges.Weight>0) + 0.8.*(G.Edges.Weight<0)).*abs(G.Edges.Weight);
+EColors = [0 1 0].*(G.Edges.Weight>0) + [1 0 0].*(G.Edges.Weight<0);
+
+A = abs(W + W');
+D = diag(sum(A,1));
+L_rw = eye(N) - D^(-1)*A;
+[eVals, ~] = eig(L_rw);
+
+
 %% Correlation analysis
 splSynapses.corr = zeros();
 
 %% Creating graph for visualization
-% imwrite(im1,map1,'sampleGraph_randinit.gif','DelayTime',0,'LoopCount',inf)
-imwrite(im2,map2,'specClust_asym.gif','DelayTime',0,'LoopCount',inf)
+if gif.graph
+    imwrite(im1,map1,'sampleGraph_randinit.gif','DelayTime',0,'LoopCount',inf)
+end
+
+if gif.lapl
+    imwrite(im2,map2,'specClust_asym.gif','DelayTime',0,'LoopCount',inf)
+end
 
 %% Plotting network stats
 
-figure(1)
-% subplot(2,1,1);
-[I1,I2] = find(Rasterplot);
-plot(I2,I1,'.','MarkerSize',1)
-title('Spiking activity in neural population')
+if plt.all.raster
+    figure()
+    % subplot(2,1,1);
+    [I1,I2] = find(Rasterplot);
+    plot(I2,I1,'.','MarkerSize',1)
+    title('Spiking activity in neural population')
+end
 
-figure(2)
-imagesc(splSynapses.ca)
-title('Synaptic calcium actvivity in sample synapses')
-colorbar
+if plt.syn.ca
+    figure()
+    imagesc(splSynapses.ca)
+    title('Synaptic calcium actvivity in sample synapses')
+    colorbar
+end
 
-figure(3)
-imagesc(splSynapses.rho)
-title('Phosphorylation state at sample synapses')
-colorbar
+if plt.syn.rho
+    figure()
+    imagesc(splSynapses.rho)
+    title('Phosphorylation state at sample synapses')
+    colorbar
+end
 
-splSynapses.wHist = synSign(splSynapses.IDs).*transfer(splSynapses.rho, syn.sAttr, syn.sigma);
-figure(4)
-imagesc(splSynapses.wHist)
-title('Synaptic weight at sample synapses')
-colorbar
-%
+if plt.syn.w
+    splSynapses.wHist = synSign(splSynapses.IDs).*transfer(splSynapses.rho, syn.sAttr, syn.sigma);
+    figure()
+    imagesc(splSynapses.wHist)
+    title('Synaptic weight at sample synapses')
+    colorbar
+end
 
 splSynapses.stats = cat(2, linspace(1,splSynapses.n,splSynapses.n)', splSynapses.PreNeurons, splSynapses.PostNeurons, splSynapses.wHist(:,1), splSynapses.wHist(:,end))
 
-splSynapses.pres = zeros(3*splSynapses.n, Iterations);
-for i=1:splSynapses.n
-    splSynapses.pres(3*(i-1)+1,:) = 100*Rasterplot(splSynapses.PreNeurons(i,1),:);
-    splSynapses.pres(3*(i-1)+2,:) = 100*Rasterplot(splSynapses.PostNeurons(i,1),:);
-    splSynapses.pres(3*(i-1)+3,:)= synSign(splSynapses.IDs(i)).*splSynapses.rho(i,:);
+if plt.syn.pres
+    splSynapses.pres = zeros(3*splSynapses.n, Iterations);
+    for i=1:splSynapses.n
+        splSynapses.pres(3*(i-1)+1,:) = 100*Rasterplot(splSynapses.PreNeurons(i,1),:);
+        splSynapses.pres(3*(i-1)+2,:) = 100*Rasterplot(splSynapses.PostNeurons(i,1),:);
+        splSynapses.pres(3*(i-1)+3,:)= synSign(splSynapses.IDs(i)).*splSynapses.rho(i,:);
+    end
+    figure()
+    imagesc(splSynapses.pres)
+    colorbar
 end
 
-figure(5)
-imagesc(splSynapses.pres)
-colorbar
-
-figure(7)
-imagesc(histRho);
-colorbar
-
-% imagesc(Rasterplot)
-% colormap (1-gray)
-% figure(2)
-% plot(Cumulate(allspikes,3));
-% Analyse_Avalanches(allspikes,8)
-% Collapse_var_Auto(allspikes,15)
+if plt.syn.hist
+    figure()
+    imagesc(histRho);
+    title('Evolution of weight distribution')
+    xlabel('Time')
+    ylabel('Phosphorylation level')
+    colorbar
+end
