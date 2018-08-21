@@ -96,13 +96,13 @@ W = zeros(N,N);   % 1st index for postsynaptic neuron, 2nd for presynaptic
 for i=1:N
     ECells=randperm(NE);
     ECells=ECells(1:CE);
-    % W(i,ECells)=J;
-    W(i,ECells)=J.*rand(1,CE);
+    W(i,ECells)=J;
+    % W(i,ECells)=J.*rand(1,CE);
     
     ICells=randperm(NI);
     ICells=NE+ICells(1:CI);
-    % W(i,ICells)=-g*J;
-    W(i,ICells)=-g*J.*rand(1,CI);
+    W(i,ICells)=-g*J;
+    % W(i,ICells)=-g*J.*rand(1,CI);
 end
 
 synSign = J.*(W>0) - g*J.*(W<0);
@@ -371,20 +371,17 @@ if plt.spl.hist
     title('Evolution of phosphorylation distribution (all synapses)')
     xlabel('Time')
     ylabel('Phosphorylation level')
-    tickList = [10 20 30 40 50 60 70 80 90 100];
-    yticks(tickList)
-    yticklabels(edgesRho(1, tickList))
+    yticks([0 10 20 30 40 50 60 70 80 90 100])
+    yticklabels([0 10 20 30 40 50 60 70 80 90 100])
     colormap(bluewhitered)
     colorbar
     
     figure()
-    imagesc(log(histW_exc));
+    imagesc(flipud(log(histW_exc)));
     set(gca,'YDir','normal')
     title('Evolution of weight distribution for excitatory synapses')
     xlabel('Time')
     ylabel('Synaptic weight')
-    yticks(tickList)
-    yticklabels(edgesW_exc(1, tickList))
     colormap(bluewhitered)
     colorbar
     
@@ -394,8 +391,6 @@ if plt.spl.hist
     title('Evolution of weight distribution for inhibitory synapses')
     xlabel('Time')
     ylabel('Synaptic weight')
-    yticks(tickList)
-    yticklabels(edgesW_inh(1, tickList))
     colormap(bluewhitered)
     colorbar
 end

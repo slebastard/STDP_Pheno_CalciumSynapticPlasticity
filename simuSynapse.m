@@ -30,13 +30,13 @@
 %
 % You should be all set!
 
-simu.mode = 'single';
+simu.mode = 'dataFit';
 simu.model = 'caProd';
 
 % Parameters controlling excitation history
 simu.d_t = 10;
 simu.n_iter = 100;
-simu.frequency = 300;
+simu.frequency = 1;
 simu.int_scheme = 'euler_expl';
 simu.int_step = 0.5;
 
@@ -61,9 +61,11 @@ params.theta_act = params.theta_dep;
 params.tau_rho = 100000;
 params.tau_w = 500000;
 
-params.noise_lvl = 25; %1/sqrt(N_A*V);
+params.noise_lvl = 12*25; % 12 factor for effective noise correction - 1/sqrt(N_A*V);
 params.rho_0 = 25; % must be between 0 and rho_max
-params.w_0 = transfer(params.rho_0, params.S_attr, params.noise_lvl);
+
+prot = params;
+params.w_0 = transfer_ind(params.rho_0, prot);
 
 N_A = 6.02e17; %mumol^(-1)
 V = 2.5e-16; %L

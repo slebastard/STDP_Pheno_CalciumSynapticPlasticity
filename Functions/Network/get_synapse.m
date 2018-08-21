@@ -12,7 +12,7 @@ function syn = get_synapse( )
     syn.gPot = 120;
     
     syn.tauCa = 3e-2;
-    syn.tauRho = 100;
+    syn.tauRho = 10; %50;
     
     syn.rho0 = 25;
     syn.rhoMax = 200;

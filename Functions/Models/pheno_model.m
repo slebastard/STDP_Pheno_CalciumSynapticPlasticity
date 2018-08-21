@@ -52,6 +52,13 @@ tau_w = params.tau_w;
 theta_act = params.theta_act;
 w_0 = params.w_0;
 
+prot = params;
+prot.n_iter = 1;
+
+prot.alpha_pot = 0;
+prot.alpha_dep = 0;
+prot.frequency = 1000/step;
+
 %% Building events list based on calcium hypothesis
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -93,7 +100,7 @@ if strcmp(scheme, 'euler_expl')
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     if isempty(evts)
         rho_hist = rho_0 * ones(n_steps);
-        w_f = zeta(rho);
+        w_f = transfer(rho, prot);
         w_hist = (w_0-w_f)*exp(-step*(0:n_steps-1)/tau_w);
     else
         % Scheme propagation %
@@ -107,13 +114,17 @@ if strcmp(scheme, 'euler_expl')
             end
             
             rho = rho + step/tau_rho * (gamma_pot*(rho_max-rho)*(c > theta_pot) - gamma_dep*rho*(c > theta_dep)) * (c > theta_act);
-            w_f = 0.5*erfc((S_attr-rho)/sqrt(2*sigma^2));
+            
+            w_f = transfer(rho, prot);
             w = w + step/tau_w * (w_f-w);
             
             rho_hist = [rho_hist, rho];
             w_hist = [w_hist; w];
             c = c * exp(-step/tau_Ca);
             t = t + step;
+            prot.alpha_pot = (1+step/t)*(prot.alpha_pot+(step/t)*(c > theta_pot));
+            prot.alpha_dep = (1+step/t)*(prot.alpha_dep+(step/t)*(c > theta_dep));
+            prot.frequency = 1000/t;
         end
     end     
         

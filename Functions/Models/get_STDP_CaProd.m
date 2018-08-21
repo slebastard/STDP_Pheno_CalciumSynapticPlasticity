@@ -54,6 +54,10 @@ freq = STDP.frequency;
 
 rho0_step = 5;
 
+prot = params;
+prot.n_iter = STDP.n_iter;
+prot.frequency = STDP.frequency;
+
 %% Running simulations, returning STDP curve
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -122,7 +126,9 @@ if perm_regime
     % If so, compute rate of time spent above thresholds...
     t = linspace(t_min, t_max, n_points);
     r_pot = Ca_topTheta_rate(theta_pot, t-delay_pre);
+    prot.alpha_pot = r_pot;
     r_dep = Ca_topTheta_rate(theta_dep, t-delay_pre) - r_pot;
+    prot.alpha_dep = r_dep;
     % ...then get the analytic STDP curve
     a = exp(-(r_dep*gamma_dep + r_pot*(gamma_dep+gamma_pot))/((freq/1000)*tau_rho));
     b = rho_max*(gamma_pot/(gamma_pot + gamma_dep)) * exp(-(r_dep*gamma_dep)/(tau_rho*(freq/1000))) .* (1 - exp(-(r_pot*(gamma_pot+gamma_dep))/(tau_rho*(freq/1000))));
@@ -132,7 +138,7 @@ if perm_regime
         
     for rho_0 = 0:rho0_step:rho_max
         rho0_id = 1 + floor(rho_0/rho0_step);
-        w_0 = transfer(rho_0, S_attr, sigma);
+        w_0 = transfer(rho_0, prot);
         rho_lim(isnan(rho_lim)) = rho_0;
         rho = (rho_0 - rho_lim).*(a.^n_iter)...
             + rho_lim...
@@ -140,11 +146,11 @@ if perm_regime
 
        rho(isnan(rho)) = rho_0;
         if strcmp(mode, 'rel')
-            indivSTDP(:,rho0_id) = (1/w_0).*transfer(rho, S_attr, sigma)';
+            indivSTDP(:,rho0_id) = ((1./w_0).*transfer(rho, prot))';
         elseif strcmp(mode, 'abs')
-            indivSTDP(:,rho0_id) = transfer(rho, S_attr, sigma)';
+            indivSTDP(:,rho0_id) = transfer(rho, prot)';
         elseif strcmp(mode, 'lim')
-            indivSTDP(:,rho0_id) = transfer(rho_lim, S_attr, sigma)';
+            indivSTDP(:,rho0_id) = transfer(rho_lim, prot)';
         else
             error('Unknown mode')
         end        
@@ -170,7 +176,7 @@ else
         STDP.T = 1000*(n_iter-1)/freq + 10*tau_Ca;
         for rho_0 = 0:rho0_step:rho_max
             rho0_id = 1 + floor(rho_0/rho0_step);
-            w_0 = transfer(rho_0, S_attr, sigma);
+            w_0 = transfer_ind(rho_0, prot);
             params.rho_0 = rho_0;
             [~, w_end, ~] = caProd_model_efficient(pre_spikes_hist, post_spikes_hist, params, STDP);
             q_w = w_end/w_0;
@@ -180,7 +186,7 @@ else
     
 end
 
-tmp = transfer(0:rho0_step:rho_max, S_attr, sigma);
+tmp = transfer_ind(0:rho0_step:rho_max, prot);
 rhoDistr = (1/(sqrt(2*pi*muW*(1-muW)))) .* exp(-(tmp - muW*ones(1, 1+floor(rho_max/rho0_step))).^2 ./(2*muW*(1-muW))); 
 rhoDistr = (1/sum(rhoDistr)).*rhoDistr;
 avgSTDP = indivSTDP * rhoDistr';

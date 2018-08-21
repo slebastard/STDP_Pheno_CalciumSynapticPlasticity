@@ -52,6 +52,10 @@ tau_w = params.tau_w;
 theta_act = params.theta_act;
 w_0 = params.w_0;
 
+prot = params;
+prot.frequency = 1000/T;
+prot.n_iter = 1;
+
 %% Building events list based on calcium hypothesis
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -153,9 +157,18 @@ else
         rho_hist = cat(1, rho_hist, rho);
     end
 
+    % Time-dependent noise: find alpha_pot and alpha_dep
+    intvls_pot = t_dur(t_dur(:,3)==1,:);
+    dur_pot = sum(intvls_pot(:,2) - intvls_pot(:,1));
+    prot.alpha_pot = dur_pot/T;
+    
+    intvls_dep = t_dur(t_dur(:,3)==-1,:);
+    dur_dep = dur_pot + sum(intvls_dep(:,2) - intvls_dep(:,1));    
+    prot.alpha_dep = dur_dep/T;
+    
     times = cat(1, t_dur(:,1), t_dur(end,2));
     rho_hist = cat(2, times, rho_hist);
-    w_end = transfer(rho_hist(end),S_attr,sigma);
+    w_end = transfer(rho_hist(end), prot);
 end
 
 end    
