@@ -40,6 +40,7 @@ rho_max = params.rho_max;
 C_pre = params.C_pre;
 C_post = params.C_post;
 tau_Ca = params.tau_Ca;
+tau_x = params.tau_x;
 delay_pre = params.delay_pre;
 theta_dep = params.theta_dep;
 gamma_dep = params.gamma_dep;
@@ -54,7 +55,7 @@ w_0 = params.w_0;
 
 tau_CaPre = tau_Ca;
 tau_CaPost = tau_Ca;
-tau_x = tau_Ca;
+dampFactor = params.dampFactor;
 
 prot = params;
 prot.n_iter = 1;
@@ -109,7 +110,7 @@ if strcmp(scheme, 'euler_expl')
                 
                 % SATURATION VARIABLE MODEL
                 c_pre = c_pre + C_pre*x_pre^x_post;
-                x_pre = 0;
+                x_pre = x_pre*(1-dampFactor);
             end
             if evt_post
                 % PRODUCT MODEL
@@ -117,7 +118,7 @@ if strcmp(scheme, 'euler_expl')
                 
                 % SATURATION VARIABLE MODEL
                 c_post = c_post + C_post*x_post^x_pre;
-                x_post = 0;                
+                x_post = x_post*(1-dampFactor);                
             end
             % PRODUCT MODEL
             % c = c_pre.*c_post;

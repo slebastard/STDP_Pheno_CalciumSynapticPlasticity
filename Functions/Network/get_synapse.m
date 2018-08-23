@@ -16,8 +16,11 @@ function syn = get_synapse( )
     
     syn.rho0 = 25;
     syn.rhoMax = 200;
-    syn.sAttr = 40;
+    syn.sAttr = 100;
     syn.sigma = 25;
+    
+    syn.tauDamp = 0.1; % from 2e-2 (pure GluR4) to 1e-1 (pure GluR1)
+    syn.dampFactor = 0.3;
     
 end
 

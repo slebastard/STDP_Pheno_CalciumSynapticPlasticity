@@ -1,4 +1,4 @@
-function [STDP_an, STDP_sim] = get_both_STDP(model, mode, params, int_scheme, int_step)
+function [avgSTDP_an, avgSTDP_sim] = get_both_STDP(STDP, params)
 % STDP EXPERIMENT
 % - Runs a battery of model simulation with Calcium bumps
 % reflecting different temporal differences. Uses those simulation to build
@@ -9,125 +9,59 @@ function [STDP_an, STDP_sim] = get_both_STDP(model, mode, params, int_scheme, in
 %% Default parameter values + unpacking params
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-def_params = [...
-    1000 ...        % T         total simu time     (ms)
-    .3 ...          % rho_0     init syn strength
-    1 ...           % rho_max
-    1 ...           % C_pre
-    2 ...           % C_post
-    20 ...          % tau_Ca
-    3 ...           % delay_pre
-    1 ...           % theta_dep
-    200 ...         % gamma_dep
-    1.3 ...         % theta_pot
-    321 ...         % gamma_pot
-    150 ...         % tau       syn plast time cst  (ms)
-    2.85 ...        % sigma     noise level
-    -75 ...         % t_min
-    75 ...          % t_max
-    3 ...           % dt        step of d_t grid
-    60 ...          % n_iter    nb of spike pairs
-    1 ...           % freq                          (Hz)
-    ];
-
 switch nargin
     case 0
-        model = 'naive';
-        mode = 'rel';
-        params = def_params;
-        int_scheme = 'euler_expl';
-        int_step = 0.1;
+        error('1 inputs min are accepted')
     case 1
-        mode = 'rel';
-        params = def_params;
-        int_scheme = 'euler_expl';
-        int_step = 0.1;
+        params = default_params();
     case 2
-        params = def_params;
-        int_scheme = 'euler_expl';
-        int_step = 0.1;
-    case 3
-        int_scheme = 'euler_expl';
-        int_step = 0.1;
-    case 4
-        int_step = 0.1;
-    case 5
     otherwise
-        error('5 inputs max are accepted')
+        error('2 inputs max are accepted')
 end
 
 %%%%%%%%%%%%%%%%%%%%
 % Unpacking params %
 %%%%%%%%%%%%%%%%%%%%
 
-if strcmp(model, 'naive')
-    T = params(1);
-    step = int_step;
-    n_steps = T / step;
+model = STDP.model;
+mode = STDP.mode;
+T = STDP.T;
+step = STDP.int_step;
+scheme = STDP.int_scheme;
+n_steps = T / step;
 
-    rho_0 = params(2);
-    rho_max = params(3);
-    C_pre = params(4);
-    C_post = params(5);
-    tau_Ca = params(6);
-    delay_pre = params(7);
+rho_max = params.rho_max;
+C_pre = params.C_pre;
+C_post = params.C_post;
+tau_Ca = params.tau_Ca;
+delay_pre = params.delay_pre;
+theta_dep = params.theta_dep;
+gamma_dep = params.gamma_dep;
+theta_pot = params.theta_pot;
+gamma_pot = params.gamma_pot;
+tau_rho = params.tau_rho;
+sigma = params.noise_lvl;
+S_attr = params.S_attr;
+tau_w = params.tau_w;
+theta_act = params.theta_act;
+S_attr = params.S_attr;
 
-    theta_dep = params(8);
-    gamma_dep = params(9);
+t_min = STDP.dt.min;
+t_max = STDP.dt.max;
+dt = STDP.dt.step;
+n_iter = STDP.n_iter;
+freq = STDP.frequency;
 
-    theta_pot = params(10);
-    gamma_pot = params(11);
+rho0_step = 5;
 
-    tau_rho = params(12);
-    sigma = params(13);
-
-    t_min = params(14);
-    t_max = params(15);
-    dt = params(16);
-    n_iter = params(17);
-    freq = params(18);
-elseif strcmp(model, 'pheno')
-    T = params(1);
-    step = int_step;
-    n_steps = T / step;
-
-    rho_0 = params(2);
-    rho_max = params(3);
-    C_pre = params(4);
-    C_post = params(5);
-    tau_Ca = params(6);
-    delay_pre = params(7);
-
-    theta_dep = params(8);
-    gamma_dep = params(9);
-
-    theta_pot = params(10);
-    gamma_pot = params(11);
-
-    tau_rho = params(12);
-    sigma = params(13);
-
-    w_0 = params(14);
-    tau_w = params(15);
-    theta_act = params(16);
-    
-    t_min = params(17);
-    t_max = params(18);
-    dt = params(19);
-    n_iter = params(20);
-    freq = params(21);
-end
-
-S_attr = 40;
+prot = params;
+prot.n_iter = STDP.n_iter;
+prot.frequency = STDP.frequency;
 
 %% Running simulations, returning STDP curve
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-n_points = 1 + (t_max - t_min)/dt;
-STDP_an = [];
-STDP_sim = [];
-
-perm_regime = (freq/1000 < 1/(t_max + 10*tau_Ca));
+n_points = 1 + floor((t_max - t_min)/dt);
 
 function r = Ca_topTheta_rate(theta, dt)
 
@@ -172,92 +106,96 @@ function r = Ca_topTheta_rate(theta, dt)
     end
 end
 
-% Can we compute the STDP curve explicitely?
-if perm_regime
-    
-    % If so, compute rate of time spent above thresholds...
-    dt = linspace(t_min, t_max, n_points);
-    r_pot = Ca_topTheta_rate(theta_pot, dt-delay_pre);
-    r_dep = Ca_topTheta_rate(theta_dep, dt-delay_pre) - r_pot;
-    % ...then get the analytic STDP curve
-    a = exp(-(r_dep*gamma_dep + r_pot*(gamma_dep+gamma_pot))/((freq/1000)*tau_rho));
-    b = rho_max*(gamma_pot/(gamma_pot + gamma_dep)) * exp(-(r_dep*gamma_dep)/(tau_rho*(freq/1000))) .* (1 - exp(-(r_pot*(gamma_pot+gamma_dep))/(tau_rho*(freq/1000))));
-    c = sigma * sqrt((r_pot + r_dep)./(tau_rho*freq));
-    
-    rho_lim = b ./ (1-a);
+indivSTDP_an = ones(1+floor((t_max-t_min)/dt), 1+floor(rho_max/rho0_step));
+indivSTDP_sim = ones(1+floor((t_max-t_min)/dt), 1+floor(rho_max/rho0_step));
+muW = 0.5;
+
+% Analytic curve (only makes sense in stationnary regime)
+        
+% If so, compute rate of time spent above thresholds...
+t = linspace(t_min, t_max, n_points);
+r_pot = Ca_topTheta_rate(theta_pot, t-delay_pre);
+prot.alpha_pot = r_pot;
+r_dep = Ca_topTheta_rate(theta_dep, t-delay_pre) - r_pot;
+prot.alpha_dep = r_dep;
+% ...then get the analytic STDP curve
+a = exp(-(r_dep*gamma_dep + r_pot*(gamma_dep+gamma_pot))/((freq/1000)*tau_rho));
+b = rho_max*(gamma_pot/(gamma_pot + gamma_dep)) * exp(-(r_dep*gamma_dep)/(tau_rho*(freq/1000))) .* (1 - exp(-(r_pot*(gamma_pot+gamma_dep))/(tau_rho*(freq/1000))));
+c = sigma * sqrt((r_pot + r_dep)./(tau_rho*freq));
+
+rho_lim = b ./ (1-a);
+
+for rho_0 = 0:rho0_step:rho_max
+    rho0_id = 1 + floor(rho_0/rho0_step);
+    w_0 = transfer(rho_0, prot);
     rho_lim(isnan(rho_lim)) = rho_0;
     rho = (rho_0 - rho_lim).*(a.^n_iter)...
         + rho_lim...
         + c .* sqrt((1 - a.^(2*n_iter))./(1 - a.^2)) .* randn(1,n_points); % final EPSP amplitude
 
-    rho(isnan(rho)) = rho_0;
-    
+    rho(isnan(rho)) = (rho_0 - rho_lim(isnan(rho))).*(a(isnan(rho)).^n_iter) + rho_lim(isnan(rho));
+
     if strcmp(model, 'naive')
         if strcmp(mode, 'rel')
-            STDP_an = transpose(cat(1, dt, rho/rho_0));
+            indivSTDP_an(:,rho0_id) = rho/rho_0;
         elseif strcmp(mode, 'abs')
-            STDP_an = transpose(cat(1, dt, rho));
+            indivSTDP_an(:,rho0_id) = rho;
         elseif strcmp(mode, 'lim')
-            STDP_an = transpose(cat(1, dt, rho_lim));
+            indivSTDP_an(:,rho0_id) = rho_lim;
         else
             error('Unknown mode')
         end
-    elseif strcmp(model, 'pheno')
+    elseif strcmp(model, 'pheno') || strcmp(model, 'caProd')
         if strcmp(mode, 'rel')
-            STDP_an = transpose(cat(1, dt, transfer(rho, S_attr, sigma)./w_0));
+            indivSTDP_an(:,rho0_id) = (1/w_0).*transfer(rho, prot)';
         elseif strcmp(mode, 'abs')
-            STDP_an = transpose(cat(1, dt, transfer(rho, S_attr, sigma)));
+            indivSTDP_an(:,rho0_id) = transfer(rho, prot)';
         elseif strcmp(mode, 'lim')
-            STDP_an = transpose(cat(1, dt, transfer(rho_lim, S_attr, sigma)));
+            indivSTDP_an(:,rho0_id) = transfer(rho_lim, prot)';
         else
             error('Unknown mode')
         end        
     end
- 
 end
-    
+ 
+
 % When we cannot consider that pairs of spikes are independent, we
 % compute the curve by individual simulations...
-for dt = linspace(t_min, t_max, n_points)
+for t = linspace(t_min, t_max, n_points)
+    t_id = 1 + floor(1e-8 + (t-t_min)/dt);
     % Define the calcium bumps history
-    if dt > 0
+    if t > 0
         pre_spikes_hist = linspace(0, 1000*(n_iter-1)/freq, n_iter);
-        post_spikes_hist = pre_spikes_hist + dt;
+        post_spikes_hist = pre_spikes_hist + t;
     else
         post_spikes_hist = linspace(0, 1000*(n_iter-1)/freq, n_iter);
-        pre_spikes_hist = post_spikes_hist - dt;
+        pre_spikes_hist = post_spikes_hist - t;
     end
 
     % Simulate the evolution of synaptic strength through model -
     % COMPARE TO ANALYTIC
-    params(1) = 1000*(n_iter-1)/freq + 10*tau_Ca;
-    if strcmp(model, 'naive')
-        [rho_hist, ~] = naive_model(pre_spikes_hist, post_spikes_hist, params(1:13), int_scheme, int_step);
-        q_rho = rho_hist(end)/rho_hist(1);
-
-        if strcmp(mode, 'rel')
-            STDP_sim = cat(1, STDP_sim, [dt, q_rho]);
-        elseif strcmp(mode, 'abs')
-            STDP_sim = cat(1, STDP_sim, [dt, rho_hist(end)]);
-        elseif strcmp(mode, 'lim')
-            error('Limit mode not supported for transient mode of activity. Please lower frequency')
-        else
-            error('Unknown mode')
-        end
-    elseif strcmp(model, 'pheno')
-        [~, w_end, ~] = pheno_model_efficient(pre_spikes_hist, post_spikes_hist, params(1:16), int_scheme, int_step);
+    STDP.T = 1000*(n_iter-1)/freq + 10*tau_Ca;
+    for rho_0 = 0:rho0_step:rho_max
+        rho0_id = 1 + floor(rho_0/rho0_step);
+        w_0 = transfer(rho_0, prot);
+        params.rho_0 = rho_0;
+        params.w_0 = w_0;
+        [~, w_end, ~] = pheno_model_efficient(pre_spikes_hist, post_spikes_hist, params, STDP);
         q_w = w_end/w_0;
-
-        if strcmp(mode, 'rel')
-            STDP_sim = cat(1, STDP_sim, [dt, q_w]);
-        elseif strcmp(mode, 'abs')
-            STDP_sim = cat(1, STDP_sim, [dt, w_end]);
-        elseif strcmp(mode, 'lim')
-            error('Limit mode not supported for transient mode of activity. Please lower frequency')
-        else
-            error('Unknown mode')
-        end 
+        indivSTDP_sim(t_id, rho0_id) = q_w;
     end
 end
+
+tmp = transfer_ind(0:rho0_step:rho_max, prot);
+rhoDistr = (1/(sqrt(2*pi*muW*(1-muW)))) .* exp(-(tmp - muW*ones(1, 1+floor(rho_max/rho0_step))).^2 ./(2*muW*(1-muW))); 
+rhoDistr = (1/sum(rhoDistr)).*rhoDistr;
+
+avgSTDP_an = indivSTDP_an * rhoDistr';
+avgSTDP_an = cat(2,avgSTDP_an,(t_min:dt:t_max)');
+avgSTDP_an(:,[1 2]) = avgSTDP_an(:, [2 1]);
+
+avgSTDP_sim = indivSTDP_sim * rhoDistr';
+avgSTDP_sim = cat(2,avgSTDP_sim,(t_min:dt:t_max)');
+avgSTDP_sim(:,[1 2]) = avgSTDP_sim(:, [2 1]);
 
 end

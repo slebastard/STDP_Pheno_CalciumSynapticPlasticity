@@ -63,7 +63,8 @@ prot.frequency = STDP.frequency;
 
 n_points = 1 + floor((t_max - t_min)/dt);
 
-perm_regime = (freq/1000 < 1/(t_max + 10*tau_Ca));
+% perm_regime = (freq/1000 < 1/(t_max + 10*tau_Ca));
+perm_regime = 0;
 
 function r = Ca_topTheta_rate(theta, dt)
 
@@ -144,7 +145,7 @@ if perm_regime
             + rho_lim...
             + c .* sqrt((1 - a.^(2*n_iter))./(1 - a.^2)) .* randn(1,n_points); % final EPSP amplitude
 
-       rho(isnan(rho)) = rho_0;
+       rho(isnan(rho)) = (rho_0 - rho_lim(isnan(rho))).*(a(isnan(rho)).^n_iter) + rho_lim(isnan(rho));
         if strcmp(mode, 'rel')
             indivSTDP(:,rho0_id) = ((1./w_0).*transfer(rho, prot))';
         elseif strcmp(mode, 'abs')
@@ -176,8 +177,9 @@ else
         STDP.T = 1000*(n_iter-1)/freq + 10*tau_Ca;
         for rho_0 = 0:rho0_step:rho_max
             rho0_id = 1 + floor(rho_0/rho0_step);
-            w_0 = transfer_ind(rho_0, prot);
+            w_0 = transfer(rho_0, prot);
             params.rho_0 = rho_0;
+            params.w_0 = w_0;
             [~, w_end, ~] = caProd_model_efficient(pre_spikes_hist, post_spikes_hist, params, STDP);
             q_w = w_end/w_0;
             indivSTDP(t_id, rho0_id) = q_w;

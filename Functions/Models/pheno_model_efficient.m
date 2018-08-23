@@ -134,41 +134,45 @@ if any(c_hist(:,2)>theta_dep)
     t_closeDep = cat(2, t_openDep, t_closeDep, -1.*ones(length(t_closeDep),1));
 end
 
-if ~(exist('t_closePot', 'var') && exist('t_closeDep', 'var'))
+if ~(exist('t_closePot', 'var') || exist('t_closeDep', 'var'))
     rho_hist = cat(1, [0, rho_0], [T, rho_0]);
     w_end = w_0;
     return
-else
-    t_dur = cat(1, t_closePot, t_closeDep);
-    t_dur = sortrows(t_dur, [1 2]);
-
-    t_durOverlap = (circshift(t_dur(:,1),1) - t_dur(:,1) == 0);
-    t_durOverlap(1) = 0;
-    substitute = circshift(t_dur(:,2),1);
-    t_dur(t_durOverlap,1) = substitute(t_durOverlap);
-
-    % Finding rho %
-    %%%%%%%%%%%%%%%%%%%%%%
-
-    for id=1:size(t_dur,1)
-        rho_f = ((rho - rho_max*gamma_pot/(gamma_pot+gamma_dep))*exp(-(t_dur(id,2)-t_dur(id,1))*(gamma_pot+gamma_dep)/tau_rho) + rho_max*gamma_pot/(gamma_pot+gamma_dep)) .* (t_dur(id,3)==1) ...
-            + rho.* exp(-gamma_dep*(t_dur(id,2)-t_dur(id,1))/tau_rho) .*(t_dur(id,3)==-1);
-        rho = rho_f;
-        rho_hist = cat(1, rho_hist, rho);
-    end
-
-    % Time-dependent noise: find alpha_pot and alpha_dep
-    intvls_pot = t_dur(t_dur(:,3)==1,:);
-    dur_pot = sum(intvls_pot(:,2) - intvls_pot(:,1));
-    prot.alpha_pot = dur_pot/T;
-    
-    intvls_dep = t_dur(t_dur(:,3)==-1,:);
-    dur_dep = dur_pot + sum(intvls_dep(:,2) - intvls_dep(:,1));    
-    prot.alpha_dep = dur_dep/T;
-    
-    times = cat(1, t_dur(:,1), t_dur(end,2));
-    rho_hist = cat(2, times, rho_hist);
-    w_end = transfer(rho_hist(end), prot);
+elseif ~exist('t_closePot', 'var')
+    t_closePot = [0.0 0.0 1];
+elseif ~exist('t_closeDep', 'var')
+    t_closeDep = [0.0 0.0 -1];
 end
+
+t_dur = cat(1, t_closePot, t_closeDep);
+t_dur = sortrows(t_dur, [1 2]);
+
+t_durOverlap = (circshift(t_dur(:,1),1) - t_dur(:,1) == 0);
+t_durOverlap(1) = 0;
+substitute = circshift(t_dur(:,2),1);
+t_dur(t_durOverlap,1) = substitute(t_durOverlap);
+
+% Finding rho %
+%%%%%%%%%%%%%%%%%%%%%%
+
+for id=1:size(t_dur,1)
+    rho_f = ((rho - rho_max*gamma_pot/(gamma_pot+gamma_dep))*exp(-(t_dur(id,2)-t_dur(id,1))*(gamma_pot+gamma_dep)/tau_rho) + rho_max*gamma_pot/(gamma_pot+gamma_dep)) .* (t_dur(id,3)==1) ...
+        + rho.* exp(-gamma_dep*(t_dur(id,2)-t_dur(id,1))/tau_rho) .*(t_dur(id,3)==-1);
+    rho = rho_f;
+    rho_hist = cat(1, rho_hist, rho);
+end
+
+% Time-dependent noise: find alpha_pot and alpha_dep
+intvls_pot = t_dur(t_dur(:,3)==1,:);
+dur_pot = sum(intvls_pot(:,2) - intvls_pot(:,1));
+prot.alpha_pot = dur_pot/T;
+
+intvls_dep = t_dur(t_dur(:,3)==-1,:);
+dur_dep = dur_pot + sum(intvls_dep(:,2) - intvls_dep(:,1));    
+prot.alpha_dep = dur_dep/T;
+
+times = cat(1, t_dur(:,1), t_dur(end,2));
+rho_hist = cat(2, times, rho_hist);
+w_end = transfer(rho_hist(end), prot);
 
 end    

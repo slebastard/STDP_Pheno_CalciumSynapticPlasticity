@@ -43,6 +43,8 @@ for freq_id = 1:n_points_freq
     end
     std = cat(2, frq*ones(size(std,1),1), std);
     heatmap = cat(1, heatmap, std);
+    
+    progressbar(freq_id/n_points_freq);
 end
 
 end

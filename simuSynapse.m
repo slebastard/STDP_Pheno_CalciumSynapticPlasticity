@@ -58,11 +58,14 @@ params.theta_pot = 1.08;
 params.gamma_pot = 120;
 
 params.theta_act = params.theta_dep;
+params.tau_x = 100;     % From Robert & Howe 2003, GluR1
 params.tau_rho = 100000;
 params.tau_w = 500000;
 
-params.noise_lvl = 12*25; % 12 factor for effective noise correction - 1/sqrt(N_A*V);
+params.noise_lvl = 25; % 12 factor for effective noise correction - 1/sqrt(N_A*V);
 params.rho_0 = 25; % must be between 0 and rho_max
+params.dampFactor = 0.3;
+params.TD = 0;
 
 prot = params;
 params.w_0 = transfer_ind(params.rho_0, prot);
@@ -146,14 +149,20 @@ if strcmp(simu.mode, 'STDP')
         STDP.function = get_STDP(STDP, params);
     end
     % Validation against simulation
-    % [STDP_an, STDP_sim] = get_both_STDP(model, 'rel', stdp_params, int_scheme, scheme_step);
+    % [STDP.function, STDP.func_sim] = get_both_STDP_CaProd(STDP, params);
 
-    figure(4)
+    STDP.integral = sum(STDP.function(:,2))*STDP.dt.step;
+    STDP.expectation = STDP.integral/(STDP.dt.max - STDP.dt.min);
+    
+    
+    figure()
     STDP.plot = plot(STDP.function(:,1), STDP.function(:,2), '.b');
-    % plot(STDP_an(:,1), STDP_an(:,2), '+r');
-    % hold on
-    % plot(STDP_sim(:,1), STDP_sim(:,2), 'xg');
-   
+%     hold on
+%     plot(STDP.func_sim(:,1), STDP.func_sim(:,2), 'xg');
+    
+    dim = [.15 .6 .3 .3];
+    sidestr = strcat('STDP expectation: ', num2str(100*STDP.expectation, 3+1), '%');
+    annotation('textbox',dim,'String',sidestr,'FitBoxToText','on');
 
     neutral_hline = refline([0 1]);
     neutral_hline.Color = 'b';
@@ -299,36 +308,36 @@ if strcmp(simu.mode, 'dataFit')
     dataFit.freq.max = 10;
     dataFit.freq.step = 1;
 
-    % dataFit.heat = get_freq_heatmap(dataFit, params);
+    dataFit.heat = get_freq_heatmap(dataFit, params);
 
-    % figure(9)
+    figure()
     data.freqSTDP.freqs=unique(data.freqSTDP.data(:,5));
     n_data_freqs=length(data.freqSTDP.freqs); 
 
     % scatter3(data.freqSTDP.data(:,5), data.freqSTDP.data(:,2), data.freqSTDP.data(:,3)./100, 50*ones(size(data.freqSTDP.data,1),1), '*r')
     % hold on
     
-    % [freq_grid, dt_grid] = meshgrid(1:dataFit.freq.step:dataFit.freq.max, dataFit.dt.min:dataFit.dt.step:dataFit.dt.max);
-    % dataFit.interpol = griddata(dataFit.heat(:,1), dataFit.heat(:,2), dataFit.heat(:,3), freq_grid, dt_grid);
+    [freq_grid, dt_grid] = meshgrid(1:dataFit.freq.step:dataFit.freq.max, dataFit.dt.min:dataFit.dt.step:dataFit.dt.max);
+    dataFit.interpol = griddata(dataFit.heat(:,1), dataFit.heat(:,2), dataFit.heat(:,3), freq_grid, dt_grid);
     % ribboncoloredZ(gca,dt_grid,dataFit.interpol);
-    % surf(freq_grid, dt_grid, dataFit.interpol);
-    % colormap(bluewhitered), colorbar;
-    % alpha 0.3
+    surf(freq_grid, dt_grid, dataFit.interpol);
+    colormap(bluewhitered), colorbar;
+    alpha 0.3
     
     for f=1:n_data_freqs
-        % hold on
+        hold on
         ids=find(data.freqSTDP.data(:,5)==data.freqSTDP.freqs(f) & data.freqSTDP.data(:,7)~=0);
         filtered_freq=data.freqSTDP.data(ids,:);
         [a,b]=sort(filtered_freq(:,2));
         % plot3(filtered_freq(b,5), filtered_freq(b,2), filtered_freq(b,3)./100, 'r','linewidth',2)
-        % h = ribbon(filtered_freq(b,2), filtered_freq(b,3)./100, 0.15);
-        % set(h, 'XData', filtered_freq(b,5)-1 + get(h, 'XData'));
-        figure()
-        plot(filtered_freq(b,2), filtered_freq(b,3)./100)
-        hold on
-        dataFit.frequency = data.freqSTDP.freqs(f);
-        STDP.function = get_STDP_CaProd(dataFit, params);
-        plot(STDP.function(:,1), STDP.function(:,2), '.b')
+        h = ribbon(filtered_freq(b,2), filtered_freq(b,3)./100, 0.15);
+        set(h, 'XData', filtered_freq(b,5)-1 + get(h, 'XData'));
+        % figure()
+        % plot(filtered_freq(b,2), filtered_freq(b,3)./100)
+        % hold on
+%         dataFit.frequency = data.freqSTDP.freqs(f);
+%         STDP.function = get_STDP_CaProd(dataFit, params);
+%         plot(STDP.function(:,1), STDP.function(:,2), '.b')
     end   
     
 %     dataFit.1Hz = freq_data(floor(freq_data(:,5))==1,:);
@@ -343,7 +352,19 @@ if strcmp(simu.mode, 'dataFit')
 %     ('Plasticity as a function of pre-post spike delay');
 %     xlabel('Pre-post spike delay (ms)');
 %     ylabel('Relative change in synaptic strength');
-    
+    text(10.0, 90.0, 2.9, strcat('\tau_{ca} = ', num2str(params.tau_Ca, 3), 'ms'), 'FontSize', 8);
+    text(10.0, 90.0, 2.75, strcat('\tau_{damp} = ', num2str(params.tau_x, 3), 'ms'), 'FontSize', 8);
+    text(10.0, 90.0, 2.6, strcat('C_{pre} = ', num2str(params.C_pre, 3)), 'FontSize', 8);
+    text(10.0, 90.0, 2.45, strcat('C_{post} = ', num2str(params.C_post, 3)), 'FontSize', 8);
+
+    text(10.0, 90.0, 2.3, strcat('\theta_{dep} = ', num2str(params.theta_dep, 3)), 'FontSize', 8);
+    text(10.0, 40.0, 2.9, strcat('\theta_{pot} = ', num2str(params.theta_pot, 3)), 'FontSize', 8);
+
+    text(10.0, 40.0, 2.75, strcat('\gamma_{dep} = ', num2str(params.gamma_dep, 3)), 'FontSize', 8);
+    text(10.0, 40.0, 2.6, strcat('\gamma_{pot} = ', num2str(params.gamma_pot, 3)), 'FontSize', 8);
+
+    text(10.0, 40.0, 2.45, strcat('\sigma = ', num2str(params.noise_lvl, 3)), 'FontSize', 8); % 12 factor for effective noise correction - 1/sqrt(N_A*V);
+    text(10.0, 40.0, 2.3, strcat('dampFactor = ', num2str(params.dampFactor, 3)), 'FontSize', 8);
 end
 
 

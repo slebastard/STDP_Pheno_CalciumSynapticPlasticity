@@ -24,10 +24,11 @@ addpath(genpath('Functions'))
 % %%%%%%%%   PARAMETERS OF THE SIMULATION  %%%%%%%% 
 
 syn = get_synapse();
+prot.TD = 0;
 prot.S_attr = syn.sAttr;
 prot.noise_lvl = syn.sigma;
 
-Duration=10;
+Duration=7;
 dt=5e-4;
 N=100;
 Iterations=ceil(Duration/dt);
@@ -36,13 +37,14 @@ plt.all.raster = 0;
 plt.spl.ca = 0;
 plt.spl.rho = 0;
 plt.spl.w = 0;
-plt.spl.pres = 0;
+plt.spl.pres = 2;
 plt.spl.hist = 1;
 
 gif.graph = 0;
 gif.lapl = 0;
 
 init.w = 'norm';
+init.c = 0.5;
 
 % %%%%%%%%   PARAMETERS OF THE NETWORK  %%%%%%%%   
 
@@ -66,7 +68,7 @@ tau=20e-3;
 t_rp=2e-3;
 
 % Bifurcation parameters
-J=0.1e-3;                   % Strength of exc. Connections
+J=0.2e-3; %0.1e-3;                   % Strength of exc. Connections
 g=8;                      % Strength of inh/exc (inh connections -gJ)
 ratioextthresh=0.9;         % nu_ext/nu_thresh
 
@@ -96,13 +98,13 @@ W = zeros(N,N);   % 1st index for postsynaptic neuron, 2nd for presynaptic
 for i=1:N
     ECells=randperm(NE);
     ECells=ECells(1:CE);
-    % W(i,ECells)=J;
-    W(i,ECells)=J.*rand(1,CE);
+    W(i,ECells)=init.c .* J;
+    % W(i,ECells)=J.*rand(1,CE);
     
     ICells=randperm(NI);
     ICells=NE+ICells(1:CI);
-    % W(i,ICells)=-g*J;
-    W(i,ICells)=-g*J.*rand(1,CI);
+    W(i,ICells)=-init.c .*g*J;
+    % W(i,ICells)=-g*J.*rand(1,CI);
 end
 
 synSign = J.*(W>0) - g*J.*(W<0);
@@ -153,10 +155,11 @@ rpIn = synIn(perm);
 splSynapses.PostNeurons = rpOut(1:splSynapses.n);
 splSynapses.PreNeurons = rpIn(1:splSynapses.n);
 splSynapses.IDs = sub2ind(size(ca),splSynapses.PostNeurons,splSynapses.PreNeurons);
-splSynapses.ca = ca(splSynapses.IDs);
-splSynapses.xpre = xpre(splSynapses.IDs);
-splSynapses.xpost = xpost(splSynapses.IDs);
-splSynapses.rho = rho(splSynapses.IDs);
+splSynapses.ca = zeros(splSynapses.n,Iterations);
+splSynapses.xpre = zeros(splSynapses.n,Iterations);
+splSynapses.xpost = zeros(splSynapses.n,Iterations);
+splSynapses.rho = zeros(splSynapses.n,Iterations);
+splSynapses.w = zeros(splSynapses.n,Iterations);
 
 %% Initialization
 % %%%%%%%%   SIMULATION PARAMETERS %%%%%%%%  
@@ -171,8 +174,8 @@ allspikes=zeros(1,Iterations);
 %ExInput=J*poissrnd(nu_ext*C_ext*dt,N,Iterations);
 Current=zeros(NCX*NCY,Iterations);
 
-tau_pre = 3*syn.tauCa;
-tau_post = 3*syn.tauCa;
+tau_pre = syn.tauDamp;
+tau_post = syn.tauDamp;
 
 Rasterplot=zeros(N,Iterations);
 
@@ -226,15 +229,15 @@ for i=1:Iterations
     
     % xpost(spikingNeurons,:) = 0;
     % xpre(:,spikingNeurons) = 0;
-    xpost(spikingNeurons,:) = xpost(spikingNeurons,:) - 0.3*xpost(spikingNeurons,:);
-    xpre(:,spikingNeurons) = xpre(:,spikingNeurons) - 0.3*xpre(:,spikingNeurons);
+    xpost(spikingNeurons,:) = xpost(spikingNeurons,:)*(1 - syn.dampFactor);
+    xpre(:,spikingNeurons) = xpre(:,spikingNeurons)*(1 - syn.dampFactor);
     
     actPot = (ca >= syn.tPot).*(W~=0);
     actDep = (ca >= syn.tDep).*(W~=0);
     
     % W = syn.plast(W, spike, dt);
     rho = rho + dt./syn.tauRho .* (syn.gPot.*(syn.rhoMax - rho).*actPot - syn.gDep.*rho.*actDep);
-    W = synSign.*transfer_ind(rho, prot);
+    W = synSign.*transfer(rho, prot);
     
     
     histRho(:,i) = (1/N^2).*histcounts(rho,edgesRho);
@@ -305,7 +308,6 @@ D = diag(sum(A,1));
 L_rw = eye(N) - D^(-1)*A;
 [eVals, ~] = eig(L_rw);
 
-
 %% Correlation analysis
 splSynapses.corr = zeros();
 
@@ -352,12 +354,24 @@ end
 
 splSynapses.stats = cat(2, linspace(1,splSynapses.n,splSynapses.n)', splSynapses.PreNeurons, splSynapses.PostNeurons, splSynapses.w(:,1), splSynapses.w(:,end))
 
-if plt.spl.pres
+if plt.spl.pres == 1
     splSynapses.pres = zeros(3*splSynapses.n, Iterations);
     for i=1:splSynapses.n
         splSynapses.pres(3*(i-1)+1,:) = 100*Rasterplot(splSynapses.PreNeurons(i,1),:);
         splSynapses.pres(3*(i-1)+2,:) = 100*Rasterplot(splSynapses.PostNeurons(i,1),:);
-        splSynapses.pres(3*(i-1)+3,:)= synSign(splSynapses.IDs(i)).*splSynapses.rho(i,:);
+        splSynapses.pres(3*(i-1)+3,:)= (1/J).*synSign(splSynapses.IDs(i)).*splSynapses.rho(i,:);
+    end
+    figure()
+    imagesc(splSynapses.pres)
+    colorbar
+elseif plt.spl.pres == 2
+    splSynapses.pres = zeros(5*floor(splSynapses.n/2), Iterations);
+    for i=1:splSynapses.n
+        splSynapses.pres(5*(i-1)+1,:) = Rasterplot(splSynapses.PreNeurons(i,1),:);
+        splSynapses.pres(5*(i-1)+2,:) = Rasterplot(splSynapses.PostNeurons(i,1),:);
+        splSynapses.pres(5*(i-1)+3,:)= splSynapses.ca(i,:);
+        splSynapses.pres(5*(i-1)+4,:)= (1/(J*syn.rhoMax)).*synSign(splSynapses.IDs(i)).*splSynapses.rho(i,:);
+        splSynapses.pres(5*(i-1)+5,:)= (1/J).*splSynapses.w(i,:);
     end
     figure()
     imagesc(splSynapses.pres)
