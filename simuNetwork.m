@@ -28,9 +28,9 @@ prot.TD = 0;
 prot.S_attr = syn.sAttr;
 prot.noise_lvl = syn.sigma;
 
-Duration=7;
+Duration=5;
 dt=5e-4;
-N=100;
+N=50;
 Iterations=ceil(Duration/dt);
 
 plt.all.raster = 0;
@@ -313,11 +313,11 @@ splSynapses.corr = zeros();
 
 %% Creating graph for visualization
 if gif.graph
-    imwrite(im1,map1,'sampleGraph_randinit.gif','DelayTime',0,'LoopCount',inf)
+    imwrite(im1,map1,'Outputs/Figures/Network/sampleGraph_randinit.gif','DelayTime',0,'LoopCount',inf)
 end
 
 if gif.lapl
-    imwrite(im2,map2,'specClust_asym.gif','DelayTime',0,'LoopCount',inf)
+    imwrite(im2,map2,'Outputs/Figures/Network/specClust_asym.gif','DelayTime',0,'LoopCount',inf)
 end
 
 %% Plotting network stats
@@ -378,7 +378,37 @@ elseif plt.spl.pres == 2
     colorbar
 end
 
-if plt.spl.hist
+if plt.spl.hist    
+    figure()
+    imagesc(log(histW_exc));
+    set(gca,'YDir','normal')
+    title('Evolution of weight distribution for excitatory synapses')
+    xlabel('Time')
+    ylabel('Synaptic weight')
+    yticks(tickList)
+    yticklabels(edgesW_exc(1, tickList))
+    colormap(bluewhitered)
+    colorbar
+    Wexc_hStep = edgesW_exc(2) - edgesW_exc(1);
+    valsWexc = edgesW_exc + Wexc_hStep;
+    valsWexc = repmat(valsWexc(:,1:end-1)',1,Iterations);
+    sumWexc = sum(valsWexc.*histW_exc);
+    
+    figure()
+    imagesc(log(histW_inh));
+    set(gca,'YDir','normal')
+    title('Evolution of weight distribution for inhibitory synapses')
+    xlabel('Time')
+    ylabel('Synaptic weight')
+    yticks(tickList)
+    yticklabels(edgesW_inh(1, tickList))
+    colormap(bluewhitered)
+    colorbar
+    Winh_hStep = edgesW_inh(2) - edgesW_inh(1);
+    valsWinh = edgesW_inh + Winh_hStep;
+    valsWinh = repmat(valsWinh(:,1:end-1)',1,Iterations);
+    sumWinh = sum(valsWinh.*histW_inh);
+    
     figure()
     imagesc(log(histRho));
     set(gca,'YDir','normal')
@@ -392,24 +422,8 @@ if plt.spl.hist
     colorbar
     
     figure()
-    imagesc(log(histW_exc));
-    set(gca,'YDir','normal')
-    title('Evolution of weight distribution for excitatory synapses')
-    xlabel('Time')
-    ylabel('Synaptic weight')
-    yticks(tickList)
-    yticklabels(edgesW_exc(1, tickList))
+    imagesc(repmat(sumWexc + sumWinh, 8, 1))
     colormap(bluewhitered)
     colorbar
-    
-    figure()
-    imagesc(log(histW_inh));
-    set(gca,'YDir','normal')
-    title('Evolution of weight distribution for inhibitory synapses')
-    xlabel('Time')
-    ylabel('Synaptic weight')
-    yticks(tickList)
-    yticklabels(edgesW_inh(1, tickList))
-    colormap(bluewhitered)
-    colorbar
+    sprintf('Excitatory: %0.3f - Inhibitory: %0.3f - Total: %0.3f', sumWexc(1,end)/J, -sumWinh(1,end)/J, (sumWexc(1,end) + sumWinh(1,end))/J)
 end

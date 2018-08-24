@@ -9,7 +9,9 @@
 % - pairs3    STDP = f(n_iter,dt) 3D plot
 % - pairs     STDP = f(n_iter) 3D plot for two opposite timings
 %
-% - dataFit
+% - poisson   Provide response to correlated poisson processes
+%
+% - dataFit   Fit to experimental data
 % -------------------------------------------------------------------------
 %
 % 2) Choose the model to use for simulation:
@@ -30,7 +32,7 @@
 %
 % You should be all set!
 
-simu.mode = 'dataFit';
+simu.mode = 'STDP';
 simu.model = 'caProd';
 
 % Parameters controlling excitation history
@@ -51,11 +53,11 @@ params.C_post = 0.84;
 params.tau_Ca = 80;
 params.delay_pre = -15;
 
-params.theta_dep = 1;
+params.theta_dep = 1.04;
 params.gamma_dep = 200;
 
 params.theta_pot = 1.08;
-params.gamma_pot = 120;
+params.gamma_pot = 280;
 
 params.theta_act = params.theta_dep;
 params.tau_x = 100;     % From Robert & Howe 2003, GluR1
@@ -122,7 +124,7 @@ if strcmp(simu.mode, 'single')
     act_thr = refline([0 params.theta_act]);
     act_thr.Color = 'm';
     
-    if strcmp(simu.model, 'pheno')
+    if strcmp(simu.model, 'pheno') || strcmp(simu.model, 'caProd')
         figure(3)
         plot(t, w_hist);
         title('Evolution of synaptic strength')
@@ -367,6 +369,146 @@ if strcmp(simu.mode, 'dataFit')
     text(10.0, 40.0, 2.3, strcat('dampFactor = ', num2str(params.dampFactor, 3)), 'FontSize', 8);
 end
 
+
+%% Simulate response to correlated Poisson processes
+if strcmp(simu.mode, 'poissonSingle')
+    % Generating Correlation matrix
+    nu_pre = 1.0;       % Hz
+    nu_post = 1.0;      % Hz
+    C = [nu_pre/nu_post 1; 1 nu_post/nu_pre];
+    T = 2000;           % ms
+    
+%     % The following simulates correlated Poisson for exponential
+%     % correlation functions only (see Brette 2008, section 3)
+%     [t, I] = corrPoisson( 2, [nu_pre; nu_post], C, T);
+%     
+%     preIds = find(I(1,:));
+%     pre_spikes_hist = t(preIds);
+%     
+%     postIds = find(I(2,:));
+%     post_spikes_hist = t(postIds);
+
+    % The following simulates two independent Poisson processes
+    t = indPoisson( 2, [nu_pre; nu_post], T);
+    pre_spikes_hist = t(1,:);
+    post_spikes_hist = t(2,:);
+
+    if strcmp(simu.model, 'naive')
+         [rho_hist, c_hist] = naive_model(pre_spikes_hist, post_spikes_hist, params, simu);
+    elseif strcmp(simu.model, 'pheno')
+        [rho_hist, w_hist, c_hist] = pheno_model(pre_spikes_hist, post_spikes_hist, params, simu);
+    elseif strcmp(simu.model, 'caProd')
+        [rho_hist, w_hist, c_hist] = caProd_model(pre_spikes_hist, post_spikes_hist, params, simu);
+    end
+
+    % Plotting rho as a function of time
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+    t = linspace(0, simu.T, simu.T/simu.int_step + 1);
+
+    figure(1)
+    plot(t, rho_hist);
+    title('Evolution of average CaMKII state');
+    xlabel('Time');
+    ylabel('Average CaMKII state');
+
+    % ToDo: add bumps of Ca as colored pins over x-axis
+
+    figure(2)
+    plot(t, c_hist);
+    title('Evolution of calcium influx');
+    xlabel('Time');
+    ylabel('Calcium concentration');
+
+    dep_thr = refline([0 params.theta_dep]);
+    dep_thr.Color = 'r';
+
+    pot_thr = refline([0 params.theta_pot]);
+    pot_thr.Color = 'g';
+    
+    act_thr = refline([0 params.theta_act]);
+    act_thr.Color = 'm';
+    
+    if strcmp(simu.model, 'pheno') || strcmp(simu.model, 'caProd')
+        figure(3)
+        plot(t, w_hist);
+        title('Evolution of synaptic strength')
+        xlabel('Time');
+        ylabel('Average synaptic strength');
+    end
+end
+
+%% Simulate response to correlated Poisson processes
+if strcmp(simu.mode, 'poissonMap')
+    % Generating Correlation matrix
+    pSTDP.T = 2000;
+    pSTDP.nuPre.min = 0.5;
+    pSTDP.nuPre.max = 50;
+    pSTDP.nuPre.step = 3;
+    pSTDP.nuPost.min = 0.5;
+    pSTDP.nuPost.max = 50;
+    pSTDP.nuPost.step = 3;
+    
+%     % The following simulates correlated Poisson for exponential
+%     % correlation functions only (see Brette 2008, section 3)
+%     [t, I] = corrPoisson( 2, [nu_pre; nu_post], C, T);
+%     
+%     preIds = find(I(1,:));
+%     pre_spikes_hist = t(preIds);
+%     
+%     postIds = find(I(2,:));
+%     post_spikes_hist = t(postIds);
+
+    % The following simulates two independent Poisson processes
+    
+    t = indPoisson( 2, [nu_pre; nu_post], T);
+    pre_spikes_hist = t(1,:);
+    post_spikes_hist = t(2,:);
+
+    if strcmp(simu.model, 'naive')
+         [rho_hist, c_hist] = naive_model(pre_spikes_hist, post_spikes_hist, params, simu);
+    elseif strcmp(simu.model, 'pheno')
+        [rho_hist, w_hist, c_hist] = pheno_model(pre_spikes_hist, post_spikes_hist, params, simu);
+    elseif strcmp(simu.model, 'caProd')
+        [rho_hist, w_hist, c_hist] = caProd_model(pre_spikes_hist, post_spikes_hist, params, simu);
+    end
+
+    % Plotting rho as a function of time
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+    t = linspace(0, simu.T, simu.T/simu.int_step + 1);
+
+    figure(1)
+    plot(t, rho_hist);
+    title('Evolution of average CaMKII state');
+    xlabel('Time');
+    ylabel('Average CaMKII state');
+
+    % ToDo: add bumps of Ca as colored pins over x-axis
+
+    figure(2)
+    plot(t, c_hist);
+    title('Evolution of calcium influx');
+    xlabel('Time');
+    ylabel('Calcium concentration');
+
+    dep_thr = refline([0 params.theta_dep]);
+    dep_thr.Color = 'r';
+
+    pot_thr = refline([0 params.theta_pot]);
+    pot_thr.Color = 'g';
+    
+    act_thr = refline([0 params.theta_act]);
+    act_thr.Color = 'm';
+    
+    if strcmp(simu.model, 'pheno') || strcmp(simu.model, 'caProd')
+        figure(3)
+        plot(t, w_hist);
+        title('Evolution of synaptic strength')
+        xlabel('Time');
+        ylabel('Average synaptic strength');
+    end
+end
 
 %% Find STDP curve attributes as a function of parameters
 if strcmp(simu.mode, 'STDP_SWEEP')
