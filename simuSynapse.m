@@ -383,21 +383,21 @@ if strcmp(simu.mode, 'poissonSingle')
     C = [c12*1.05*nu_pre/nu_post c12; c12 c12*1.05*nu_post/nu_pre];
     simu.T = 2000;      % ms
     
-    % The following simulates correlated Poisson for exponential
-    % correlation functions only (see Brette 2008, section 3)
-    [t, I] = corrPoisson( 2, [nu_pre; nu_post], C, T);
-    
-    preIds = find(I(1,:));
-    pre_spikes_hist = t(preIds);
-    
-    postIds = find(I(2,:));
-    post_spikes_hist = t(postIds);
+%     % The following simulates correlated Poisson for exponential
+%     % correlation functions only (see Brette 2008, section 3)
+%     [t, I] = corrPoisson( 2, [nu_pre; nu_post], C, T);
+%     
+%     preIds = find(I(1,:));
+%     pre_spikes_hist = t(preIds);
+%     
+%     postIds = find(I(2,:));
+%     post_spikes_hist = t(postIds);
 
-%     % The following simulates two independent Poisson processes
-%     % Rates are cast back to s^(-1)
-%     t = indPoisson( 2, [1000/nu_pre; 1000/nu_post], simu.T);
-%     pre_spikes_hist = t(1,:);
-%     post_spikes_hist = t(2,:);
+    % The following simulates two independent Poisson processes
+    % Rates are cast back to s^(-1)
+    t = indPoisson( 2, [1000/nu_pre; 1000/nu_post], simu.T);
+    pre_spikes_hist = t(1,:);
+    post_spikes_hist = t(2,:);
 
     if strcmp(simu.model, 'naive')
         [rho_hist, c_hist] = naive_model(pre_spikes_hist, post_spikes_hist, params, simu);
