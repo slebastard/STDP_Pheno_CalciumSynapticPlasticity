@@ -15,13 +15,14 @@ function [t, I] = corrPoisson( N, mu, C, T )
 %   I  - N*length(t) matrix containing spike flags at each times, for each
 %   of the N processes to simulate
 
-    tc = 1; % Time constant for Ornstein-Uhlenbeck
+    tc = 50; % Time constant for Ornstein-Uhlenbeck, in ms
+    % tc sets the time-scale of cross-correlation decay
 
     L = chol(C, 'lower');
-    M = sum(mu) + 10*sum(C)^(0.5);
+    M = sum(mu) + 10*sum(sum(C))^(0.5);
     A = zeros(N,N);
     b = zeros(N,1);
-    for i=N:1
+    for i=N:-1:1
         A(i:end,:) = A(i:end,:) + repmat(L(i,:),N+1-i,1);
         b(i:end,1) = b(i:end,1) + mu(i,1);
     end
@@ -32,11 +33,13 @@ function [t, I] = corrPoisson( N, mu, C, T )
     I = zeros(N, 1);
     
     while t(1,end) < T
-        dur = exprnd(1/M);
+        dur = exprnd(1000/M);
         t = cat(2, t, t(1,end)+dur);
         Y = Y.*exp(-dur/tc) + sqrt(1 - exp(-2*dur/tc)).*rand(N,1);
-        c = b + A*Y;
-        s = r + A*Y;
+        c = b + A(end,:)*Y;
+        s = r + A(end,:)*Y;
+        
+        spike =  zeros(N,1);
         if M*rand() <= s
             v = s*rand();
             % Binary search
@@ -62,10 +65,9 @@ function [t, I] = corrPoisson( N, mu, C, T )
                     index = mid;
                 end
             end
-            spike =  zeros(N,1);
-            spike(index,1) = 1;
-            I = cat(2, I, spike);
+            spike(index,1) = 1;       
         end
+        I = cat(2, I, spike);
     end
     
 end

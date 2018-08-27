@@ -1,43 +1,57 @@
-function t = poissonMap( pSTDP )
+function STDP = poissonMap( params, simu )
 %CORRPOISSON Generates uncorrelated Poisson processes
+% All rates in Hz
     
-    pSTDP.T;
-    pSTDP.nuPre.min;
-    pSTDP.nuPre.max;
-    pSTDP.nuPre.step;
-    pSTDP.nuPost.min;
-    pSTDP.nuPost.max;
-    pSTDP.nuPost.step;
-    rho_max = pSTDP.rho.max;
-    rho0_step = pSTDP.rho.step;
+    T = simu.T;
+    nPreMin = simu.nuPre.min;
+    nPreMax = simu.nuPre.max;
+    nPreStep = simu.nuPre.step;
+    nPostMin = simu.nuPost.min;
+    nPostMax = simu.nuPost.max;
+    nPostStep = simu.nuPost.step;
+    nTry = simu.nTry;
+    rho_max = params.rho_max;
+    rho0_step = 5;
     
-    ?? prot
-    ?? params
-    ?? STDP
-    ?? no model distinction
+    nPre = 1 + floor((nPreMax-nPreMin)/nPreStep);
+    nPost = 1 + floor((nPostMax-nPostMin)/nPostStep);
+    nRho = 1+floor(rho_max/rho0_step);
+    map = zeros(nPre, nPost, nRho);
     
-    map = zeros(1+floor((pSTDP.nuPre.max - pSTDP.nuPre.min)/pSTDP.nuPre.step), 1+floor((pSTDP.nuPost.max - pSTDP.nuPost.min)/pSTDP.nuPost.step), 1+floor(rho_max/rho0_step));
-    
-    for nu_pre=linspace(pSTDP.nuPre.min, pSTDP.nuPre.max, pSTDP.nuPre.step)
-        for nu_post=linspace(pSTDP.nuPost.min, pSTDP.nuPost.max, pSTDP.nuPost.step)
-            pre_id = ;
-            post_id = ;
+    for nu_pre=nPreMin:nPreStep:nPreMax
+        for nu_post=nPostMin:nPostStep:nPostMax
+            pre_id = 1 + floor((nu_pre-nPreMin)/nPreStep);
+            post_id = 1 + floor((nu_post-nPostMin)/nPostStep);
             
-            t = indPoisson( 2, [nu_pre; nu_post], pSTDP.T);
+            t = indPoisson( 2, [1000/nu_pre; 1000/nu_post], simu.T);
             pre_spikes_hist = t(1,:);
             post_spikes_hist = t(2,:);
             for rho_0 = 0:rho0_step:rho_max
                 rho0_id = 1 + floor(rho_0/rho0_step);
-                w_0 = transfer(rho_0, prot);
+                w_0 = transfer(rho_0, params);
                 params.rho_0 = rho_0;
                 params.w_0 = w_0;
-                [~, w_end, ~] = pheno_model_efficient(pre_spikes_hist, post_spikes_hist, params, STDP);
-                q_w = w_end/w_0;
-                map(pre_id, post_id, rho0_id) = q_w;
+                cache_qw = 0;
+                for tryID = 1:nTry
+                    if strcmp(simu.model, 'caProd')
+                        [~, w_end, ~] = caProd_model_efficient(pre_spikes_hist, post_spikes_hist, params, simu);
+                    else
+                        [~, w_end, ~] = pheno_model_efficient(pre_spikes_hist, post_spikes_hist, params, simu);
+                    end
+                    cache_qw = cache_qw + w_end/w_0;
+                end
+                map(pre_id, post_id, rho0_id) = cache_qw/nTry;
+                progressbar((rho0_id + (rho_max+1)*(post_id-1) + (rho_max*nPost+nPost)*(pre_id-1))/(1 + floor(rho_max/rho0_step) + (rho_max+1)*(nPost-1) + (rho_max*nPost+nPost)*(nPre-1)));
             end
-            
         end
     end
     
+    tmp = transfer_ind(0:rho0_step:rho_max, params);
+    muW = 0.5;
+    rhoDistr = (1/(sqrt(2*pi*muW*(1-muW)))) .* exp(-(tmp - muW*ones(1, 1+floor(rho_max/rho0_step))).^2 ./(2*muW*(1-muW))); 
+    rhoDistr = (1/sum(rhoDistr)).*rhoDistr;
+    rhoConv = permute(repmat(rhoDistr',1,nPre,nPost),[2 3 1]);
+    STDP = sum(map .* rhoConv,3);
+
 end
 

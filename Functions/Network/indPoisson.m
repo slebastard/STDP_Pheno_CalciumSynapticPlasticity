@@ -16,7 +16,7 @@ function t = indPoisson( N, mu, T )
     t = zeros(N, 1);  % Contains the min of time reached by generation
     
     while min(t(:,end)) < T
-        intsp = randexp(mu);
+        intsp = exprnd(mu);
         t = cat(2, t, t(:,end) + intsp);
     end
     
