@@ -5,14 +5,14 @@ function syn = getSynapse( )
     syn.Cpost = 0.84;
     syn.delay = 5e-3;
     
-    syn.tDep = 1;
+    syn.tDep = 1.05;
     syn.gDep = 200;
     
-    syn.tPot = 1.1;
-    syn.gPot = 250;
+    syn.tPot = 1.08;
+    syn.gPot = 380;
     
     syn.tauCa = 3e-2;
-    syn.tauRho = 25;
+    syn.tauRho = 100;
     
     syn.rho0 = 25;
     syn.rhoMax = 200;

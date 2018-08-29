@@ -31,12 +31,13 @@
 % below.
 %
 % You should be all set!
+clear all
 
 env = getEnv();
 addpath(genpath(env.functionsRoot), env.dataRoot);
 data.path = strcat(env.dataRoot,'Venance2016/');
 
-simu.mode = 'dataFit';
+simu.mode = 'poissonMap';
 simu.model = 'caProd';
 
 % Parameters controlling excitation history
@@ -60,7 +61,7 @@ params.delay_pre = -15;
 params.theta_dep = 1;
 params.gamma_dep = 200;
 
-params.theta_pot = 1.08;
+params.theta_pot = 1.4;
 params.gamma_pot = 120;
 
 params.theta_act = params.theta_dep;
@@ -70,7 +71,7 @@ params.tau_w = 50000;
 
 params.noise_lvl = 25; % 12 factor for effective noise correction - 1/sqrt(N_A*V);
 params.rho_0 = 25; % must be between 0 and rho_max
-params.dampFactor = 1;
+params.dampFactor = 0.6;
 params.TD = 0;
 
 prot = params;
@@ -468,12 +469,12 @@ if strcmp(simu.mode, 'poissonMap')
     pSTDP = simu;
     pSTDP.T = 2000;
     pSTDP.nuPre.min = 1;
-    pSTDP.nuPre.max = 40;
-    pSTDP.nuPre.step = 5;
+    pSTDP.nuPre.max = 100;
+    pSTDP.nuPre.step = 6;
     pSTDP.nuPost.min = 1;
-    pSTDP.nuPost.max = 40;
-    pSTDP.nuPost.step = 5;
-    pSTDP.nTry = 15;
+    pSTDP.nuPost.max = 100;
+    pSTDP.nuPost.step = 6;
+    pSTDP.nTry = 5;
     
     pSTDP.corr.type = 'none';
     pSTDP.corr.c12 = 50;
