@@ -1,4 +1,4 @@
-function [t, I] = corrPoisson( N, mu, C, T )
+function [t, I] = corrPoisson( N, mu, C, T, tc )
 %CORRPOISSON Generates correlated Poisson processes
 % Currently only supports homogeneous Poisson processes
 
@@ -9,14 +9,13 @@ function [t, I] = corrPoisson( N, mu, C, T )
 %   C  - Correlation matrix
 %     N*N matrix
 %   T  - Total duration of simulation
+%   tc   Time constant for Ornstein-Uhlenbeck, in ms
+%        sets the time-scale of cross-correlation decay
 
 % %% Outputs %%
 %   t  - Spike times
 %   I  - N*length(t) matrix containing spike flags at each times, for each
 %   of the N processes to simulate
-
-    tc = 50; % Time constant for Ornstein-Uhlenbeck, in ms
-    % tc sets the time-scale of cross-correlation decay
 
     L = chol(C, 'lower');
     M = sum(mu) + 10*sum(sum(C))^(0.5);
@@ -35,7 +34,9 @@ function [t, I] = corrPoisson( N, mu, C, T )
     while t(1,end) < T
         dur = exprnd(1000/M);
         t = cat(2, t, t(1,end)+dur);
-        Y = Y.*exp(-dur/tc) + sqrt(1 - exp(-2*dur/tc)).*rand(N,1);
+        Y = Y.*exp(-dur/tc) + sqrt(1 - exp(-2*dur/tc)).*rand(N,1); % Exp
+        % cross-correlation
+        % Y = Y + sqrt(2*tc*dur); % delta cross-correlation
         c = b + A(end,:)*Y;
         s = r + A(end,:)*Y;
         

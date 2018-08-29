@@ -32,15 +32,17 @@
 %
 % You should be all set!
 
-addpath(genpath('Functions'))
+env = getEnv();
+addpath(genpath(env.functionsRoot), env.dataRoot);
+data.path = strcat(env.dataRoot,'Venance2016/');
 
-simu.mode = 'poissonSingle';
+simu.mode = 'dataFit';
 simu.model = 'caProd';
 
 % Parameters controlling excitation history
 simu.d_t = 10;
 simu.n_iter = 100;
-simu.frequency = 1;
+simu.frequency = 15;
 simu.int_scheme = 'euler_expl';
 simu.int_step = 0.5;
 
@@ -64,11 +66,11 @@ params.gamma_pot = 120;
 params.theta_act = params.theta_dep;
 params.tau_x = 100;     % From Robert & Howe 2003, GluR1
 params.tau_rho = 100000;
-params.tau_w = 500000;
+params.tau_w = 50000;
 
 params.noise_lvl = 25; % 12 factor for effective noise correction - 1/sqrt(N_A*V);
 params.rho_0 = 25; % must be between 0 and rho_max
-params.dampFactor = 0.3;
+params.dampFactor = 1;
 params.TD = 0;
 
 prot = params;
@@ -77,15 +79,12 @@ params.w_0 = transfer_ind(params.rho_0, prot);
 N_A = 6.02e17; %mumol^(-1)
 V = 2.5e-16; %L
 
-
-data.path = '../Data/Venance2016/';
-addpath(genpath('Functions'), '../Data');
-
 % Defining default excitation timeline
 pre_spikes_hist = linspace(0, 1000*(simu.n_iter-1)./simu.frequency, simu.n_iter);
 post_spikes_hist = pre_spikes_hist + simu.d_t;
 simu.T = max(1000*(simu.n_iter-1)./simu.frequency + abs(simu.d_t) + 10*params.tau_Ca);
 post_spikes_hist = post_spikes_hist(post_spikes_hist > 0.3*simu.T & post_spikes_hist < 0.6*simu.T );
+
 
 
 %% mode='single') Full evolution of syn plast on a single simulation
@@ -176,6 +175,7 @@ if strcmp(simu.mode, 'STDP')
     ylabel('Relative change in synaptic strength')
     
 end
+
 
 
 %% mode='freq3') STDP = f(freq,dt) 3D plot
@@ -297,7 +297,8 @@ if strcmp(simu.mode, 'pairs')
 end
 
 
-%% Fitting to data from Venance lab
+
+%% mode='dataFit') Fitting to data from Venance lab
 
 % Comparing the model to STDP=f(freq,dt) data from L. Venance (INSERM)
 data.freqSTDP.data = csvread(strcat(data.path, 'STDP_Frequency.csv'),1,0);
@@ -358,46 +359,42 @@ if strcmp(simu.mode, 'dataFit')
 %     ('Plasticity as a function of pre-post spike delay');
 %     xlabel('Pre-post spike delay (ms)');
 %     ylabel('Relative change in synaptic strength');
-    text(10.0, 90.0, 2.9, strcat('\tau_{ca} = ', num2str(params.tau_Ca, 3), 'ms'), 'FontSize', 8);
-    text(10.0, 90.0, 2.75, strcat('\tau_{damp} = ', num2str(params.tau_x, 3), 'ms'), 'FontSize', 8);
-    text(10.0, 90.0, 2.6, strcat('C_{pre} = ', num2str(params.C_pre, 3)), 'FontSize', 8);
-    text(10.0, 90.0, 2.45, strcat('C_{post} = ', num2str(params.C_post, 3)), 'FontSize', 8);
-
-    text(10.0, 90.0, 2.3, strcat('\theta_{dep} = ', num2str(params.theta_dep, 3)), 'FontSize', 8);
-    text(10.0, 40.0, 2.9, strcat('\theta_{pot} = ', num2str(params.theta_pot, 3)), 'FontSize', 8);
-
-    text(10.0, 40.0, 2.75, strcat('\gamma_{dep} = ', num2str(params.gamma_dep, 3)), 'FontSize', 8);
-    text(10.0, 40.0, 2.6, strcat('\gamma_{pot} = ', num2str(params.gamma_pot, 3)), 'FontSize', 8);
-
-    text(10.0, 40.0, 2.45, strcat('\sigma = ', num2str(params.noise_lvl, 3)), 'FontSize', 8); % 12 factor for effective noise correction - 1/sqrt(N_A*V);
-    text(10.0, 40.0, 2.3, strcat('dampFactor = ', num2str(params.dampFactor, 3)), 'FontSize', 8);
+    dataFit.paramPos.x = 10.0;
+    dataFit.paramPos.y = 65.0;
+    dataFit.paramPos.z = 2.6;
+    dataFit.paramPos.colSepY = 25.0;
+    dataFit.paramPos.colSepZ = 0.15;
+    dataFit.paramPos.ftSize = 8;
+    stampParams(params, dataFit.paramPos);
 end
 
 
-%% Simulate response to Poisson processes
+
+%% mode='poisonSingle') Simulate response to Poisson processes
 if strcmp(simu.mode, 'poissonSingle')
     % Generating Correlation matrix
     nu_pre = 1.0;       % Hz
-    nu_post = 5.0;      % Hz
-    c12 = 100.5;
+    nu_post = 1.0;      % Hz
+    c12 = 50;
     C = [c12*1.05*nu_pre/nu_post c12; c12 c12*1.05*nu_post/nu_pre];
     simu.T = 2000;      % ms
+    tc = 50;
     
-%     % The following simulates correlated Poisson for exponential
-%     % correlation functions only (see Brette 2008, section 3)
-%     [t, I] = corrPoisson( 2, [nu_pre; nu_post], C, T);
-%     
-%     preIds = find(I(1,:));
-%     pre_spikes_hist = t(preIds);
-%     
-%     postIds = find(I(2,:));
-%     post_spikes_hist = t(postIds);
+    % The following simulates correlated Poisson for exponential
+    % correlation functions only (see Brette 2008, section 3)
+    [t, I] = corrPoisson( 2, [nu_pre; nu_post], C, simu.T, tc);
+    
+    preIds = find(I(1,:));
+    pre_spikes_hist = t(preIds);
+    
+    postIds = find(I(2,:));
+    post_spikes_hist = t(postIds);
 
-    % The following simulates two independent Poisson processes
-    % Rates are cast back to s^(-1)
-    t = indPoisson( 2, [1000/nu_pre; 1000/nu_post], simu.T);
-    pre_spikes_hist = t(1,:);
-    post_spikes_hist = t(2,:);
+%     % The following simulates two independent Poisson processes
+%     % Rates are cast back to s^(-1)
+%     t = indPoisson( 2, [1000/nu_pre; 1000/nu_post], simu.T);
+%     pre_spikes_hist = t(1,:);
+%     post_spikes_hist = t(2,:);
 
     if strcmp(simu.model, 'naive')
         [rho_hist, c_hist] = naive_model(pre_spikes_hist, post_spikes_hist, params, simu);
@@ -412,50 +409,118 @@ if strcmp(simu.mode, 'poissonSingle')
 
     t = linspace(0, simu.T, simu.T/simu.int_step + 1);
 
-    figure(71)
-    plot(t, rho_hist);
-    title('Evolution of average CaMKII state');
-    xlabel('Time');
-    ylabel('Average CaMKII state');
-
-    % ToDo: add bumps of Ca as colored pins over x-axis
-
-    figure(72)
-    plot(t, c_hist);
-    title('Evolution of calcium influx');
-    xlabel('Time');
-    ylabel('Calcium concentration');
-
-    dep_thr = refline([0 params.theta_dep]);
-    dep_thr.Color = 'r';
-
-    pot_thr = refline([0 params.theta_pot]);
-    pot_thr.Color = 'g';
+%     figure(71)
+%     plot(t, rho_hist);
+%     title('Evolution of average CaMKII state');
+%     xlabel('Time');
+%     ylabel('Average CaMKII state');
+% 
+%     % ToDo: add bumps of Ca as colored pins over x-axis
+% 
+%     figure(72)
+%     plot(t, c_hist);
+%     title('Evolution of calcium influx');
+%     xlabel('Time');
+%     ylabel('Calcium concentration');
+% 
+%     dep_thr = refline([0 params.theta_dep]);
+%     dep_thr.Color = 'r';
+% 
+%     pot_thr = refline([0 params.theta_pot]);
+%     pot_thr.Color = 'g';
+%     
+%     act_thr = refline([0 params.theta_act]);
+%     act_thr.Color = 'm';
+%     
+%     if strcmp(simu.model, 'pheno') || strcmp(simu.model, 'caProd')
+%         figure(73)
+%         plot(t, w_hist);
+%         title('Evolution of synaptic strength')
+%         xlabel('Time');
+%         ylabel('Average synaptic strength');
+%     end
     
-    act_thr = refline([0 params.theta_act]);
-    act_thr.Color = 'm';
+    figure(74)
+    subplot(2,2,1)
+    [rPre, lagsPre] = xcorr(pre_spikes_hist, pre_spikes_hist, 0.2*simu.T);
+    plot(lagsPre, rPre)
+    title('Pre auto-correlation')
     
-    if strcmp(simu.model, 'pheno') || strcmp(simu.model, 'caProd')
-        figure(73)
-        plot(t, w_hist);
-        title('Evolution of synaptic strength')
-        xlabel('Time');
-        ylabel('Average synaptic strength');
-    end
+    subplot(2,2,2)
+    [rX, lagsX] = xcorr(pre_spikes_hist, post_spikes_hist, 0.2*simu.T);
+    plot(lagsX, rX)
+    title('Pre-post cross-correlation')
+    
+    subplot(2,2,3)
+    [rX, lagsX] = xcorr(pre_spikes_hist, post_spikes_hist, 0.2*simu.T);
+    plot(lagsX, rX)
+    title('Pre-post cross-correlation')
+    
+    subplot(2,2,4)
+    [rPost, lagsPost] = xcorr(post_spikes_hist, post_spikes_hist, 0.2*simu.T);
+    plot(lagsPost, rPost)
+    title('Post auto-correlation')
 end
 
-%% STDP map for Poisson processes
+%% mode='poisonMap') STDP map for Poisson processes
 if strcmp(simu.mode, 'poissonMap')
     % Generating Correlation matrix
     pSTDP = simu;
     pSTDP.T = 2000;
     pSTDP.nuPre.min = 1;
-    pSTDP.nuPre.max = 20;
-    pSTDP.nuPre.step = 1;
+    pSTDP.nuPre.max = 40;
+    pSTDP.nuPre.step = 5;
     pSTDP.nuPost.min = 1;
-    pSTDP.nuPost.max = 20;
-    pSTDP.nuPost.step = 1;
-    pSTDP.nTry = 5;
+    pSTDP.nuPost.max = 40;
+    pSTDP.nuPost.step = 5;
+    pSTDP.nTry = 15;
+    
+    pSTDP.corr.type = 'none';
+    pSTDP.corr.c12 = 50;
+    pSTDP.corr.tc = 50;
+    
+    pSTDP.map = poissonMap(params, pSTDP);
+
+    % Plotting the STDP surface obtained
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+    [pre_grid_intp, post_grid_intp] = meshgrid(pSTDP.nuPre.min:0.2*pSTDP.nuPre.step:pSTDP.nuPre.max, pSTDP.nuPost.min:0.2*pSTDP.nuPost.step:pSTDP.nuPost.max);
+    [pre_grid_spl, post_grid_spl] = meshgrid(pSTDP.nuPre.min:pSTDP.nuPre.step:pSTDP.nuPre.max, pSTDP.nuPost.min:pSTDP.nuPost.step:pSTDP.nuPost.max);
+    pSTDP.interpol = griddata(pre_grid_spl, post_grid_spl, pSTDP.map, pre_grid_intp, post_grid_intp);
+    % ribboncoloredZ(gca,dt_grid,dataFit.interpol);
+    figure()
+    pSTDP.plot = log(pSTDP.interpol);
+    surf(pre_grid_intp, post_grid_intp, pSTDP.plot);
+    xlabel('Presyn rate')
+    ylabel('Postsyn rate')
+    zlabel('Log potentiation')
+    colormap(bluewhitered), colorbar;
+    alpha 0.3
+    
+    pSTDP.paramPos.x = pSTDP.nuPre.min + 0.85*(pSTDP.nuPre.max - pSTDP.nuPre.min);
+    pSTDP.paramPos.y = pSTDP.nuPost.min + 0.85*(pSTDP.nuPost.max - pSTDP.nuPost.min);
+    pSTDP.paramPos.z = max(max(pSTDP.plot)) - 0.6*(max(max(pSTDP.plot)) - min(min(pSTDP.plot)));
+    pSTDP.paramPos.colSepY = 0.15*(pSTDP.nuPost.max - pSTDP.nuPost.min);
+    pSTDP.paramPos.colSepZ = 0.05*(max(max(pSTDP.plot)) - min(min(pSTDP.plot)));
+    pSTDP.paramPos.ftSize = 8;
+    stampParams(params, pSTDP.paramPos);
+end
+
+%% mode='poisonCut') STDP map for Poisson processes
+if strcmp(simu.mode, 'poissonCut')
+    % Generating Correlation matrix
+    pSTDP = simu;
+    pSTDP.dir = 'pre';
+    pSTDP.val = [1 5 20 40];
+    pSTDP.T = 2000;
+    pSTDP.nu.min = 1;
+    pSTDP.nu.max = 40;
+    pSTDP.nu.step = 0.5;
+    pSTDP.nTry = 20;
+
+    pSTDP.corr.type = 'none';
+    pSTDP.corr.c12 = 50;
+    pSTDP.corr.tc = 50;
     
 %     % The following simulates correlated Poisson for exponential
 %     % correlation functions only (see Brette 2008, section 3)
@@ -469,18 +534,21 @@ if strcmp(simu.mode, 'poissonMap')
 
     % The following simulates two independent Poisson processes
     
-    pSTDP.map = poissonMap(params, pSTDP);
+    pSTDP.cut = poissonCut(params, pSTDP);
 
     % Plotting the STDP surface obtained
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-    [pre_grid, post_grid] = meshgrid(pSTDP.nuPre.min:pSTDP.nuPre.step:pSTDP.nuPre.max, pSTDP.nuPost.min:pSTDP.nuPost.step:pSTDP.nuPost.max);
-    % pSTDP.interpol = griddata(pre_grid, post_grid, pSTDP.map, pre_grid, post_grid);
-    % ribboncoloredZ(gca,dt_grid,dataFit.interpol);
-    figure(81)
-    % surf(pre_grid, post_grid, pSTDP.interpol);
-    surf(pre_grid, post_grid, pSTDP.map);
-    colormap(bluewhitered), colorbar;
+    figure(91)
+    errorbar(pSTDP.cut.mean(:,1),pSTDP.cut.mean(:,2),pSTDP.cut.var(:,2));
+    if strcmp(pSTDP.dir, 'pre')
+        title(strcat('Relative plasticity as a function of postsyn rate, at nuPre=', pSTDP.val, 'Hz'))
+        xlabel('Postsyn Poisson rate')
+    else
+        title(strcat('Relative plasticity as a function of postsyn rate, at nuPost', pSTDP.val, 'Hz'))
+        xlabel('Presyn Poisson rate')
+    end
+    ylabel('Rel STDP')
     alpha 0.3
 
 end
