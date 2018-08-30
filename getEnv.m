@@ -4,5 +4,7 @@ function env = getEnv(  )
     env.functionsRoot = 'Functions/';
     env.dataRoot = '../Data/';
     env.outputRoot = '../Output/';
+    
+    set(groot,'defaultfigureposition',[400 250 900 750])
 end
 
