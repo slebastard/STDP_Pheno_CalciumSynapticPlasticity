@@ -49,15 +49,16 @@ plt.timeSpl.inter = 70;
 
 
 gif.graph = 0;
-gif.minN = 15;
-gif.maxN = 40;
+    gif.minN = 15;
+    gif.maxN = 40;
 gif.lapl = 0;
-
+gif.W = 1;
 
 init.w = 'norm';
 init.c = 0.7;
 init.mode = 'rand';
 init.strap = 0.2;     % Time (s) for which the system should run before monitoring starts
+init.strapIters = ceil(init.strap/simu.dt);
 
 
 % %%%%%%%%   PARAMETERS OF THE NETWORK  %%%%%%%%   
@@ -194,6 +195,43 @@ splNeu.NI = 2;
 splNeu.ExcNeurons = excNeurons(randperm(size(excNeurons,1),splNeu.NE));
 splNeu.InhNeurons = inhNeurons(randperm(size(inhNeurons,1),splNeu.NI));
 
+%% Processing time signal, initializing filters
+
+% Reading input signal
+% in.fileName = 'test.signal';
+% in = readSignal(in.fileName); % k (dim) x M (timeSteps) signal
+
+in.dim = 3;
+in.timeSteps = 2200;
+in.data = zeros(in.dim, in.timeSteps);
+in.data(1,1:100) = gausswin(100,3);
+in.data(1,1001:1100) = gausswin(100,3);
+in.data(1,2001:2100) = gausswin(100,3);
+in.data(2,51:150) = gausswin(100,3);
+in.data(2,1051:1150) = gausswin(100,3);
+in.data(2,2051:2150) = gausswin(100,3);
+in.data(3,101:200) = gausswin(100,3);
+in.data(3,1101:1200) = gausswin(100,3);
+in.data(3,2101:2200) = gausswin(100,3);
+
+if Iterations > in.timeSteps
+    in.data = cat(1, in.data, zeros(in.dim, Iterations-in.timeSteps));
+elseif Iterations < in.timeSteps
+    Iterations = in.timeSteps;
+    simu.T = simu.dt * Iterations;
+end
+% Append time with steady signal (to reach param-defined network steady state)
+% + scale with base nu_ext
+in.data = nu_ext.*cat(1, init.in.steadyVal.*ones(in.dim, init.strapIters), in.data);
+
+% Initializing neuronal filters
+in.tune = uniformSimplex(net.N, in.dim);
+idx = kmeans(in.tune,in.dim);
+[~,map] = sort(idx);
+
+% Sort matrix W by cluster identification
+W = W(map,map);
+
 %% Initialization
 % %%%%%%%%   SIMULATION PARAMETERS %%%%%%%%  
 
@@ -241,16 +279,25 @@ if gif.lapl
     [im2,map2] = rgb2ind(f2.cdata,256,'nodither');
 end
 
+if gif.W
+    figure(3)
+    imagesc(W)
+    f3 = getframe;
+    [im3,map3] = rgb2ind(f3.cdata,256,'nodither');
+end
+
+% Building external stimuli history
+in.nu = in.tune*in.data;
+
 %% Simulation
 tic();
 
 if init.strap > 0
-    strapIters = ceil(init.strap/simu.dt);
-    for i=1:strapIters
-        if (1+mod(i-1,1e4))==1
-            ExInput=syn.J*poissrnd(nu_ext*C_ext*simu.dt,net.N,1e4);
+    for i=1:init.strapIters
+        if (1+mod(i-1,1e2))==1
+            ExInput=syn.J*poissrnd(C_ext*simu.dt .* in.nu(:,i),net.N,1e2);
         end
-        V=(1-simu.dt/neu.tau)*V+ExInput(:,1+mod(i-1,1e4))+RI(:,1+mod(i-1,N_del));        % Voltage update
+        V=(1-simu.dt/neu.tau)*V+ExInput(:,1+mod(i-1,1e2))+RI(:,1+mod(i-1,N_del));        % Voltage update
         ca = ca.*exp(-simu.dt/syn.tauCa);
         xpre = 1 - exp(-simu.dt/tau_pre).*(1-xpre);
         xpost = 1 - exp(-simu.dt/tau_post).*(1-xpost);
@@ -267,15 +314,13 @@ if init.strap > 0
 end
 
 for i=1:Iterations
-    if (1+mod(i-1,3e3))==1 && (1+mod(i-1,6e3))~=1
-        ExInput=syn.J*poissrnd(nu_ext*C_ext*simu.dt,net.N,3e3);
-    elseif (1+mod(i-1,3e3))==1 && (1+mod(i-1,6e3))==1
-        ExInput=syn.J*poissrnd(nu_ext*C_ext*simu.dt,net.N,3e3);
+    if (1+mod(i-1,1e2))==1
+        ExInput=syn.J*poissrnd(C_ext*simu.dt .* in.nu(:,init.strapIters + i),net.N,1e2);
     end
     
     % nu_ext= max(0,net.rExtRel*nu_thresh*(1+5*cos(i*simu.dt/(0.5*2*pi))));
     
-    V=(1-simu.dt/neu.tau)*V+ExInput(:,1+mod(i-1,3e3))+RI(:,1+mod(i-1,N_del));        % Voltage update
+    V=(1-simu.dt/neu.tau)*V+ExInput(:,1+mod(i-1,1e2))+RI(:,1+mod(i-1,N_del));        % Voltage update
     ca = ca.*exp(-simu.dt/syn.tauCa);
     xpre = 1 - exp(-simu.dt/tau_pre).*(1-xpre);
     xpost = 1 - exp(-simu.dt/tau_post).*(1-xpost);
@@ -326,6 +371,13 @@ for i=1:Iterations
     splSyn.w(:,i) = W(splSyn.IDs);
     
     if mod(i,20)==0
+        if gif.W
+            figure(3)
+            imagesc(W)
+            f3 = getframe;
+            im3(:,:,1,floor(i/20)) = rgb2ind(f3.cdata,map3,'nodither');
+        end
+        
         % Printing network to GIF
         if gif.graph
             G = digraph(W([subIDsExc subIDsInh],[subIDsExc subIDsInh])');
@@ -388,6 +440,10 @@ end
 
 if gif.lapl
     imwrite(im2,map2, strcat(env.outputsRoot, 'Figures/Network/specClust_asym.gif'), 'DelayTime',0, 'LoopCount',inf)
+end
+
+if gif.W
+    imwrite(im1, map1, strcat(env.outputsRoot, 'Figures/Network/sampleGraph_randinit.gif'), 'DelayTime',0, 'LoopCount',inf)
 end
 
 %% Plotting network stats

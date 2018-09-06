@@ -49,7 +49,7 @@ simu.int_step = 0.5;
 
 %% Environment definition
 
-params.T = 8;
+params.T = 10;
 params.rho_max = 200;
 params.S_attr = 40;
 
@@ -61,17 +61,17 @@ params.delay_pre = 15;
 params.theta_dep = 1;
 params.gamma_dep = 200;
 
-params.theta_pot = 1.4;
+params.theta_pot = 1.08;
 params.gamma_pot = 120;
 
 params.theta_act = params.theta_dep;
 params.tau_x = 100;     % From Robert & Howe 2003, GluR1
-params.tau_rho = 10000;
-params.tau_w = 5000;
+params.tau_rho = 100000;
+params.tau_w = 50000;
 
 params.noise_lvl = 25; % 12 factor for effective noise correction - 1/sqrt(N_A*V);
 params.rho_0 = 25; % must be between 0 and rho_max
-params.dampFactor = 0.6;
+params.dampFactor = 0.3;
 params.TD = 0;
 
 prot = params;
