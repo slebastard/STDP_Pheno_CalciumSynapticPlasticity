@@ -49,33 +49,17 @@ simu.int_step = 0.5;
 
 %% Environment definition
 
+params = getSynapse();
 params.T = 10;
-params.rho_max = 200;
-params.S_attr = 40;
-
-params.C_pre = 0.84;
-params.C_post = 0.4;
-params.tau_Ca = 80;
-params.delay_pre = 15;
-
-params.theta_dep = 1;
-params.gamma_dep = 200;
-
-params.theta_pot = 1.08;
-params.gamma_pot = 120;
-
 params.theta_act = params.theta_dep;
-params.tau_x = 100;     % From Robert & Howe 2003, GluR1
-params.tau_rho = 100000;
-params.tau_w = 50000;
-
-params.noise_lvl = 25; % 12 factor for effective noise correction - 1/sqrt(N_A*V);
-params.rho_0 = 25; % must be between 0 and rho_max
-params.dampFactor = 0.3;
 params.TD = 0;
 
+params.tau_x = 1e3 .* params.tau_x;
+params.tau_Ca = 1e3 .* params.tau_Ca;
+params.tau_rho = 1e3 .* params.tau_rho;
+params.tau_w = 100000;
+
 prot = params;
-params.w_0 = transfer_ind(params.rho_0, prot);
 
 N_A = 6.02e17; %mumol^(-1)
 V = 2.5e-16; %L
@@ -185,38 +169,45 @@ if strcmp(simu.mode, 'freq3')
     freq3Map = simu;
     freq3Map.mode = 'rel';
     
-    freq3Map.dt.min = -50;
-    freq3Map.dt.max = 50;
-    freq3Map.dt.step = 1;   
-    freq3Map.freq.max = 10;
-    freq3Map.freq.step = 1;
+    freq3Map.dt.min = -100;
+    freq3Map.dt.max = 100;
+    freq3Map.dt.step = 4;   
+    freq3Map.freq.max = 50;
+    freq3Map.freq.step = 5;
 
     freq3Map.map = get_freq_heatmap(freq3Map, params);
     
     n_freq = 1 + floor((freq3Map.freq.max-1)/freq3Map.freq.step);
     n_dt = 1 + floor((freq3Map.dt.max-freq3Map.dt.min)/freq3Map.dt.step);
+
+    [freq_grid, dt_grid] = meshgrid(1:freq3Map.freq.step:freq3Map.freq.max, freq3Map.dt.min:freq3Map.dt.step:freq3Map.dt.max);
+    freq3Map.interpol = griddata(freq3Map.map(:,1), freq3Map.map(:,2), freq3Map.map(:,3), freq_grid, dt_grid);
+    % ribboncoloredZ(gca,dt_grid,dataFit.interpol);
     
-    freq3Map.heat = zeros(n_freq, n_dt);
-    freq3Map.heat(sub2ind([n_freq,n_dt], repelem(1:n_freq,1,n_dt), repmat(1:n_dt,1,n_freq))) = freq3Map.map(:,3);
+%     freq3Map.heat = zeros(n_freq, n_dt);
+%     freq3Map.heat(sub2ind([n_freq,n_dt], repelem(1:n_freq,1,n_dt), repmat(1:n_dt,1,n_freq))) = freq3Map.map(:,3);
     
     figure(21)
+    surf(freq_grid, dt_grid, freq3Map.interpol);
+    colormap(bluewhitered), colorbar;
+    alpha 0.3
     
 %     scatter3(freq3Map.map(:,1),freq3Map.map(:,2),freq3Map.map(:,3), '.');
     
-    freq3Map.plot = imagesc(freq3Map.heat');
-    colormap('hot');
-    colorbar;
-    
-    xlabels = 1 + freq_step.*(xticks-1);
-    ylabels = dtmin + step_dt.*(yticks-1);
-    
-    xtickformat('%.1f')
-    set(gca, 'XTickLabel', xlabels);
-    set(gca, 'YTickLabel', ylabels);
-
-    title('Relative change in syn plast as a function of frequency and dt');
-    xlabel('Frequency');
-    ylabel('dt');
+%     freq3Map.plot = imagesc(freq3Map.heat');
+%     colormap('hot');
+%     colorbar;
+%     
+%     xlabels = 1 + freq_step.*(xticks-1);
+%     ylabels = dtmin + step_dt.*(yticks-1);
+%     
+%     xtickformat('%.1f')
+%     set(gca, 'XTickLabel', xlabels);
+%     set(gca, 'YTickLabel', ylabels);
+% 
+%     title('Relative change in syn plast as a function of frequency and dt');
+%     xlabel('Frequency');
+%     ylabel('dt');
 end
 
 %% mode='freq') STDP = f(freq) 3D plot for two opposite timings
@@ -469,12 +460,12 @@ if strcmp(simu.mode, 'poissonMap')
     pSTDP = simu;
     pSTDP.T = 2000;
     pSTDP.nuPre.min = 1;
-    pSTDP.nuPre.max = 150;
-    pSTDP.nuPre.step = 6;
+    pSTDP.nuPre.max = 200;
+    pSTDP.nuPre.step = 15;
     pSTDP.nuPost.min = 1;
-    pSTDP.nuPost.max = 150;
-    pSTDP.nuPost.step = 6;
-    pSTDP.nTry = 5;
+    pSTDP.nuPost.max = 200;
+    pSTDP.nuPost.step = 15;
+    pSTDP.nTry = 1;
     
     pSTDP.corr.type = 'none';
     pSTDP.corr.c12 = 50;

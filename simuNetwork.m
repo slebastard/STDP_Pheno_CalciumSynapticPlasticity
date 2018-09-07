@@ -27,8 +27,8 @@ addpath(genpath(env.functionsRoot));
 syn = getSynapse();
 
 prot.TD = 0;
-prot.S_attr = syn.sAttr;
-prot.noise_lvl = syn.sigma;
+prot.S_attr = syn.S_attr;
+prot.noise_lvl = syn.noise_lvl;
 
 simu.T = 15;
 simu.dt=5e-4;
@@ -52,7 +52,8 @@ gif.graph = 0;
 gif.minN = 15;
 gif.maxN = 40;
 gif.lapl = 0;
-
+gif.ratesHist = 0;
+gif.updIter = 80;
 
 init.w = 'norm';
 init.c = 0.7;
@@ -62,7 +63,7 @@ init.strap = 0.2;     % Time (s) for which the system should run before monitori
 
 % %%%%%%%%   PARAMETERS OF THE NETWORK  %%%%%%%%   
 
-net.N=100;
+net.N=200;
 net.NE=ceil(0.8*net.N);      % # excitatory neurons
 net.NI=net.N-net.NE;             % # excitatory neurons
 
@@ -84,7 +85,7 @@ neu.t_rp=2e-3;
 
 % Bifurcation parameters
 syn.J=(1/sqrt(net.N))*0.2e-3; %0.1e-3;                   % Strength of exc. Connections
-net.g=1.5;                      % Strength of inh/exc (inh connections -gJ)
+net.g=3.8;                      % Strength of inh/exc (inh connections -gJ)
 net.rExtRel=3.5;         % nu_ext/nu_thresh
 
 nu_thresh=neu.V_t/(syn.J*CE*neu.tau);   % Frequency needed for a neuron to reach the threshold. 
@@ -99,7 +100,7 @@ NC=NCX*NCY;     % Total number of electrodes
 
 % Parameters of histograms
 nbins = 100;
-edgesRho = linspace(0,syn.rhoMax,nbins+1);
+edgesRho = linspace(0,syn.rho_max,nbins+1);
 edgesW_exc = linspace(0,1,nbins+1);
 edgesW_inh = linspace(-net.g,0,nbins+1);
 
@@ -149,7 +150,7 @@ ca = zeros(net.N,net.N);
 xpre = ones(net.N,net.N);
 xpost = ones(net.N,net.N);
 % rho = zeros(net.N,net.N);
-rho = transferinv(W./synSign, syn.sAttr, syn.sigma, syn.rhoMax);
+rho = transferinv(W./synSign, syn.S_attr, syn.noise_lvl, syn.rho_max);
 actPot = zeros(net.N,net.N);
 actDep = zeros(net.N,net.N);
 
@@ -207,8 +208,8 @@ allspikes=zeros(1,Iterations);
 %ExInput=syn.J*poissrnd(nu_ext*C_ext*simu.dt,net.N,Iterations);
 Current=zeros(NCX*NCY,Iterations);
 
-tau_pre = syn.tauDamp;
-tau_post = syn.tauDamp;
+tau_pre = syn.tau_x;
+tau_post = syn.tau_x;
 
 Rasterplot=zeros(net.N,Iterations);
 
@@ -217,7 +218,7 @@ LWisimu.dths = (5.*(G.Edges.Weight>0) + 0.8.*(G.Edges.Weight<0)).*abs(G.Edges.We
 EColors = [0 1 0].*(G.Edges.Weight>0) + [1 0 0].*(G.Edges.Weight<0);
 if gif.graph
     figure(1)
-    plot(G,'LineWisimu.dth',LWisimu.dths,'EdgeColor',EColors)
+    plot(G,'LineWidth',LWisimu.dths,'EdgeColor',EColors)
     axis tight
     set(gca,'nextplot','replacechildren','visible','off')
     f1 = getframe;
@@ -251,16 +252,16 @@ if init.strap > 0
             ExInput=syn.J*poissrnd(nu_ext*C_ext*simu.dt,net.N,1e4);
         end
         V=(1-simu.dt/neu.tau)*V+ExInput(:,1+mod(i-1,1e4))+RI(:,1+mod(i-1,N_del));        % Voltage update
-        ca = ca.*exp(-simu.dt/syn.tauCa);
+        ca = ca.*exp(-simu.dt/syn.tau_Ca);
         xpre = 1 - exp(-simu.dt/tau_pre).*(1-xpre);
         xpost = 1 - exp(-simu.dt/tau_post).*(1-xpost);
         spike = (V>=neu.V_t);
         spikingNeurons = find(spike);
-        ca(spikingNeurons,:) = ca(spikingNeurons,:) + syn.Cpost.*xpost(spikingNeurons,:);
-        ca(:,spikingNeurons) = ca(:,spikingNeurons) + syn.Cpre.*xpre(:,spikingNeurons);
+        ca(spikingNeurons,:) = ca(spikingNeurons,:) + syn.C_post.*xpost(spikingNeurons,:);
+        ca(:,spikingNeurons) = ca(:,spikingNeurons) + syn.C_pre.*xpre(:,spikingNeurons);
         xpost(spikingNeurons,:) = xpost(spikingNeurons,:)*(1 - syn.dampFactor);
         xpre(:,spikingNeurons) = xpre(:,spikingNeurons)*(1 - syn.dampFactor);
-        rho = rho + simu.dt./syn.tauRho .* (syn.gPot.*(syn.rhoMax - rho).*actPot - syn.gDep.*rho.*actDep);
+        rho = rho + simu.dt./syn.tau_rho .* (syn.gamma_pot.*(syn.rho_max - rho).*actPot - syn.gamma_dep.*rho.*actDep);
         W = synSign.*transfer(rho, prot);
         V(LS>i-N_del)=neu.V_r;
     end
@@ -276,7 +277,7 @@ for i=1:Iterations
     % nu_ext= max(0,net.rExtRel*nu_thresh*(1+5*cos(i*simu.dt/(0.5*2*pi))));
     
     V=(1-simu.dt/neu.tau)*V+ExInput(:,1+mod(i-1,3e3))+RI(:,1+mod(i-1,N_del));        % Voltage update
-    ca = ca.*exp(-simu.dt/syn.tauCa);
+    ca = ca.*exp(-simu.dt/syn.tau_Ca);
     xpre = 1 - exp(-simu.dt/tau_pre).*(1-xpre);
     xpost = 1 - exp(-simu.dt/tau_post).*(1-xpost);
     
@@ -284,18 +285,20 @@ for i=1:Iterations
     spike = (V>=neu.V_t);               % Spiking neurons have a "1"
     spikingNeurons = find(spike);
     
-    ca(spikingNeurons,:) = ca(spikingNeurons,:) + syn.Cpost.*xpost(spikingNeurons,:);
-    ca(:,spikingNeurons) = ca(:,spikingNeurons) + syn.Cpre.*xpre(:,spikingNeurons);
+    spikingNeuronsDelay = find(spike);
+    
+    ca(spikingNeurons,:) = ca(spikingNeurons,:) + syn.C_post.*xpost(spikingNeurons,:);
+    ca(:,spikingNeurons) = ca(:,spikingNeurons) + syn.C_pre.*xpre(:,spikingNeurons);
     
     % xpost(spikingNeurons,:) = 0;
     % xpre(:,spikingNeurons) = 0;
     xpost(spikingNeurons,:) = xpost(spikingNeurons,:)*(1 - syn.dampFactor);
     xpre(:,spikingNeurons) = xpre(:,spikingNeurons)*(1 - syn.dampFactor);
     
-    actPot = (ca >= syn.tPot).*(W~=0);
-    actDep = (ca >= syn.tDep).*(W~=0);
+    actPot = (ca >= syn.theta_pot).*(W~=0);
+    actDep = (ca >= syn.theta_dep).*(W~=0);
     
-    rho = rho + simu.dt./syn.tauRho .* (syn.gPot.*(syn.rhoMax - rho).*actPot - syn.gDep.*rho.*actDep);
+    rho = rho + simu.dt./syn.tau_rho .* (syn.gamma_pot.*(syn.rho_max - rho).*actPot - syn.gamma_dep.*rho.*actDep);
     W = synSign.*transfer(rho, prot);
     
     meanWexc(i+1,1) = mean(W((1/syn.J).*W>0));
@@ -325,16 +328,16 @@ for i=1:Iterations
     splSyn.rho(:,i) =  rho(splSyn.IDs);
     splSyn.w(:,i) = W(splSyn.IDs);
     
-    if mod(i,20)==0
+    if mod(i,gif.updIter)==0
         % Printing network to GIF
         if gif.graph
-            G = digraph(W([subIDsExc subIDsInh],[subIDsExc subIDsInh])');
+            G = digraph(W([subIDsExc;subIDsInh],[subIDsExc;subIDsInh])');
             LWisimu.dths = (5.*(G.Edges.Weight>0) + 0.8.*(G.Edges.Weight<0)).*abs(G.Edges.Weight);
             EColors = [0 1 0].*(G.Edges.Weight>0) + [1 0 0].*(G.Edges.Weight<0);
             figure(1)
-            plot(G,'LineWisimu.dth',LWisimu.dths,'EdgeColor',EColors)
+            plot(G,'LineWidth',LWisimu.dths,'EdgeColor',EColors)
             f1 = getframe;
-            im1(:,:,1,floor(i/20)) = rgb2ind(f1.cdata,map1,'nodither');
+            im1(:,:,1,floor(i/gif.updIter)) = rgb2ind(f1.cdata,map1,'nodither');
         end
         
         % Eigendecomposition to find clusters
@@ -350,7 +353,7 @@ for i=1:Iterations
             ylabel('Eigenvalue')
             title(strcat('Eigendecomposition at time ', num2str(simu.dt*i,3),'s'))
             f2 = getframe;
-            im2(:,:,1,floor(i/20)) = rgb2ind(f2.cdata,map2,'nodither');
+            im2(:,:,1,floor(i/gif.updIter)) = rgb2ind(f2.cdata,map2,'nodither');
         end
     end
     
@@ -376,18 +379,50 @@ for n=1:net.N
     rateEst(n,:) = (1/simu.dt).*conv(Rasterplot(n,:), filter, 'same');
 end
 edgesRates = 0:2:200;
+
+if gif.ratesHist
+    rates.min = 145;
+    rates.max = 170;
+    rates.nbins = 10;
+    rates.edges = linspace(rates.min,rates.max,rates.nbins+1);
+    rates.synapses = zeros((net.N).^2,2);
+    
+    figure(4)
+    rates.synapses(:,1) = repelem(rateEst(:,1),net.N,1);
+    rates.synapses(:,2) = repmat(rateEst(:,1),net.N,1);
+    noNulSyns = rates.synapses(abs(W)>1e-7,:);
+    hist3(noNulSyns,'Edges',{rates.edges, rates.edges},'CDataMode','auto','FaceColor','interp')
+    view(0, 90);
+    f4 = getframe;
+    [im4,map4] = rgb2ind(f4.cdata,256,'nodither');
+end
+
 for i=1:Iterations
-    histRates(:,i) = histcounts(rateEst(:,i),size(edgesRates,2)-1);
+    histRates(:,i) = histcounts(rateEst(:,i),edgesRates);  
+    if mod(i,gif.updIter)==0 && gif.ratesHist
+        rates.synapses(:,1) = repelem(rateEst(:,i),net.N,1);
+        rates.synapses(:,2) = repmat(rateEst(:,i),net.N,1);
+        noNulSyns = rates.synapses(abs(W)>1e-7,:);
+        figure(4)
+        hist3(noNulSyns,'Edges',{rates.edges, rates.edges},'CDataMode','auto','FaceColor','interp')
+        view(0, 90);
+        f4 = getframe;
+        im4(:,:,1,floor(i/gif.updIter)) = rgb2ind(f4.cdata,map4,'nodither');
+    end
 end
 
 
 %% Creating graph for visualization
 if gif.graph
-    imwrite(im1, map1, strcat(env.outputsRoot, 'Figures/Network/sampleGraph_randinit.gif'), 'DelayTime',0, 'LoopCount',inf)
+    imwrite(im1, map1, strcat(env.outputRoot, 'Figures/Network/sampleGraph_randinit.gif'), 'DelayTime',0, 'LoopCount',inf)
 end
 
 if gif.lapl
-    imwrite(im2,map2, strcat(env.outputsRoot, 'Figures/Network/specClust_asym.gif'), 'DelayTime',0, 'LoopCount',inf)
+    imwrite(im2,map2, strcat(env.outputRoot, 'Figures/Network/specClust_asym.gif'), 'DelayTime',0, 'LoopCount',inf)
+end
+
+if gif.ratesHist
+    imwrite(im4,map4, strcat(env.outputRoot, 'Figures/Network/ratesHist.gif'), 'DelayTime',0, 'LoopCount',inf)
 end
 
 %% Plotting network stats
@@ -485,7 +520,7 @@ switch plt.spl.pres
             splSyn.pres(5*(i-1)+1,:) = Rasterplot(splSyn.PreNeurons(i,1),:);
             splSyn.pres(5*(i-1)+2,:) = Rasterplot(splSyn.PostNeurons(i,1),:);
             splSyn.pres(5*(i-1)+3,:)= splSyn.ca(i,:);
-            splSyn.pres(5*(i-1)+4,:)= (1/(syn.J*syn.rhoMax)).*synSign(splSyn.IDs(i)).*splSyn.rho(i,:);
+            splSyn.pres(5*(i-1)+4,:)= (1/(syn.J*syn.rho_max)).*synSign(splSyn.IDs(i)).*splSyn.rho(i,:);
             splSyn.pres(5*(i-1)+5,:)= (1/syn.J).*splSyn.w(i,:);
         end
         figure(5)
@@ -507,7 +542,7 @@ switch plt.spl.pres
                     = splSyn.ca(i,1+floor((tSplID-1)/(plt.timeSpl.n-1)*(Iterations-ceil(plt.timeSpl.dur/simu.dt)-1)):floor((tSplID-1)/(plt.timeSpl.n-1)*(Iterations-ceil(plt.timeSpl.dur/simu.dt)-1)+ceil(plt.timeSpl.dur/simu.dt)));
 
                 splSyn.pres(5*(i-1)+4, 1+(tSplID-1)*(ceil(plt.timeSpl.dur/simu.dt)+plt.timeSpl.inter):tSplID*ceil(plt.timeSpl.dur/simu.dt)+(tSplID-1)*plt.timeSpl.inter) ...
-                    = (1/(syn.J*syn.rhoMax)).*synSign(splSyn.IDs(i)).*splSyn.rho(i,1+floor((tSplID-1)/(plt.timeSpl.n-1)*(Iterations-ceil(plt.timeSpl.dur/simu.dt)-1)):floor((tSplID-1)/(plt.timeSpl.n-1)*(Iterations-ceil(plt.timeSpl.dur/simu.dt)-1)+ceil(plt.timeSpl.dur/simu.dt)));
+                    = (1/(syn.J*syn.rho_max)).*synSign(splSyn.IDs(i)).*splSyn.rho(i,1+floor((tSplID-1)/(plt.timeSpl.n-1)*(Iterations-ceil(plt.timeSpl.dur/simu.dt)-1)):floor((tSplID-1)/(plt.timeSpl.n-1)*(Iterations-ceil(plt.timeSpl.dur/simu.dt)-1)+ceil(plt.timeSpl.dur/simu.dt)));
 
                 splSyn.pres(5*(i-1)+5, 1+(tSplID-1)*(ceil(plt.timeSpl.dur/simu.dt)+plt.timeSpl.inter):tSplID*ceil(plt.timeSpl.dur/simu.dt)+(tSplID-1)*plt.timeSpl.inter) ...
                     = (1/syn.J).*splSyn.w(i,1+floor((tSplID-1)/(plt.timeSpl.n-1)*(Iterations-ceil(plt.timeSpl.dur/simu.dt)-1)):floor((tSplID-1)/(plt.timeSpl.n-1)*(Iterations-ceil(plt.timeSpl.dur/simu.dt)-1)+ceil(plt.timeSpl.dur/simu.dt)));
