@@ -3,11 +3,19 @@
 This repository contains a framework for testing models of calcium-based synaptic plasticty.
 Voltage-dependent calcium ions influx into both the presynaptic and postsynaptic sides have been shown to be both necessary and sufficient for induction of synaptic plasticity.
 
-Here we share a Matlab framework for testing calcium-based models of synaptic plasticity.
+Hello there! This is a Matlab framework for testing calcium-based model of plasticity both at the level of a synapse and at the level of a network of neurons.
+
+## How to run this?
+- To test a plasticity rule at the synapse level, parameterize and run simuSynapse.m
+- To implement a calcium-based rule at the network level (only pheno rule supported at this moment), parameterize and run simuNetwork.m
+
+## Available models
 Two models are included:
 - naive model, with a single variable for synaptic plasticity. This model is a simplified version of the model introduced by Grauper & Brunel in [1].
-- phenomenological model, with a phosphorylation variable and a plasticity variable, dependent on the former by a noise-dependent transform
-Additional models can be developed and plugged in the framework
+- 3-vars phenomenological model, with a phosphorylation variable and a plasticity variable, dependent on the former by a noise-dependent transform
+
+## Available networks
+Right now the type of network implemented is that studied by N. Brunel in [2]. Additional network architectures will be added in the futture
 
 ## Available tests
 The framework allows for the following tests, all launched form Models/simu.m:
@@ -32,10 +40,11 @@ To account for the sudden influx of calcium, we use a burst model where the calc
 The different methods take as argument a presynaptic and a postsynaptic calcium history, in the form of a set of burst times.
 Note that the model does not yet account for variability in spiking (for instance through Poisson processes).
 
-## ToDo
-The framework will be updated in the future for greater modularity.
-Models will be objects the methods of which will be the different tests presented above.
+## Coming soon
+- GUI for running simulations
+- Modules for easy analysis at network level and pluing of new plasticity rules and network architectures
 
 ## References
-[1] Michael Graupner & Nicolas Brunel, Calcium-based plasticity model explains sensitivity of synaptic changes to spike pattern, rate, and 
-dendritic location, March 6th 2012, PNAS Vol. 109, N. 10, 3991 3996
+[1] Michael Graupner & Nicolas Brunel, Calcium-based plasticity model explains sensitivity of synaptic changes to spike pattern, rate, and dendritic location, March 6th 2012, PNAS Vol. 109, N. 10, 3991 3996
+
+[2] Nicolas Brunel, Dynamics of Sparsely Connected Networks of Excitatory and Inhibitory Spiking Neurons, June 9th 1999, https://link.springer.com/article/10.1023/A:1008925309027
