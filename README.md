@@ -1,9 +1,9 @@
 # Framework for testing calcium-based synaptic plasticity models
+Hello there! This is a Matlab framework for testing calcium-based model of plasticity both at the level of a synapse and at the level of a network of neurons.
+
 ## Introduction
 This repository contains a framework for testing models of calcium-based synaptic plasticty.
 Voltage-dependent calcium ions influx into both the presynaptic and postsynaptic sides have been shown to be both necessary and sufficient for induction of synaptic plasticity.
-
-Hello there! This is a Matlab framework for testing calcium-based model of plasticity both at the level of a synapse and at the level of a network of neurons.
 
 ## How to run this?
 - To test a plasticity rule at the synapse level, parameterize and run simuSynapse.m
