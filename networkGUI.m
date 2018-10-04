@@ -22,7 +22,7 @@ function varargout = networkGUI(varargin)
 
 % Edit the above text to modify the response to help networkGUI
 
-% Last Modified by GUIDE v2.5 28-Aug-2018 17:40:06
+% Last Modified by GUIDE v2.5 04-Oct-2018 17:17:17
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -43,6 +43,8 @@ else
 end
 % End initialization code - DO NOT EDIT
 
+env = getEnv();
+addpath(genpath(env.functionsRoot));
 
 % --- Executes just before networkGUI is made visible.
 function networkGUI_OpeningFcn(hObject, eventdata, handles, varargin)
@@ -51,12 +53,31 @@ function networkGUI_OpeningFcn(hObject, eventdata, handles, varargin)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 % varargin   command line arguments to networkGUI (see VARARGIN)
+clc
 
 % Choose default command line output for networkGUI
 handles.output = hObject;
 
 % Update handles structure
 guidata(hObject, handles);
+
+% Loading default values in table
+set(handles.synParams,'Data',cell(1,11));
+
+defSyn = getSynapse();
+defSynData = [defSyn.tau_Ca, ...
+    defSyn.tau_rho, ...
+    defSyn.tau_x, ...
+    defSyn.C_pre, ...
+    defSyn.C_post, ...
+    defSyn.delay_pre, ...
+    defSyn.theta_pot, ...
+    defSyn.theta_dep, ...
+    defSyn.S_attr, ...
+    defSyn.noise_lvl, ...
+    defSyn.dampFactor];
+
+set(handles.synParams,'Data',defSynData);
 
 % UIWAIT makes networkGUI wait for user response (see UIRESUME)
 % uiwait(handles.figure1);
@@ -73,65 +94,29 @@ function varargout = networkGUI_OutputFcn(hObject, eventdata, handles)
 varargout{1} = handles.output;
 
 
-% --- Executes on button press in radiobutton15.
-function radiobutton15_Callback(hObject, eventdata, handles)
-% hObject    handle to radiobutton15 (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
+% %%%%%% GIFS PANEL %%%%%%%%%%%%%%%%%%%%%%%%%%
 
-% Hint: get(hObject,'Value') returns toggle state of radiobutton15
+function graphCheck_Callback(hObject, eventdata, handles)
+
+function laplCheck_Callback(hObject, eventdata, handles)
 
 
-% --- Executes on button press in radiobutton16.
-function radiobutton16_Callback(hObject, eventdata, handles)
-% hObject    handle to radiobutton16 (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
+function graphNedit_Callback(hObject, eventdata, handles)
+    handles.gif.N = str2double(get(hObject,'String'));
 
-% Hint: get(hObject,'Value') returns toggle state of radiobutton16
+function graphNedit_CreateFcn(hObject, eventdata, handles)
 
-
-
-function edit1_Callback(hObject, eventdata, handles)
-% hObject    handle to edit1 (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hints: get(hObject,'String') returns contents of edit1 as text
-%        str2double(get(hObject,'String')) returns contents of edit1 as a double
-
-
-% --- Executes during object creation, after setting all properties.
-function edit1_CreateFcn(hObject, eventdata, handles)
-% hObject    handle to edit1 (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    empty - handles not created until after all CreateFcns called
-
-% Hint: edit controls usually have a white background on Windows.
-%       See ISPC and COMPUTER.
 if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
     set(hObject,'BackgroundColor','white');
 end
 
 
 
-function edit2_Callback(hObject, eventdata, handles)
-% hObject    handle to edit2 (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
+function laplKedit_Callback(hObject, eventdata, handles)
+    handles.gif.K = str2double(get(hObject,'String'));
 
-% Hints: get(hObject,'String') returns contents of edit2 as text
-%        str2double(get(hObject,'String')) returns contents of edit2 as a double
+function laplKedit_CreateFcn(hObject, eventdata, handles)
 
-
-% --- Executes during object creation, after setting all properties.
-function edit2_CreateFcn(hObject, eventdata, handles)
-% hObject    handle to edit2 (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    empty - handles not created until after all CreateFcns called
-
-% Hint: edit controls usually have a white background on Windows.
-%       See ISPC and COMPUTER.
 if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
     set(hObject,'BackgroundColor','white');
 end
@@ -146,28 +131,318 @@ function radiobutton5_Callback(hObject, eventdata, handles)
 % Hint: get(hObject,'Value') returns toggle state of radiobutton5
 
 
-% --- Executes on button press in checkbox7.
-function checkbox7_Callback(hObject, eventdata, handles)
-% hObject    handle to checkbox7 (see GCBO)
+
+
+% %%%%%% NETWORK PANEL %%%%%%%%%%%%%%%%%%%%%%%%%%
+
+function netNedit_Callback(hObject, eventdata, handles)
+    handles.net.N = str2double(get(hObject,'String'));
+
+function netNedit_CreateFcn(hObject, eventdata, handles)
+
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+
+
+function netNEedit_Callback(hObject, eventdata, handles)
+    handles.net.NE = str2double(get(hObject,'String'));
+
+
+function netNEedit_CreateFcn(hObject, eventdata, handles)
+
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+
+
+function netConnectedit_Callback(hObject, eventdata, handles)
+    handles.net.Connectivity = str2double(get(hObject,'String'));
+
+function netConnectedit_CreateFcn(hObject, eventdata, handles)
+
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+
+
+function netDedit_Callback(hObject, eventdata, handles)
+    handles.net.D = str2double(get(hObject,'String'));
+
+function netDedit_CreateFcn(hObject, eventdata, handles)
+
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+
+
+function neuVredit_Callback(hObject, eventdata, handles)
+    handles.neu.Vr = str2double(get(hObject,'String'));
+
+function neuVredit_CreateFcn(hObject, eventdata, handles)
+
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+
+
+function neuVtedit_Callback(hObject, eventdata, handles)
+    handles.neu.Vt = str2double(get(hObject,'String'));
+
+function neuVtedit_CreateFcn(hObject, eventdata, handles)
+
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+
+
+function synJedit_Callback(hObject, eventdata, handles)
+    handles.syn.J = str2double(get(hObject,'String'));
+
+function synJedit_CreateFcn(hObject, eventdata, handles)
+
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+
+
+function netGedit_Callback(hObject, eventdata, handles)
+    handles.net.g = str2double(get(hObject,'String'));
+
+function netGedit_CreateFcn(hObject, eventdata, handles)
+
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+
+
+function InhPlastCheck_Callback(hObject, eventdata, handles)
+    handles.simu.inhPlast = get(hObject,'Value');
+
+    
+    
+% %%%%% SIMULATION PANEL %%%%%%%%%%%%%%
+    
+
+function simuTedit_Callback(hObject, eventdata, handles)
+    handles.simu.T = str2double(get(hObject,'String'));
+
+function simuTedit_CreateFcn(hObject, eventdata, handles)
+
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+
+
+function simudtedit_Callback(hObject, eventdata, handles)
+    handles.simu.dt = str2double(get(hObject,'String'));
+
+function simudtedit_CreateFcn(hObject, eventdata, handles)
+
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+
+% %%%%%%%%%%%%%%% PLOT PANEL %%%%%%%%%%%%%%%%%%%%
+
+% %% Stack subgroup %%%%%%%%%%%%%%%%%
+
+% --- Executes on button press in pltNoStack.
+function pltNoStack_Callback(hObject, eventdata, handles)
+
+function pltSmallStack_Callback(hObject, eventdata, handles)
+
+function pltFullStack_Callback(hObject, eventdata, handles)
+
+
+% %% Histogram subgroup %%%%%%%%%%%%%%%%%
+
+% --- Executes on button press in pltSplHist.
+function pltSplHist_Callback(hObject, eventdata, handles)
+
+function pltFullHist_Callback(hObject, eventdata, handles)
+
+function pltNoHist_Callback(hObject, eventdata, handles)
+
+
+% %%%%%%%% INIT STATE CALLBACKS %%%%%%%%%%%%%%%%%%%%%%
+    
+function netInputedit_Callback(hObject, eventdata, handles)
+
+function netInputedit_CreateFcn(hObject, eventdata, handles)
+
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+
+
+function weightInitDrop_Callback(hObject, eventdata, handles)
+
+function weightInitDrop_CreateFcn(hObject, eventdata, handles)
+
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+
+
+function initCedit_Callback(hObject, eventdata, handles)
+
+function initCedit_CreateFcn(hObject, eventdata, handles)
+
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+
+
+function initStrapedit_Callback(hObject, eventdata, handles)
+
+function initStrapedit_CreateFcn(hObject, eventdata, handles)
+
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+% %%%%%%%%%%%%%%% LAUCH BUTTON %%%%%%%%%%%%%%%%%%%%
+% --- Executes on button press in LaunchButton.
+function LaunchButton_Callback(hObject, eventdata, handles)
+% hObject    handle to LaunchButton (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
+   
+    % Packing variables from table
+    synData = get(handles.synParams,'Data');
+    synData = synData(1,:);
+    syn = getSynapse();
+    syn.tau_Ca = synData(1,1);
+    syn.tau_rho = synData(1,2);
+    syn.tau_x = synData(1,3);
+    syn.C_pre = synData(1,4);
+    syn.C_post = synData(1,5);
+    syn.delay_pre = synData(1,6);
+    syn.theta_pot = synData(1,7);
+    syn.theta_dep = synData(1,8);
+    syn.S_attr = synData(1,9);
+    syn.noise_lvl = synData(1,10);
+    syn.dampFactor = synData(1,11);
+    
+    % Packing simulation parameters
+    simu.dt = 1e-3*str2double(get(handles.simudtedit,'String'));
+    simu.T = str2double(get(handles.simuTedit,'String'));
 
-% Hint: get(hObject,'Value') returns toggle state of checkbox7
+    % Packing network parameters
+    net.N = str2double(get(handles.netNedit,'String'));
+    net.NE = str2double(get(handles.netNEedit,'String'));
+    net.Connectivity= str2double(get(handles.netConnectedit,'String'));
+    net.D = 1e-3*str2double(get(handles.netDedit,'String'));
+    
+    neu.V_r = str2double(get(handles.neuVredit,'String'));
+    neu.V_t = str2double(get(handles.neuVtedit,'String'));
+    
+    syn.J = str2double(get(handles.synJedit,'String'));
+    net.g = str2double(get(handles.netGedit,'String'));
+    net.rExtRel = str2double(get(handles.netInputedit,'String'));
+    simu.inhPlast = get(handles.InhPlastCheck,'Value');
+    
+    % Preparing INIT STATE
+    init.c = str2double(get(handles.initCedit,'String'));
+    
+    initOut = get(handles.weightInitDrop,'Value');
+    if initOut == 1
+            init.mode = 'rand';
+    else
+            init.mode = 'deter';
+    end
+    
+    init.strap = str2double(get(handles.initStrapedit,'String'));
+    
+    % Preparing STACKS & HISTOS
+    stackOut = get(handles.stackButtonGroup, 'SelectedObject');
+    switch get(stackOut, 'String')
+        case 'Small'
+            plt.spl.pres = 1;
+        case 'Full'
+            plt.spl.pres = 2;
+        case 'Samples'
+            plt.spl.pres = 3;
+        otherwise
+            plt.spl.pres = 0;
+    end
+    
+    histOut = get(handles.histoButtonGroup, 'SelectedObject');
+    switch get(histOut, 'String')
+        case 'Full'
+            plt.spl.hist = 1;
+        case 'Time samples'
+            plt.spl.hist = 2;
+        otherwise
+            plt.spl.hist = 0;
+    end
+    
+    plt.all.raster = 0;
+    plt.spl.ca = 0;
+    plt.spl.rho = 0;
+    plt.spl.w = 0;
+    
+    phaseOut = get(handles.phaseButtonGroup, 'SelectedObject');
+    switch get(phaseOut, 'String')
+        case 'None'
+            plt.spl.phase = 0;
+        case 'Relative'
+            plt.spl.phase = 2;
+    end
+    
+    
+    % Preparing GIFS
+    if get(handles.graphCheck,'Value')
+        gif.graph = 1;
+        gif.N = str2double(get(handles.graphNedit,'String'));
+    else
+        gif.graph = 0;
+        gif.N = 0;
+    end
+    
+    if get(handles.laplCheck,'Value')
+        gif.lapl = 1;
+        gif.K = str2double(get(handles.laplKedit,'String'));
+    else
+        gif.lapl = 0;
+        gif.K = 0;
+    end
+
+    simuNetwork_fromGUI(syn, simu, net, neu, init, plt, gif)
+    
 
 
-% --- Executes on button press in checkbox8.
-function checkbox8_Callback(hObject, eventdata, handles)
-% hObject    handle to checkbox8 (see GCBO)
+% --- Executes on button press in clearAllPush.
+function clearAllPush_Callback(hObject, eventdata, handles)
+% hObject    handle to clearAllPush (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
+    clear all
 
-% Hint: get(hObject,'Value') returns toggle state of checkbox8
+function checkbox16_Callback(hObject, eventdata, handles)
+
+function checkbox15_Callback(hObject, eventdata, handles)
 
 
-% --- Executes on button press in checkbox9.
-function checkbox9_Callback(hObject, eventdata, handles)
-% hObject    handle to checkbox9 (see GCBO)
+% --- Executes on button press in closeAllPush.
+function closeAllPush_Callback(hObject, eventdata, handles)
+% hObject    handle to closeAllPush (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
-
-% Hint: get(hObject,'Value') returns toggle state of checkbox9
+    figs2keep = gcf;
+    all_figs = findobj(0, 'type', 'figure');
+    delete(setdiff(all_figs, figs2keep));

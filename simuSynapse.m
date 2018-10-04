@@ -37,13 +37,13 @@ env = getEnv();
 addpath(genpath(env.functionsRoot), env.dataRoot);
 data.path = strcat(env.dataRoot,'Venance2016/');
 
-simu.mode = 'poissonMap';
+simu.mode = 'single';
 simu.model = 'caProd';
 
 % Parameters controlling excitation history
-simu.d_t = 10;
-simu.n_iter = 100;
-simu.frequency = 17;
+simu.d_t = 15;
+simu.n_iter = 30;
+simu.frequency = 1;
 simu.int_scheme = 'euler_expl';
 simu.int_step = 0.5;
 
@@ -57,7 +57,8 @@ params.TD = 0;
 params.tau_x = 1e3 .* params.tau_x;
 params.tau_Ca = 1e3 .* params.tau_Ca;
 params.tau_rho = 1e3 .* params.tau_rho;
-params.tau_w = 100000;
+params.delay_pre = 1e3 .* params.delay_pre;
+params.tau_w = 50000;
 
 prot = params;
 
@@ -88,7 +89,7 @@ if strcmp(simu.mode, 'single')
     t = linspace(0, simu.T, simu.T/simu.int_step + 1);
 
     figure(1)
-    plot(t, rho_hist);
+    plot(t, rho_hist(1,1:length(t)));
     title('Evolution of average CaMKII state');
     xlabel('Time');
     ylabel('Average CaMKII state');
@@ -96,7 +97,7 @@ if strcmp(simu.mode, 'single')
     % ToDo: add bumps of Ca as colored pins over x-axis
 
     figure(2)
-    plot(t, c_hist);
+    plot(t, c_hist(1:length(t),1));
     title('Evolution of calcium influx');
     xlabel('Time');
     ylabel('Calcium concentration');
@@ -112,7 +113,7 @@ if strcmp(simu.mode, 'single')
     
     if strcmp(simu.model, 'pheno') || strcmp(simu.model, 'caProd')
         figure(3)
-        plot(t, w_hist);
+        plot(t, w_hist(1:length(t),1));
         title('Evolution of synaptic strength')
         xlabel('Time');
         ylabel('Average synaptic strength');
@@ -126,9 +127,9 @@ end
 if strcmp(simu.mode, 'STDP')
     
     STDP = simu;
-    STDP.dt.min = -150;
-    STDP.dt.max = 150;
-    STDP.dt.step = 2;
+    STDP.dt.min = -75;
+    STDP.dt.max = 75;
+    STDP.dt.step = 1;
     STDP.mode = 'rel';
 
     if strcmp(simu.model, 'caProd')
@@ -307,37 +308,30 @@ if strcmp(simu.mode, 'dataFit')
     dataFit.freq.max = 10;
     dataFit.freq.step = 1;
 
-    dataFit.heat = get_freq_heatmap(dataFit, params);
-
-    figure(61)
+%     dataFit.heat = get_freq_heatmap(dataFit, params);
+% 
+%     figure(61)
     data.freqSTDP.freqs=unique(data.freqSTDP.data(:,5));
     n_data_freqs=length(data.freqSTDP.freqs); 
 
-    % scatter3(data.freqSTDP.data(:,5), data.freqSTDP.data(:,2), data.freqSTDP.data(:,3)./100, 50*ones(size(data.freqSTDP.data,1),1), '*r')
-    % hold on
+%      scatter3(data.freqSTDP.data(:,5), data.freqSTDP.data(:,2), data.freqSTDP.data(:,3)./100, 50*ones(size(data.freqSTDP.data,1),1), '*r')
+%      hold on
     
-    [freq_grid, dt_grid] = meshgrid(1:dataFit.freq.step:dataFit.freq.max, dataFit.dt.min:dataFit.dt.step:dataFit.dt.max);
-    dataFit.interpol = griddata(dataFit.heat(:,1), dataFit.heat(:,2), dataFit.heat(:,3), freq_grid, dt_grid);
-    % ribboncoloredZ(gca,dt_grid,dataFit.interpol);
-    surf(freq_grid, dt_grid, dataFit.interpol);
-    colormap(bluewhitered), colorbar;
-    alpha 0.3
+%     [freq_grid, dt_grid] = meshgrid(1:dataFit.freq.step:dataFit.freq.max, dataFit.dt.min:dataFit.dt.step:dataFit.dt.max);
+%     dataFit.interpol = griddata(dataFit.heat(:,1), dataFit.heat(:,2), dataFit.heat(:,3), freq_grid, dt_grid);
+%      ribboncoloredZ(gca,dt_grid,dataFit.interpol);
+%     surf(freq_grid, dt_grid, dataFit.interpol);
+%     colormap(bluewhitered), colorbar;
+%     alpha 0.3
     
-    for f=1:n_data_freqs
-        hold on
-        ids=find(data.freqSTDP.data(:,5)==data.freqSTDP.freqs(f) & data.freqSTDP.data(:,7)~=0);
-        filtered_freq=data.freqSTDP.data(ids,:);
-        [a,b]=sort(filtered_freq(:,2));
-        % plot3(filtered_freq(b,5), filtered_freq(b,2), filtered_freq(b,3)./100, 'r','linewidth',2)
-        h = ribbon(filtered_freq(b,2), filtered_freq(b,3)./100, 0.15);
-        set(h, 'XData', filtered_freq(b,5)-1 + get(h, 'XData'));
-        % figure()
-        % plot(filtered_freq(b,2), filtered_freq(b,3)./100)
-        % hold on
-%         dataFit.frequency = data.freqSTDP.freqs(f);
-%         STDP.function = get_STDP_CaProd(dataFit, params);
-%         plot(STDP.function(:,1), STDP.function(:,2), '.b')
-    end   
+%     for f=1:n_data_freqs
+%         hold on
+%         ids=find(data.freqSTDP.data(:,5)==data.freqSTDP.freqs(f) & data.freqSTDP.data(:,7)~=0);
+%         filtered_freq=data.freqSTDP.data(ids,:);
+%         [a,b]=sort(filtered_freq(:,2));
+%         h = ribbon(filtered_freq(b,2), filtered_freq(b,3)./100, 0.15);
+%         set(h, 'XData', filtered_freq(b,5)-1 + get(h, 'XData'));
+%     end   
     
 %     dataFit.1Hz = freq_data(floor(freq_data(:,5))==1,:);
 %     
@@ -358,6 +352,22 @@ if strcmp(simu.mode, 'dataFit')
     dataFit.paramPos.colSepZ = 0.15;
     dataFit.paramPos.ftSize = 8;
     stampParams(params, dataFit.paramPos);
+    
+    for f=1:n_data_freqs
+        ids=find(data.freqSTDP.data(:,5)==data.freqSTDP.freqs(f) & data.freqSTDP.data(:,7)~=0);
+        filtered_freq=data.freqSTDP.data(ids,:);
+        [a,b]=sort(filtered_freq(:,2));
+        figure()
+        plot(filtered_freq(b,2), filtered_freq(b,3)./100, 's', 'MarkerSize', 8)
+        hold on
+        dataFit.frequency = data.freqSTDP.freqs(f);
+        STDP.function = get_STDP_CaProd(dataFit, params);
+        plot(STDP.function(:,1), STDP.function(:,2), 'r', 'LineWidth', 2)
+        xlabel('Time delay (ms)')
+        ylabel('Relative change in synaptic strength')
+        subtitle(strcat('Datafit at ', num2str(data.freqSTDP.freqs(f),1), 'Hz'))
+    end   
+    
 end
 
 
