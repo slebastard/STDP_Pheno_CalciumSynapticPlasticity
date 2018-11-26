@@ -11,9 +11,9 @@ function varargout = networkGUI(varargin)
 %
 %      NETWORKGUI('Property','Value',...) creates a new NETWORKGUI or raises the
 %      existing singleton*.  Starting from the left, property value pairs are
-%      applied to the GUI before networkGUI_OpeningFcn gets called.  An
+%      applied to the GUI before launcher_OpeningFcn gets called.  An
 %      unrecognized property name or invalid value makes property application
-%      stop.  All inputs are passed to networkGUI_OpeningFcn via varargin.
+%      stop.  All inputs are passed to launcher_OpeningFcn via varargin.
 %
 %      *See GUI Options on GUIDE's Tools menu.  Choose "GUI allows only one
 %      instance to run (singleton)".
@@ -28,8 +28,8 @@ function varargout = networkGUI(varargin)
 gui_Singleton = 1;
 gui_State = struct('gui_Name',       mfilename, ...
                    'gui_Singleton',  gui_Singleton, ...
-                   'gui_OpeningFcn', @networkGUI_OpeningFcn, ...
-                   'gui_OutputFcn',  @networkGUI_OutputFcn, ...
+                   'gui_OpeningFcn', @launcher_OpeningFcn, ...
+                   'gui_OutputFcn',  @launcher_OutputFcn, ...
                    'gui_LayoutFcn',  [] , ...
                    'gui_Callback',   []);
 if nargin && ischar(varargin{1})
@@ -47,13 +47,12 @@ env = getEnv();
 addpath(genpath(env.functionsRoot));
 
 % --- Executes just before networkGUI is made visible.
-function networkGUI_OpeningFcn(hObject, eventdata, handles, varargin)
+function launcher_OpeningFcn(hObject, eventdata, handles, varargin)
 % This function has no output args, see OutputFcn.
 % hObject    handle to figure
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 % varargin   command line arguments to networkGUI (see VARARGIN)
-clc
 
 % Choose default command line output for networkGUI
 handles.output = hObject;
@@ -84,7 +83,7 @@ set(handles.synParams,'Data',defSynData);
 
 
 % --- Outputs from this function are returned to the command line.
-function varargout = networkGUI_OutputFcn(hObject, eventdata, handles) 
+function varargout = launcher_OutputFcn(hObject, eventdata, handles) 
 % varargout  cell array for returning output args (see VARARGOUT);
 % hObject    handle to figure
 % eventdata  reserved - to be defined in a future version of MATLAB
@@ -369,6 +368,16 @@ function LaunchButton_Callback(hObject, eventdata, handles)
     init.strap = str2double(get(handles.initStrapedit,'String'));
     
     % Preparing STACKS & HISTOS
+    rasterOut = get(handles.rasterButtonGroup, 'SelectedObject');
+    switch get(rasterOut, 'String')
+        case 'Full'
+            plt.all.raster = 1;
+        case 'Samples'
+            plt.all.raster = 2;
+        otherwise
+            plt.all.raster = 0;
+    end
+    
     stackOut = get(handles.stackButtonGroup, 'SelectedObject');
     switch get(stackOut, 'String')
         case 'Small'
@@ -380,7 +389,7 @@ function LaunchButton_Callback(hObject, eventdata, handles)
         otherwise
             plt.spl.pres = 0;
     end
-    
+ 
     histOut = get(handles.histoButtonGroup, 'SelectedObject');
     switch get(histOut, 'String')
         case 'Full'
@@ -391,7 +400,6 @@ function LaunchButton_Callback(hObject, eventdata, handles)
             plt.spl.hist = 0;
     end
     
-    plt.all.raster = 0;
     plt.spl.ca = 0;
     plt.spl.rho = 0;
     plt.spl.w = 0;
@@ -422,7 +430,7 @@ function LaunchButton_Callback(hObject, eventdata, handles)
         gif.K = 0;
     end
 
-    simuNetwork_fromGUI(syn, simu, net, neu, init, plt, gif)
+    simuNetwork(syn, simu, net, neu, init, plt, gif)
     
 
 

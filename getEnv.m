@@ -6,5 +6,6 @@ function env = getEnv(  )
     env.outputRoot = '../Output/';
     
     set(groot,'defaultfigureposition',[400 250 900 750])
+    set(0,'DefaultFigureWindowStyle','normal')
 end
 
