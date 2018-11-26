@@ -41,7 +41,6 @@ The different methods take as argument a presynaptic and a postsynaptic calcium 
 Note that the model does not yet account for variability in spiking (for instance through Poisson processes).
 
 ## Coming soon
-- GUI for running simulations
 - Modules for easy analysis at network level and pluing of new plasticity rules and network architectures
 
 ## References
