@@ -22,7 +22,7 @@ function varargout = networkGUI(varargin)
 
 % Edit the above text to modify the response to help networkGUI
 
-% Last Modified by GUIDE v2.5 04-Oct-2018 17:17:17
+% Last Modified by GUIDE v2.5 27-Nov-2018 22:26:57
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -454,3 +454,15 @@ function closeAllPush_Callback(hObject, eventdata, handles)
     figs2keep = gcf;
     all_figs = findobj(0, 'type', 'figure');
     delete(setdiff(all_figs, figs2keep));
+
+
+% --- Executes when entered data in editable cell(s) in synParams.
+function synParams_CellEditCallback(hObject, eventdata, handles)
+% hObject    handle to synParams (see GCBO)
+% eventdata  structure with the following fields (see MATLAB.UI.CONTROL.TABLE)
+%	Indices: row and column indices of the cell(s) edited
+%	PreviousData: previous data for the cell(s) edited
+%	EditData: string(s) entered by the user
+%	NewData: EditData or its converted form set on the Data property. Empty if Data was not changed
+%	Error: error string when failed to convert EditData to appropriate value for Data
+% handles    structure with handles and user data (see GUIDATA)

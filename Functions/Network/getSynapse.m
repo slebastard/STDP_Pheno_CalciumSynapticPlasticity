@@ -8,8 +8,8 @@ function syn = getSynapse( )
     syn.theta_dep = 1;
     syn.gamma_dep = 200;
     
-    syn.theta_pot = 1.08;
-    syn.gamma_pot = 120;
+    syn.theta_pot = 1.2;
+    syn.gamma_pot = 70;
     
     syn.tau_Ca = 80e-3;
     syn.tau_rho = 100;

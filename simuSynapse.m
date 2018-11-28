@@ -1,4 +1,7 @@
 %% SIMULATION STARTER INSTRUCTIONS %%
+% 0) Units
+% All times in milliseconds (ms)
+%
 % 1) Pick a mode among the following:
 % -------------------------------------------------------------------------
 % Simulation modes
@@ -12,6 +15,8 @@
 % - poisson   Provide response to correlated poisson processes
 %
 % - dataFit   Fit to experimental data
+% - dataFitCuts   Same, but each frequency is output in a seperate
+% subfigure
 % -------------------------------------------------------------------------
 %
 % 2) Choose the model to use for simulation:
@@ -37,7 +42,7 @@ env = getEnv();
 addpath(genpath(env.functionsRoot), env.dataRoot);
 data.path = strcat(env.dataRoot,'Venance2016/');
 
-simu.mode = 'single';
+simu.mode = 'poissonMap';
 simu.model = 'caProd';
 
 % Parameters controlling excitation history
@@ -50,7 +55,7 @@ simu.int_step = 0.5;
 %% Environment definition
 
 params = getSynapse();
-params.T = 10;
+params.T = 10000;
 params.theta_act = params.theta_dep;
 params.TD = 0;
 
@@ -71,7 +76,7 @@ post_spikes_hist = pre_spikes_hist + simu.d_t;
 simu.T = max(1000*(simu.n_iter-1)./simu.frequency + abs(simu.d_t) + 10*params.tau_Ca);
 post_spikes_hist = post_spikes_hist(post_spikes_hist > 0.3*simu.T & post_spikes_hist < 0.6*simu.T );
 
-
+set(0,'DefaultFigureWindowStyle','docked')
 
 %% mode='single') Full evolution of syn plast on a single simulation
 if strcmp(simu.mode, 'single')
@@ -88,7 +93,7 @@ if strcmp(simu.mode, 'single')
 
     t = linspace(0, simu.T, simu.T/simu.int_step + 1);
 
-    figure(1)
+    figure('Name','SYN_SinglePhospho','NumberTitle','off')
     plot(t, rho_hist(1,1:length(t)));
     title('Evolution of average CaMKII state');
     xlabel('Time');
@@ -96,7 +101,7 @@ if strcmp(simu.mode, 'single')
 
     % ToDo: add bumps of Ca as colored pins over x-axis
 
-    figure(2)
+    figure('Name','SYN_SingleCa','NumberTitle','off')
     plot(t, c_hist(1:length(t),1));
     title('Evolution of calcium influx');
     xlabel('Time');
@@ -112,7 +117,7 @@ if strcmp(simu.mode, 'single')
     act_thr.Color = 'm';
     
     if strcmp(simu.model, 'pheno') || strcmp(simu.model, 'caProd')
-        figure(3)
+        figure('Name','SYN_SingleWght','NumberTitle','off')
         plot(t, w_hist(1:length(t),1));
         title('Evolution of synaptic strength')
         xlabel('Time');
@@ -144,7 +149,7 @@ if strcmp(simu.mode, 'STDP')
     STDP.expectation = STDP.integral/(STDP.dt.max - STDP.dt.min);
     
     
-    figure(11)
+    figure('Name','SYN_STDP','NumberTitle','off')
     STDP.plot = plot(STDP.function(:,1), STDP.function(:,2), '.b');
 %     hold on
 %     plot(STDP.func_sim(:,1), STDP.func_sim(:,2), 'xg');
@@ -188,7 +193,7 @@ if strcmp(simu.mode, 'freq3')
 %     freq3Map.heat = zeros(n_freq, n_dt);
 %     freq3Map.heat(sub2ind([n_freq,n_dt], repelem(1:n_freq,1,n_dt), repmat(1:n_dt,1,n_freq))) = freq3Map.map(:,3);
     
-    figure(21)
+    figure('Name','SYN_FreqMap3','NumberTitle','off')
     surf(freq_grid, dt_grid, freq3Map.interpol);
     colormap(bluewhitered), colorbar;
     alpha 0.3
@@ -222,7 +227,7 @@ if strcmp(simu.mode, 'freq')
 
     [freqMap.map.prepost, freqMap.map.postpre] = get_freqSTDP(simu.model, 'rel', freqMap);
     
-    figure(31)
+    figure('Name','SYN_Freq','NumberTitle','off')
     plot(freq_prepost(:,1), freq_prepost(:,2), '+g')
     
     hold on
@@ -253,7 +258,7 @@ if strcmp(simu.mode, 'pairs3')
     pairs_heat = zeros(n_pairs, n_dt);
     pairs_heat(sub2ind([n_pairs,n_dt], repelem(1:n_pairs,1,n_dt), repmat(1:n_dt,1,n_pairs))) = pairs_map(:,3);
     
-    figure(41)
+    figure('Name','SYN_Pairs3','NumberTitle','off')
     
     % scatter3(pairs_map(:,1),pairs_map(:,2),pairs_map(:,3), '.');
     
@@ -280,7 +285,7 @@ if strcmp(simu.mode, 'pairs')
     pairs_params = [model_params, frequency];
     [numpairs_prepost, numpairs_postpre] = get_pairsSTDP(model, 'rel', pairs_params, int_scheme, d_t, max_pairs, step_pairs);
     
-    figure(51)
+    figure('Name','SYN_Pairs','NumberTitle','off')
     plot(numpairs_prepost(:,1), numpairs_prepost(:,2), '+g')
     xlabel 'Number of pairings';
     ylabel 'STDP';
@@ -308,30 +313,30 @@ if strcmp(simu.mode, 'dataFit')
     dataFit.freq.max = 10;
     dataFit.freq.step = 1;
 
-%     dataFit.heat = get_freq_heatmap(dataFit, params);
-% 
-%     figure(61)
+    dataFit.heat = get_freq_heatmap(dataFit, params);
+
+    figure('Name','SYN_DataFit','NumberTitle','off')
     data.freqSTDP.freqs=unique(data.freqSTDP.data(:,5));
     n_data_freqs=length(data.freqSTDP.freqs); 
 
-%      scatter3(data.freqSTDP.data(:,5), data.freqSTDP.data(:,2), data.freqSTDP.data(:,3)./100, 50*ones(size(data.freqSTDP.data,1),1), '*r')
-%      hold on
+    scatter3(data.freqSTDP.data(:,5), data.freqSTDP.data(:,2), data.freqSTDP.data(:,3)./100, 50*ones(size(data.freqSTDP.data,1),1), '*r')
+    hold on
     
-%     [freq_grid, dt_grid] = meshgrid(1:dataFit.freq.step:dataFit.freq.max, dataFit.dt.min:dataFit.dt.step:dataFit.dt.max);
-%     dataFit.interpol = griddata(dataFit.heat(:,1), dataFit.heat(:,2), dataFit.heat(:,3), freq_grid, dt_grid);
-%      ribboncoloredZ(gca,dt_grid,dataFit.interpol);
-%     surf(freq_grid, dt_grid, dataFit.interpol);
-%     colormap(bluewhitered), colorbar;
-%     alpha 0.3
+    [freq_grid, dt_grid] = meshgrid(1:dataFit.freq.step:dataFit.freq.max, dataFit.dt.min:dataFit.dt.step:dataFit.dt.max);
+    dataFit.interpol = griddata(dataFit.heat(:,1), dataFit.heat(:,2), dataFit.heat(:,3), freq_grid, dt_grid);
+    ribboncoloredZ(gca,dt_grid,dataFit.interpol);
+    surf(freq_grid, dt_grid, dataFit.interpol);
+    colormap(bluewhitered), colorbar;
+    alpha 0.3
     
-%     for f=1:n_data_freqs
-%         hold on
-%         ids=find(data.freqSTDP.data(:,5)==data.freqSTDP.freqs(f) & data.freqSTDP.data(:,7)~=0);
-%         filtered_freq=data.freqSTDP.data(ids,:);
-%         [a,b]=sort(filtered_freq(:,2));
-%         h = ribbon(filtered_freq(b,2), filtered_freq(b,3)./100, 0.15);
-%         set(h, 'XData', filtered_freq(b,5)-1 + get(h, 'XData'));
-%     end   
+    for f=1:n_data_freqs
+        hold on
+        ids=find(data.freqSTDP.data(:,5)==data.freqSTDP.freqs(f) & data.freqSTDP.data(:,7)~=0);
+        filtered_freq=data.freqSTDP.data(ids,:);
+        [a,b]=sort(filtered_freq(:,2));
+        h = ribbon(filtered_freq(b,2), filtered_freq(b,3)./100, 0.15);
+        set(h, 'XData', filtered_freq(b,5)-1 + get(h, 'XData'));
+    end   
     
 %     dataFit.1Hz = freq_data(floor(freq_data(:,5))==1,:);
 %     
@@ -353,11 +358,36 @@ if strcmp(simu.mode, 'dataFit')
     dataFit.paramPos.ftSize = 8;
     stampParams(params, dataFit.paramPos);
     
+end
+
+if strcmp(simu.mode, 'dataFitCuts')
+    dataFit = simu;
+    dataFit.mode = 'rel';
+
+    dataFit.dt.min = -100;
+    dataFit.dt.max = 100;
+    dataFit.dt.step = 4;
+
+    dataFit.freq.max = 10;
+    dataFit.freq.step = 1;
+
+    
+    data.freqSTDP.freqs=unique(data.freqSTDP.data(:,5));
+    n_data_freqs=length(data.freqSTDP.freqs); 
+
+    dataFit.paramPos.x = 10.0;
+    dataFit.paramPos.y = 65.0;
+    dataFit.paramPos.z = 2.6;
+    dataFit.paramPos.colSepY = 25.0;
+    dataFit.paramPos.colSepZ = 0.15;
+    dataFit.paramPos.ftSize = 8;
+    stampParams(params, dataFit.paramPos);
+    
     for f=1:n_data_freqs
         ids=find(data.freqSTDP.data(:,5)==data.freqSTDP.freqs(f) & data.freqSTDP.data(:,7)~=0);
         filtered_freq=data.freqSTDP.data(ids,:);
         [a,b]=sort(filtered_freq(:,2));
-        figure()
+        figure('Name',strcat('SYN_DataFitCuts',f),'NumberTitle','off')
         plot(filtered_freq(b,2), filtered_freq(b,3)./100, 's', 'MarkerSize', 8)
         hold on
         dataFit.frequency = data.freqSTDP.freqs(f);
@@ -370,8 +400,6 @@ if strcmp(simu.mode, 'dataFit')
     
 end
 
-
-
 %% mode='poisonSingle') Simulate response to Poisson processes
 if strcmp(simu.mode, 'poissonSingle')
     % Generating Correlation matrix
@@ -382,21 +410,21 @@ if strcmp(simu.mode, 'poissonSingle')
     simu.T = 2000;      % ms
     tc = 50;
     
-    % The following simulates correlated Poisson for exponential
-    % correlation functions only (see Brette 2008, section 3)
-    [t, I] = corrPoisson( 2, [nu_pre; nu_post], C, simu.T, tc);
-    
-    preIds = find(I(1,:));
-    pre_spikes_hist = t(preIds);
-    
-    postIds = find(I(2,:));
-    post_spikes_hist = t(postIds);
+%     % The following simulates correlated Poisson for exponential
+%     % correlation functions only (see Brette 2008, section 3)
+%     [t, I] = corrPoisson( 2, [nu_pre; nu_post], C, simu.T, tc);
+%     
+%     preIds = find(I(1,:));
+%     pre_spikes_hist = t(preIds);
+%     
+%     postIds = find(I(2,:));
+%     post_spikes_hist = t(postIds);
 
-%     % The following simulates two independent Poisson processes
-%     % Rates are cast back to s^(-1)
-%     t = indPoisson( 2, [1000/nu_pre; 1000/nu_post], simu.T);
-%     pre_spikes_hist = t(1,:);
-%     post_spikes_hist = t(2,:);
+    % The following simulates two independent Poisson processes
+    % Rates are cast back to s^(-1)
+    t = indPoisson( 2, [1000/nu_pre; 1000/nu_post], simu.T);
+    pre_spikes_hist = t(1,:);
+    post_spikes_hist = t(2,:);
 
     if strcmp(simu.model, 'naive')
         [rho_hist, c_hist] = naive_model(pre_spikes_hist, post_spikes_hist, params, simu);
@@ -411,7 +439,7 @@ if strcmp(simu.mode, 'poissonSingle')
 
     t = linspace(0, simu.T, simu.T/simu.int_step + 1);
 
-%     figure(71)
+%     figure('Name','SYN_CrossCorrPho','NumberTitle','off')
 %     plot(t, rho_hist);
 %     title('Evolution of average CaMKII state');
 %     xlabel('Time');
@@ -419,7 +447,7 @@ if strcmp(simu.mode, 'poissonSingle')
 % 
 %     % ToDo: add bumps of Ca as colored pins over x-axis
 % 
-%     figure(72)
+%     figure('Name','SYN_CrossCorrCa','NumberTitle','off')
 %     plot(t, c_hist);
 %     title('Evolution of calcium influx');
 %     xlabel('Time');
@@ -435,14 +463,14 @@ if strcmp(simu.mode, 'poissonSingle')
 %     act_thr.Color = 'm';
 %     
 %     if strcmp(simu.model, 'pheno') || strcmp(simu.model, 'caProd')
-%         figure(73)
+%         figure('Name','SYN_CrossCorrW','NumberTitle','off')
 %         plot(t, w_hist);
 %         title('Evolution of synaptic strength')
 %         xlabel('Time');
 %         ylabel('Average synaptic strength');
 %     end
     
-    figure(74)
+    figure('Name','SYN_CrossCorr','NumberTitle','off')
     subplot(2,2,1)
     [rPre, lagsPre] = xcorr(pre_spikes_hist, pre_spikes_hist, 0.2*simu.T);
     plot(lagsPre, rPre)
@@ -468,12 +496,12 @@ end
 if strcmp(simu.mode, 'poissonMap')
     % Generating Correlation matrix
     pSTDP = simu;
-    pSTDP.T = 2000;
+    pSTDP.T = 1000;
     pSTDP.nuPre.min = 1;
-    pSTDP.nuPre.max = 200;
+    pSTDP.nuPre.max = 100;
     pSTDP.nuPre.step = 15;
     pSTDP.nuPost.min = 1;
-    pSTDP.nuPost.max = 200;
+    pSTDP.nuPost.max = 100;
     pSTDP.nuPost.step = 15;
     pSTDP.nTry = 1;
     
@@ -482,7 +510,7 @@ if strcmp(simu.mode, 'poissonMap')
     pSTDP.corr.tc = 50;
     
     pSTDP.map = poissonMap(params, pSTDP);
-
+    
     % Plotting the STDP surface obtained
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -490,7 +518,7 @@ if strcmp(simu.mode, 'poissonMap')
     [pre_grid_spl, post_grid_spl] = meshgrid(pSTDP.nuPre.min:pSTDP.nuPre.step:pSTDP.nuPre.max, pSTDP.nuPost.min:pSTDP.nuPost.step:pSTDP.nuPost.max);
     pSTDP.interpol = griddata(pre_grid_spl, post_grid_spl, pSTDP.map, pre_grid_intp, post_grid_intp);
     % ribboncoloredZ(gca,dt_grid,dataFit.interpol);
-    figure()
+    figure('Name','SYN_PoissonMap','NumberTitle','off')
     pSTDP.plot = log(pSTDP.interpol);
     surf(pre_grid_intp, post_grid_intp, pSTDP.plot);
     xlabel('Presyn rate')
@@ -541,7 +569,7 @@ if strcmp(simu.mode, 'poissonCut')
     % Plotting the STDP surface obtained
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-    figure(91)
+    figure('Name','SYN_PoissonCut','NumberTitle','off')
     errorbar(pSTDP.cut.mean(:,1),pSTDP.cut.mean(:,2),pSTDP.cut.var(:,2));
     if strcmp(pSTDP.dir, 'pre')
         title(strcat('Relative plasticity as a function of postsyn rate, at nuPre=', pSTDP.val, 'Hz'))

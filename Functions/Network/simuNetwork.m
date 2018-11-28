@@ -400,7 +400,7 @@ set(0,'DefaultFigureWindowStyle','docked')
 
 switch plt.all.raster
     case 1
-        fig.raster = figure('Name','Rasterplot','NumberTitle','off');
+        fig.raster = figure('Name','NET_Rasterplot','NumberTitle','off');
         [I1,I2] = find(Rasterplot);
         totActSnaps = sum(Rasterplot);
         ax1 = subplot(2,1,1);
@@ -436,7 +436,7 @@ switch plt.all.raster
         for tSplID = 1:plt.timeSpl.n
             totActSnaps(1, 1 + tSplID*ceil(plt.timeSpl.dur/simu.dt)+(tSplID-1)*plt.timeSpl.inter : plt.timeSpl.inter + tSplID*ceil(plt.timeSpl.dur/simu.dt)+(tSplID-1)*plt.timeSpl.inter) = 0;
         end
-        fig.raster = figure('Number',1,'Name','Rasterplot','NumberTitle','off');
+        fig.raster = figure('Name','NET_Rasterplot','NumberTitle','off');
         ax1 = subplot(2,1,1);
         imagesc(rasterSnaps)
         xticks(xticksList)
@@ -451,14 +451,14 @@ switch plt.all.raster
 end
 
 if plt.spl.ca
-    fig.ca = figure('Name','Calcium','NumberTitle','off');
+    fig.ca = figure('Name','NET_Calcium','NumberTitle','off');
     imagesc(splSyn.ca)
     title('Synaptic calcium activity in sample synapses')
     colorbar
 end
 
 if plt.spl.rho
-    fig.rho = figure('Name','Phospho','NumberTitle','off');
+    fig.rho = figure('Name','NET_Phospho','NumberTitle','off');
     imagesc(splSyn.rho)
     title('Phosphorylation state at sample synapses')
     colorbar
@@ -466,7 +466,7 @@ end
 
 if plt.spl.w
     splSyn.wHist = synSign(splSyn.IDs).*transfer(splSyn.rho, prot);
-    fig.w = figure('Name','Weights','NumberTitle','off');
+    fig.w = figure('Name','NET_Weights','NumberTitle','off');
     imagesc(splSyn.wHist)
     title('Synaptic weight at sample synapses')
     colorbar
@@ -482,7 +482,7 @@ switch plt.spl.pres
             splSyn.pres(3*(i-1)+2,:) = 100*Rasterplot(splSyn.PostNeurons(i,1),:);
             splSyn.pres(3*(i-1)+3,:)= (1/syn.J).*synSign(splSyn.IDs(i)).*splSyn.rho(i,:);
         end
-        fig.pres = figure('Name','Summary','NumberTitle','off');
+        fig.pres = figure('Name','NET_Summary','NumberTitle','off');
         imagesc(splSyn.pres)
         colorbar
     case 2
@@ -494,7 +494,7 @@ switch plt.spl.pres
             splSyn.pres(5*(i-1)+4,:)= (1/(syn.J*syn.rho_max)).*synSign(splSyn.IDs(i)).*splSyn.rho(i,:);
             splSyn.pres(5*(i-1)+5,:)= (1/syn.J).*splSyn.w(i,:);
         end
-        fig.pres = figure('Name','Summary','NumberTitle','off');
+        fig.pres = figure('Name','NET_Summary','NumberTitle','off');
         imagesc(splSyn.pres)
         xticklabels(simu.dt.*xticks)
         colorbar
@@ -528,7 +528,7 @@ switch plt.spl.pres
                 simu.dt.*(1+floor((tSplID-1)/(plt.timeSpl.n-1)*(Iterations-ceil(plt.timeSpl.dur/simu.dt)-1)) + ceil((1/3)*(plt.timeSpl.dur/simu.dt).*(0:1:3)))...
                 );
         end
-        fig.pres = figure('Name','Summary','NumberTitle','off');
+        fig.pres = figure('Name','NET_Summary','NumberTitle','off');
         imagesc(splSyn.pres)
         xticks(xticksList)
         xticklabels(xtickvalsList)
@@ -537,7 +537,7 @@ end
 
 if plt.spl.hist
     tickList = ceil(nbins.*(0.1:0.1:1));
-    fig.excHist = figure('Name','WghHistExcit','NumberTitle','off');
+    fig.excHist = figure('Name','NET_WghHistExcit','NumberTitle','off');
     ax1 = subplot(2,1,1);
     imagesc(log(histW_exc));
     set(gca,'YDir','normal')
@@ -559,7 +559,7 @@ if plt.spl.hist
     ax2.Position(1,4) = 0.5*ax2.Position(1,4);
     
     
-    fig.inhHist = figure('Name','WghHistInhib','NumberTitle','off');
+    fig.inhHist = figure('Name','NET_WghHistInhib','NumberTitle','off');
     ax1 = subplot(2,1,1);
     imagesc(log(histW_inh));
     set(gca,'YDir','normal')
@@ -581,7 +581,7 @@ if plt.spl.hist
     ax2.Position(1,4) = 0.5*ax2.Position(1,4);
     
     
-    fig.rhoHist = figure('Name','PhosphoHist','NumberTitle','off');
+    fig.rhoHist = figure('Name','NET_PhosphoHist','NumberTitle','off');
     ax1 = subplot(2,1,1);
     imagesc(log(histRho));
     set(gca,'YDir','normal')
@@ -600,7 +600,7 @@ if plt.spl.hist
     
     
     % sprintf('Excitatory: %0.3f - Inhibitory: %0.3f - Total: %0.3f', sumWexc(1,end)/syn.J, -sumWinh(1,end)/syn.J, (sumWexc(1,end) + sumWinh(1,end))/syn.J)
-    fig.rateHist = figure('Name','RatesHist','NumberTitle','off');
+    fig.rateHist = figure('Name','NET_RatesHist','NumberTitle','off');
     ax1 = subplot(2,1,1);
     imagesc(log(histRates));
     set(gca,'YDir','normal')
@@ -631,7 +631,7 @@ end
 switch plt.spl.phase
     case 1
         
-        fig.phase = figure('Name','BrunelPhase','NumberTitle','off');
+        fig.phase = figure('Name','NET_BrunelPhase','NumberTitle','off');
         c = rand(1,3);
         plot((1/meanWexc(2,1)).*meanWexc(2:end,1), (1/meanWinh(2,1)).*meanWinh(2:end,1), '-', 'Color', c)
         for i=1:20:min(Iterations,201)
@@ -654,7 +654,7 @@ switch plt.spl.phase
             phaseParamPos);
         
     case 2
-        fig.phase = figure('Name','BrunelPhase','NumberTitle','off');
+        fig.phase = figure('Name','NET_BrunelPhase','NumberTitle','off');
         c = rand(1,3);
         plot((1/meanWexc(2,1)).*meanWexc(2:end,1), -meanWinh(2:end,1)./meanWexc(2:end,1), '-', 'Color', c)
         for i=1:20:min(Iterations,201)
