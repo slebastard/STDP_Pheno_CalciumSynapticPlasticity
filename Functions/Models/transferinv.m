@@ -8,7 +8,7 @@ if nargin == 1
     rho_max = 200;
 end
 
-rho = min(max(0, S_attr - 2*sigma.^2.*erfcinv(2*w)), rho_max);
+rho = min(max(0, S_attr - sqrt(2*sigma.^2).*erfcinv(2*min(max(0,w),1))), rho_max);
 
 end
 

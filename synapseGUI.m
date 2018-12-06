@@ -65,7 +65,9 @@ defSynData = [defSyn.tau_Ca, ...
     defSyn.C_post, ...
     defSyn.delay_pre, ...
     defSyn.theta_pot, ...
+    defSyn.gamma_pot, ...
     defSyn.theta_dep, ...
+    defSyn.gamma_dep, ...
     defSyn.S_attr, ...
     defSyn.noise_lvl, ...
     defSyn.dampFactor];
@@ -288,7 +290,7 @@ function STDPPush_Callback(hObject, eventdata, handles)
     
     % title('Plasticity as a function of pre-post spike delay')
     xlabel('Pre-post spike delay (ms)')
-    ylabel('Relative change in synaptic strength')
+    ylabel('Rel change in syn. strength')
 
     
     
@@ -515,10 +517,12 @@ function handles = getSimuVars(handles)
     handles.params.C_post = synData(1,5);
     handles.params.delay_pre = synData(1,6);
     handles.params.theta_pot = synData(1,7);
-    handles.params.theta_dep = synData(1,8);
-    handles.params.S_attr = synData(1,9);
-    handles.params.noise_lvl = synData(1,10);
-    handles.params.dampFactor = synData(1,11);
+    handles.params.gamma_pot = synData(1,8);
+    handles.params.theta_dep = synData(1,9);
+    handles.params.gamma_dep = synData(1,10);
+    handles.params.S_attr = synData(1,11);
+    handles.params.noise_lvl = synData(1,12);
+    handles.params.dampFactor = synData(1,13);
     handles.params.theta_act = handles.params.theta_dep;
     handles.params.TD = 0;
 

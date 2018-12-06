@@ -69,9 +69,7 @@ defSynData = [defSyn.tau_Ca, ...
     defSyn.C_post, ...
     defSyn.delay_pre, ...
     defSyn.theta_pot, ...
-    defSyn.gamma_pot, ...
     defSyn.theta_dep, ...
-    defSyn.gamma_dep, ...
     defSyn.S_attr, ...
     defSyn.noise_lvl, ...
     defSyn.dampFactor];
@@ -342,12 +340,10 @@ function LaunchButton_Callback(hObject, eventdata, handles)
     syn.C_post = synData(1,5);
     syn.delay_pre = synData(1,6);
     syn.theta_pot = synData(1,7);
-    syn.gamma_pot = synData(1,8);
-    syn.theta_dep = synData(1,9);
-    syn.gamma_dep = synData(1,10);
-    syn.S_attr = synData(1,11);
-    syn.noise_lvl = synData(1,12);
-    syn.dampFactor = synData(1,13);
+    syn.theta_dep = synData(1,8);
+    syn.S_attr = synData(1,9);
+    syn.noise_lvl = synData(1,10);
+    syn.dampFactor = synData(1,11);
     
     % Packing simulation parameters
     simu = handles.simu;
@@ -366,6 +362,7 @@ function LaunchButton_Callback(hObject, eventdata, handles)
     syn.J = str2double(get(handles.synJedit,'String'));
     net.g = str2double(get(handles.netGedit,'String'));
     net.rExtRel = str2double(get(handles.netInputedit,'String'));
+    simu.inhPlast = get(handles.InhPlastCheck,'Value');
     
     % Preparing INIT STATE
     init.c = str2double(get(handles.initCedit,'String'));
@@ -376,6 +373,8 @@ function LaunchButton_Callback(hObject, eventdata, handles)
     else
             init.mode = 'deter';
     end
+    
+    init.strap = str2double(get(handles.initStrapedit,'String'));
     
     % Preparing STACKS & HISTOS
     rasterOut = get(handles.rasterButtonGroup, 'SelectedObject');
@@ -605,9 +604,20 @@ end
 
 % --- Executes on button press in cleanAllPhasespushbutton.
 function cleanAllPhasespushbutton_Callback(hObject, eventdata, handles)
-    handles.phases = {};
-    handles.simu.T = 0;
-    handles.simu.nPhases = 0;
+    phase.T = str2double(get(handles.phaseTedit,'String'));
+    phase.dt = 1e-3*str2double(get(handles.phasedtedit,'String'));
+    phase.strap = 1e-3*str2double(get(handles.strapTimeedit,'String'));
+    
+    phase.InE = str2double(get(handles.plastInEcheckbox,'Value'));
+    phase.InI = str2double(get(handles.plastInIcheckbox,'Value'));
+    phase.EE = str2double(get(handles.plastEEcheckbox,'Value'));
+    phase.EI = str2double(get(handles.plastEIcheckbox,'Value'));
+    phase.IE = str2double(get(handles.plastIEcheckbox,'Value'));
+    phase.II = str2double(get(handles.plastIIcheckbox,'Value'));
+    
+    handles.phases = [handles.phases, phase];
+    handles.simu.T = handles.simu.T + phase.T;
+    handles.simu.nPhases = handles.simu.nPhases + 1;
     
     % Update summary panel
     set(handles.Tshow,'String',num2str(1e3*handles.simu.T));
