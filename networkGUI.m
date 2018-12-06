@@ -22,7 +22,7 @@ function varargout = networkGUI(varargin)
 
 % Edit the above text to modify the response to help networkGUI
 
-% Last Modified by GUIDE v2.5 06-Dec-2018 13:07:05
+% Last Modified by GUIDE v2.5 06-Dec-2018 17:16:27
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -352,7 +352,7 @@ function LaunchButton_Callback(hObject, eventdata, handles)
     % Packing simulation parameters
     simu = handles.simu;
     simu.phases = handles.phases;
-
+    
     % Packing network parameters
     net.N = str2double(get(handles.netNedit,'String'));
     net.NIn = str2double(get(handles.netNinedit,'String'));
@@ -378,6 +378,9 @@ function LaunchButton_Callback(hObject, eventdata, handles)
     end
     
     % Preparing STACKS & HISTOS
+    plt.timeSpl.n = str2double(get(handles.samplesNumedit,'String'));
+    plt.timeSpl.dur = 1e-3*str2double(get(handles.samplesDuredit,'String'));
+    
     rasterOut = get(handles.rasterButtonGroup, 'SelectedObject');
     switch get(rasterOut, 'String')
         case 'Full'
@@ -507,12 +510,12 @@ function addPhasepushbutton_Callback(hObject, eventdata, handles)
     phase.dt = 1e-3*str2double(get(handles.phasedtedit,'String'));
     phase.strap = 1e-3*str2double(get(handles.strapTimeedit,'String'));
     
-    phase.InE = str2double(get(handles.plastInEcheckbox,'Value'));
-    phase.InI = str2double(get(handles.plastInIcheckbox,'Value'));
-    phase.EE = str2double(get(handles.plastEEcheckbox,'Value'));
-    phase.EI = str2double(get(handles.plastEIcheckbox,'Value'));
-    phase.IE = str2double(get(handles.plastIEcheckbox,'Value'));
-    phase.II = str2double(get(handles.plastIIcheckbox,'Value'));
+    phase.InE = get(handles.plastInEcheckbox,'Value');
+    phase.InI = get(handles.plastInIcheckbox,'Value');
+    phase.EE = get(handles.plastEEcheckbox,'Value');
+    phase.EI = get(handles.plastEIcheckbox,'Value');
+    phase.IE = get(handles.plastIEcheckbox,'Value');
+    phase.II = get(handles.plastIIcheckbox,'Value');
     
     handles.phases = [handles.phases, phase];
     handles.simu.T = handles.simu.T + phase.T;
@@ -615,3 +618,49 @@ function cleanAllPhasespushbutton_Callback(hObject, eventdata, handles)
     
     % Update handles structure
     guidata(hObject, handles);
+
+
+
+function samplesNumedit_Callback(hObject, eventdata, handles)
+% hObject    handle to samplesNumedit (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'String') returns contents of samplesNumedit as text
+%        str2double(get(hObject,'String')) returns contents of samplesNumedit as a double
+
+
+% --- Executes during object creation, after setting all properties.
+function samplesNumedit_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to samplesNumedit (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: edit controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+
+
+function samplesDuredit_Callback(hObject, eventdata, handles)
+% hObject    handle to samplesDuredit (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'String') returns contents of samplesDuredit as text
+%        str2double(get(hObject,'String')) returns contents of samplesDuredit as a double
+
+
+% --- Executes during object creation, after setting all properties.
+function samplesDuredit_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to samplesDuredit (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: edit controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end

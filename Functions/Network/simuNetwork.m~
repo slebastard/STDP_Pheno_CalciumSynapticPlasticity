@@ -61,6 +61,8 @@ prot.S_attr = syn.S_attr;
 prot.noise_lvl = syn.noise_lvl;
 
 % Plotting
+plt.timeSpl.n = 5;
+plt.timeSpl.dur = 0.02*simu.T;
 plt.timeSpl.inter = 70;
 gif.minN = 15;
 gif.maxN = 40;
@@ -250,9 +252,7 @@ filter = (1/sum(filter)).*filter;
 for n=1:net.N
     rateEst(n,:) = (1/simu.dt).*conv(plt.Rasterplot(n,:), filter, 'same');
 end
-
-fMax = floor(500/plt.nbins)*plt.nbins;
-edgesRates = 0:fMax/plt.nbins:fMax;
+edgesRates = 0:2:500;
 
 if gif.ratesHist
     rates.min = 145;

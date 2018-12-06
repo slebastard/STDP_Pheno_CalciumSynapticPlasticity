@@ -1,4 +1,4 @@
-function [net, raster, rasterIn] = runPhase(net, neu, syn, prot, phase, plt, splSyn, gif, nIterTot)
+function [net, plt] = runPhase(net, neu, syn, prot, phase, plt, splSyn, gif, nIterTot)
 % runPhase Summary of this function goes here
 %   Detailed explanation goes here
 
@@ -6,7 +6,7 @@ bSize = 1e2;
 
 if phase.strap > 0
     strapIters = ceil(phase.strap/phase.dt);
-    for i=1:strapIters
+    for i=phase.firstIter:phase.firstIter+strapIters
         if (1+mod(i-1,bSize))==1
             inSpikeTimes = indPoisson( net.NIn, net.nu_ext, bSize*phase.dt ); % Make sure nu_ext is s^(-1)
             inSpikeIter = ceil(inSpikeTimes./phase.dt);
@@ -39,12 +39,12 @@ if phase.strap > 0
         % Input synapses update
         net.caIn(spikeIDRec,:) = net.caIn(spikeIDRec,:) + syn.C_post.*net.xpostIn(spikeIDRec,:);
         net.caIn(:,spikeIDIn) = net.caIn(:,spikeIDIn) + syn.C_pre.*net.xpreIn(:,spikeIDIn);
-        net.actPotIn = (net.ca >= syn.theta_pot).*(net.W~=0);
+        net.actPotIn = (net.caIn >= syn.theta_pot).*(net.WIn~=0);
         net.actDepIn = (net.caIn >= syn.theta_dep).*(net.WIn~=0);
         net.xpostIn(spikeIDRec,:) = net.xpostIn(spikeIDRec,:)*(1 - syn.dampFactor);
         net.xpreIn(:,spikeIDIn) = net.xpreIn(:,spikeIDIn)*(1 - syn.dampFactor);
-        net.rhoIn = net.rhoIn + phase.dt./syn.tau_rho .* (syn.gamma_pot.*(syn.rho_max - net.rhoIn).*net.actPot - syn.gamma_dep.*net.rhoIn.*net.actDep);
-        net.WIn = net.synSign.*transfer(net.rhoIn, prot);
+        net.rhoIn = net.rhoIn + phase.dt./syn.tau_rho .* (syn.gamma_pot.*(syn.rho_max - net.rhoIn).*net.actPotIn - syn.gamma_dep.*net.rhoIn.*net.actDepIn);
+        net.WIn = syn.J.*transfer(net.rhoIn, prot);
         
         % Recurrent synapses update
         net.ca(spikeIDRec,:) = net.ca(spikeIDRec,:) + syn.C_post.*net.xpost(spikeIDRec,:);
@@ -64,10 +64,8 @@ if phase.strap > 0
 end
 
 phase.nIter = phase.T / phase.dt;
-rasterIn = zeros(net.NIn, phase.nIter);
-raster = zeros(net.N, phase.nIter);
 
-for i=1:phase.nIter
+for i=phase.firstIter:phase.lastIter
     if (1+mod(i-1,bSize))==1
         inSpikeTimes = indPoisson( net.NIn, net.nu_ext, bSize*phase.dt );
         inSpikeIter = ceil(inSpikeTimes./phase.dt);
@@ -100,12 +98,12 @@ for i=1:phase.nIter
     % Input synapses update
     net.caIn(spikeIDRec,:) = net.caIn(spikeIDRec,:) + syn.C_post.*net.xpostIn(spikeIDRec,:);
     net.caIn(:,spikeIDIn) = net.caIn(:,spikeIDIn) + syn.C_pre.*net.xpreIn(:,spikeIDIn);
-    net.actPotIn = (net.ca >= syn.theta_pot).*(net.W~=0);
+    net.actPotIn = (net.caIn >= syn.theta_pot).*(net.WIn~=0);
     net.actDepIn = (net.caIn >= syn.theta_dep).*(net.WIn~=0);
     net.xpostIn(spikeIDRec,:) = net.xpostIn(spikeIDRec,:)*(1 - syn.dampFactor);
     net.xpreIn(:,spikeIDIn) = net.xpreIn(:,spikeIDIn)*(1 - syn.dampFactor);
-    net.rhoIn = net.rhoIn + phase.dt./syn.tau_rho .* (syn.gamma_pot.*(syn.rho_max - net.rhoIn).*net.actPot - syn.gamma_dep.*net.rhoIn.*net.actDep);
-    net.WIn = net.synSign.*transfer(net.rhoIn, prot);
+    net.rhoIn = net.rhoIn + phase.PlastInON .* phase.dt./syn.tau_rho .* (syn.gamma_pot.*(syn.rho_max - net.rhoIn).*net.actPotIn - syn.gamma_dep.*net.rhoIn.*net.actDepIn);
+    net.WIn = syn.J.*transfer(net.rhoIn, prot);
 
     % Recurrent synapses update
     net.ca(spikeIDRec,:) = net.ca(spikeIDRec,:) + syn.C_post.*net.xpost(spikeIDRec,:);
@@ -114,7 +112,7 @@ for i=1:phase.nIter
     net.actDep = (net.ca >= syn.theta_dep).*(net.W~=0);
     net.xpost(spikeIDRec,:) = net.xpost(spikeIDRec,:)*(1 - syn.dampFactor);
     net.xpre(:,spikeIDRec) = net.xpre(:,spikeIDRec)*(1 - syn.dampFactor);
-    net.rho = net.rho + phase.dt./syn.tau_rho .* (syn.gamma_pot.*(syn.rho_max - net.rho).*net.actPot - syn.gamma_dep.*net.rho.*net.actDep);
+    net.rho = net.rho + phase.PlastON .* phase.dt./syn.tau_rho .* (syn.gamma_pot.*(syn.rho_max - net.rho).*net.actPot - syn.gamma_dep.*net.rho.*net.actDep);
     net.W = net.synSign.*transfer(net.rho, prot);
 
     % Recurrent reset
@@ -123,17 +121,16 @@ for i=1:phase.nIter
     net.V(spikeRec)=neu.V_r;
     
     % Stats & recordings
-    meanWexc(i+1,1) = mean(net.W((1/syn.J).*net.W>0));
-    meanWinh(i+1,1) = mean(net.W((1/syn.J).*net.W<0));
+    net.meanWexc(i+1,1) = mean(net.W((1/syn.J).*net.W>0));
+    net.meanWinh(i+1,1) = mean(net.W((1/syn.J).*net.W<0));
     
-    histRho(:,i) = (1/net.N^2).*histcounts(net.rho(net.rho>0),plt.edgesRho);
-    histW_exc(:,i) = (1/net.N^2).*histcounts((1/syn.J).*net.W((1/syn.J).*net.W>=5e-3),plt.edgesW_exc);
-    histW_inh(:,i) = (1/net.N^2).*histcounts((1/syn.J).*net.W((1/syn.J).*net.W<=-5e-3),plt.edgesW_inh);
+    plt.histRho(:,i) = (1/net.N^2).*histcounts(net.rho(net.rho>0),plt.edgesRho);
+    plt.histW_exc(:,i) = (1/net.N^2).*histcounts((1/syn.J).*net.W((1/syn.J).*net.W>=5e-3),plt.edgesW_exc);
+    plt.histW_inh(:,i) = (1/net.N^2).*histcounts((1/syn.J).*net.W((1/syn.J).*net.W<=-5e-3),plt.edgesW_inh);
     net.LS(spikeRec)=i;                % Time of last spike
     
-    raster(:,i)=spikeRec;
-    rasterIn(:,i)=spikeIn;
-    allspikes(1,i)=sum(spikeRec); % Each row is (neuron number,spike time)
+    plt.Rasterplot(:,i)=spikeRec;
+    plt.RasterplotIn(:,i)=spikeIn;
     
     % Updating synapse sample history
     splSyn.ca(:,i) =  net.ca(splSyn.IDs);
@@ -171,7 +168,7 @@ for i=1:phase.nIter
         end
     end
    
-    progressbar((phase.firstIter + i)/nIterTot)
+    progressbar(i/nIterTot)
 end
 
 end
