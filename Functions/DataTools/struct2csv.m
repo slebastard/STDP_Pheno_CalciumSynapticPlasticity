@@ -50,11 +50,7 @@ m = numel(headers);
 if head == 1
     l = '';
     if m>1
-        for ii = 1:m-1
-            sz(ii,:) = size(s(rr).(headers{ii}));   
-            if ischar(s(rr).(headers{ii}))
-                sz(ii,2) = 1;
-            end
+        for ii = 1:m-1  
             l = [l,'"',headers{ii},'",'];
         end
     end
@@ -74,7 +70,7 @@ if m>1
         elseif islogical(c)
             str = [str,num2str(double(c)),','];
         elseif ischar(c)
-            str = ['"',c(:),'",'];
+            str = ['"',c,'",'];
         elseif iscell(c)
             if isnumeric(c{1,1})
                 str = [str,num2str(c),','];
@@ -96,7 +92,7 @@ if isnumeric(c)
 elseif islogical(c)
     str = [str,num2str(double(c))];
 elseif ischar(c)
-    str = ['"',c(:),'"'];
+    str = ['"',c,'"'];
 elseif iscell(c)
     if isnumeric(c{1,1})
         str = [str,num2str(c)];

@@ -229,7 +229,7 @@ tic();
 % The function modifies net.net.W and net.Win, feeds a rasterplot, etc
 
 for phID = 1:nPhase
-    net = runPhase(net, neu, syn, prot, simu.phases{phID}, plt, splSyn, gif, simu.nIterTot);
+    [net, plt] = runPhase(net, neu, syn, prot, simu.phases{phID}, plt, splSyn, gif, simu.nIterTot);
 end
 
 toc()
@@ -451,8 +451,8 @@ if plt.spl.hist
         anyPlastInh = anyPlastInh + simu.phases{phID}.IE + simu.phases{phID}.II;
     end
     
+    tickList = ceil(plt.nbins.*(0.1:0.1:1));
     if anyPlastExc
-        tickList = ceil(plt.nbins.*(0.1:0.1:1));
         fig.excHist = figure('Name','NET_WghHistExcit','NumberTitle','off');
         ax1 = subplot(2,1,1);
         imagesc(log(plt.histW_exc));
@@ -623,8 +623,33 @@ out.finalG = -net.meanWinh(end,1)./net.meanWexc(end,1);
 %out.finalNu = -net.meanWinh(end,1)./net.meanWexc(end,1);
 out.finalFiringRate = mean(rateEst(:,end));
 
+if 1 % Removing some fields that we do not want in the output
+    out = rmfield(out, phases);
+    out = rmfield(out, W);
+    out = rmfield(out, WIn);
+    out = rmfield(out, synSign);
+    out = rmfield(out, meanWexc);
+    out = rmfield(out, meanWinh);
+    out = rmfield(out, ca);
+    out = rmfield(out, xpre);
+    out = rmfield(out, xpost);
+    out = rmfield(out, rho);
+    out = rmfield(out, actPot);
+    out = rmfield(out, actDep);
+    out = rmfield(out, caIn);
+    out = rmfield(out, xpreIn);
+    out = rmfield(out, xpostIn);
+    out = rmfield(out, rhoIn);
+    out = rmfield(out, actPotIn);
+    out = rmfield(out, actDepIn);
+    out = rmfield(out, V);
+    out = rmfield(out, RI);
+    out = rmfield(out, LS);
+    out = rmfield(out, allspikes);
+end
+
 % Writing to CSV
-% struct2csv(out,outputFile)
+struct2csv(out,outputFile)
 
 %% Output macroscopic variables
 out.meanWexc = net.meanWexc(end,1);

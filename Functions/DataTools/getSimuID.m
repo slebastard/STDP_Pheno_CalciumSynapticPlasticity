@@ -1,9 +1,10 @@
 function ID = getSimuID(fn)
 %GETSIMUID Summary of this function goes here
 %   Detailed explanation goes here
-ID = 1; stop = 0; c = 0;
+ID = 0; stop = 0; c = 0;
 
-if exist(fn, 'file') == 1
+if exist(fn, 'file') ~= 2
+    ID = 1;
     return
 end
 f = fopen(fn,'r');

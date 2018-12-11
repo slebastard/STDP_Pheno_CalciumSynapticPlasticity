@@ -623,8 +623,33 @@ out.finalG = -net.meanWinh(end,1)./net.meanWexc(end,1);
 %out.finalNu = -net.meanWinh(end,1)./net.meanWexc(end,1);
 out.finalFiringRate = mean(rateEst(:,end));
 
+if 1 % Removing some fields that we do not want in the output
+    out = rmfield(out, 'phases');
+    out = rmfield(out, 'W');
+    out = rmfield(out, 'WIn');
+    out = rmfield(out, 'synSign');
+    out = rmfield(out, 'meanWexc');
+    out = rmfield(out, 'meanWinh');
+    out = rmfield(out, 'ca');
+    out = rmfield(out, 'xpre');
+    out = rmfield(out, 'xpost');
+    out = rmfield(out, 'rho');
+    out = rmfield(out, 'actPot');
+    out = rmfield(out, 'actDep');
+    out = rmfield(out, 'caIn');
+    out = rmfield(out, 'xpreIn');
+    out = rmfield(out, 'xpostIn');
+    out = rmfield(out, 'rhoIn');
+    out = rmfield(out, 'actPotIn');
+    out = rmfield(out, 'actDepIn');
+    out = rmfield(out, 'V');
+    out = rmfield(out, 'RI');
+    out = rmfield(out, 'LS');
+    out = rmfield(out, 'allspikes');
+end
+
 % Writing to CSV
-% struct2csv(out,outputFile)
+struct2csv(out,outputFile)
 
 %% Output macroscopic variables
 out.meanWexc = net.meanWexc(end,1);
