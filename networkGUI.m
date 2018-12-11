@@ -407,7 +407,7 @@ function LaunchButton_Callback(hObject, eventdata, handles)
     switch get(histOut, 'String')
         case 'Full'
             plt.spl.hist = 1;
-        case 'Time samples'
+        case 'Samples'
             plt.spl.hist = 2;
         otherwise
             plt.spl.hist = 0;

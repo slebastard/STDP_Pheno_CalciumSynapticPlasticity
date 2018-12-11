@@ -1,4 +1,4 @@
-function simuNetwork(syn, simu, net, neu, init, plt, gif)
+function out = simuNetwork(syn, simu, net, neu, init, plt, gif)
 % Simulation of the Brunel JCNS 2000 network with electrode recording
 % spikes (for paper Destexhe Touboul on Criticality).
 
@@ -61,8 +61,6 @@ prot.S_attr = syn.S_attr;
 prot.noise_lvl = syn.noise_lvl;
 
 % Plotting
-plt.timeSpl.n = 5;
-plt.timeSpl.dur = 0.02*simu.T;
 plt.timeSpl.inter = 70;
 gif.minN = 15;
 gif.maxN = 40;
@@ -141,6 +139,7 @@ net.ca = zeros(net.N,net.N);
 net.xpre = ones(net.N,net.N);
 net.xpost = ones(net.N,net.N);
 net.rho = transferinv(net.W, syn.S_attr, syn.noise_lvl, syn.rho_max);
+net.W = net.synSign.*transfer(net.rho, prot);
 net.actPot = zeros(net.N,net.N);
 net.actDep = zeros(net.N,net.N);
 
@@ -189,8 +188,8 @@ net.allspikes=zeros(1,simu.nIterTot);
 syn.tau_pre = syn.tau_x;
 syn.tau_post = syn.tau_x;
 
-Rasterplot=zeros(net.N,simu.nIterTot);
-RasterplotIn=zeros(net.NIn,simu.nIterTot);
+plt.Rasterplot=zeros(net.N,simu.nIterTot);
+plt.RasterplotIn=zeros(net.NIn,simu.nIterTot);
 
 % %%%%%%% INITIALIZING GIFS %%%%%%%
 LWisimu.dths = (5.*(G.Edges.Weight>0) + 0.8.*(G.Edges.Weight<0)).*abs(G.Edges.Weight);
@@ -230,7 +229,7 @@ tic();
 % The function modifies net.net.W and net.Win, feeds a rasterplot, etc
 
 for phID = 1:nPhase
-    [net, plt] = runPhase(net, neu, syn, prot, simu.phases{phID}, plt, splSyn, gif, simu.nIterTot);
+    net = runPhase(net, neu, syn, prot, simu.phases{phID}, plt, splSyn, gif, simu.nIterTot);
 end
 
 toc()
@@ -249,10 +248,12 @@ L_rw = eye(net.N) - D^(-1)*A;
 % filter = repmat(gausswin(100,2.5e-2),net.N,1);
 filter = gausswin(100,3);
 filter = (1/sum(filter)).*filter;
-for n=1:net.N
-    rateEst(n,:) = (1/simu.dt).*conv(plt.Rasterplot(n,:), filter, 'same');
-end
-edgesRates = 0:2:500;
+ for n=1:net.N
+     rateEst(n,:) = (1/simu.dt).*conv(plt.Rasterplot(n,:), filter, 'same');
+ end
+
+fMax = floor(500/plt.nbins)*plt.nbins;
+edgesRates = 0:fMax/plt.nbins:fMax;
 
 if gif.ratesHist
     rates.min = 145;
@@ -623,4 +624,12 @@ out.finalG = -net.meanWinh(end,1)./net.meanWexc(end,1);
 out.finalFiringRate = mean(rateEst(:,end));
 
 % Writing to CSV
-struct2csv(out,outputFile)
+% struct2csv(out,outputFile)
+
+%% Output macroscopic variables
+out.meanWexc = net.meanWexc(end,1);
+out.meanWinh = net.meanWinh(end,1);
+sqWexc = (net.W - net.meanWexc(end,1)).^2;
+sqWinh = (net.W - net.meanWinh(end,1)).^2;
+out.stdWexc = sqrt(mean(sqWexc(net.W>0)));
+out.stdWinh = sqrt(mean(sqWinh(net.W<0)));

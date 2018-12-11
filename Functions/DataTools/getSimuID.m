@@ -3,8 +3,9 @@ function ID = getSimuID(fn)
 %   Detailed explanation goes here
 ID = 1; stop = 0; c = 0;
 
-if ~exist(fn, 'file') == 2
+if exist(fn, 'file') == 1
     return
+end
 f = fopen(fn,'r');
 
 while ~stop
@@ -14,11 +15,12 @@ while ~stop
     else
         spl = strsplit(L,',');
         if c > 0
-            ID = str2num(spl(1));
+            ID = str2num(spl{1});
         end
     end
      c = c + 1;
 end
+ID = ID + 1;
 
 end
 

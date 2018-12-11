@@ -1,4 +1,4 @@
-function simuNetwork(syn, simu, net, neu, init, plt, gif)
+function out = simuNetwork(syn, simu, net, neu, init, plt, gif)
 % Simulation of the Brunel JCNS 2000 network with electrode recording
 % spikes (for paper Destexhe Touboul on Criticality).
 
@@ -139,6 +139,7 @@ net.ca = zeros(net.N,net.N);
 net.xpre = ones(net.N,net.N);
 net.xpost = ones(net.N,net.N);
 net.rho = transferinv(net.W, syn.S_attr, syn.noise_lvl, syn.rho_max);
+net.W = net.synSign.*transfer(net.rho, prot);
 net.actPot = zeros(net.N,net.N);
 net.actDep = zeros(net.N,net.N);
 
@@ -187,8 +188,8 @@ net.allspikes=zeros(1,simu.nIterTot);
 syn.tau_pre = syn.tau_x;
 syn.tau_post = syn.tau_x;
 
-Rasterplot=zeros(net.N,simu.nIterTot);
-RasterplotIn=zeros(net.NIn,simu.nIterTot);
+plt.Rasterplot=zeros(net.N,simu.nIterTot);
+plt.RasterplotIn=zeros(net.NIn,simu.nIterTot);
 
 % %%%%%%% INITIALIZING GIFS %%%%%%%
 LWisimu.dths = (5.*(G.Edges.Weight>0) + 0.8.*(G.Edges.Weight<0)).*abs(G.Edges.Weight);
@@ -247,9 +248,9 @@ L_rw = eye(net.N) - D^(-1)*A;
 % filter = repmat(gausswin(100,2.5e-2),net.N,1);
 filter = gausswin(100,3);
 filter = (1/sum(filter)).*filter;
-for n=1:net.N
-    rateEst(n,:) = (1/simu.dt).*conv(plt.Rasterplot(n,:), filter, 'same');
-end
+ for n=1:net.N
+     rateEst(n,:) = (1/simu.dt).*conv(plt.Rasterplot(n,:), filter, 'same');
+ end
 
 fMax = floor(500/plt.nbins)*plt.nbins;
 edgesRates = 0:fMax/plt.nbins:fMax;
@@ -450,8 +451,8 @@ if plt.spl.hist
         anyPlastInh = anyPlastInh + simu.phases{phID}.IE + simu.phases{phID}.II;
     end
     
+    tickList = ceil(plt.nbins.*(0.1:0.1:1));
     if anyPlastExc
-        tickList = ceil(plt.nbins.*(0.1:0.1:1));
         fig.excHist = figure('Name','NET_WghHistExcit','NumberTitle','off');
         ax1 = subplot(2,1,1);
         imagesc(log(plt.histW_exc));
@@ -623,4 +624,12 @@ out.finalG = -net.meanWinh(end,1)./net.meanWexc(end,1);
 out.finalFiringRate = mean(rateEst(:,end));
 
 % Writing to CSV
-struct2csv(out,outputFile)
+% struct2csv(out,outputFile)
+
+%% Output macroscopic variables
+out.meanWexc = net.meanWexc(end,1);
+out.meanWinh = net.meanWinh(end,1);
+sqWexc = (net.W - net.meanWexc(end,1)).^2;
+sqWinh = (net.W - net.meanWinh(end,1)).^2;
+out.stdWexc = sqrt(mean(sqWexc(net.W>0)));
+out.stdWinh = sqrt(mean(sqWinh(net.W<0)));

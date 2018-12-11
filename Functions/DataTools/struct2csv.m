@@ -41,73 +41,73 @@ else
     head = 1;
 end
 
-FID = fopen(fn,'w');
+FID = fopen(fn,'a');
 
 headers = fieldnames(s);
-m = length(headers);
-sz = zeros(m,2);
+m = numel(headers);
 
-t = length(s);
 
-for rr = 1:t
+if head == 1
     l = '';
-    for ii = 1:m
-        sz(ii,:) = size(s(rr).(headers{ii}));   
-        if ischar(s(rr).(headers{ii}))
-            sz(ii,2) = 1;
-        end
-        l = [l,'"',headers{ii},'",',repmat(',',1,sz(ii,2)-1)];
-    end
-
-    l = [l,'\n'];
-
-    if head == 1
-        fprintf(FID,l);
-    end
-
-    n = max(sz(:,1));
-
-    for ii = 1:n
-        l = '';
-        for jj = 1:m
-            c = s(rr).(headers{jj});
-            str = '';
-            
-            if sz(jj,1)<ii
-                str = repmat(',',1,sz(jj,2));
-            else
-                if isnumeric(c)
-                    for kk = 1:sz(jj,2)
-                        str = [str,num2str(c(ii,kk)),','];
-                    end
-                elseif islogical(c)
-                    for kk = 1:sz(jj,2)
-                        str = [str,num2str(double(c(ii,kk))),','];
-                    end
-                elseif ischar(c)
-                    str = ['"',c(ii,:),'",'];
-                elseif iscell(c)
-                    if isnumeric(c{1,1})
-                        for kk = 1:sz(jj,2)
-                            str = [str,num2str(c{ii,kk}),','];
-                        end
-                    elseif islogical(c{1,1})
-                        for kk = 1:sz(jj,2)
-                            str = [str,num2str(double(c{ii,kk})),','];
-                        end
-                    elseif ischar(c{1,1})
-                        for kk = 1:sz(jj,2)
-                            str = [str,'"',c{ii,kk},'",'];
-                        end
-                    end
-                end
+    if m>1
+        for ii = 1:m-1
+            sz(ii,:) = size(s(rr).(headers{ii}));   
+            if ischar(s(rr).(headers{ii}))
+                sz(ii,2) = 1;
             end
-            l = [l,str];
+            l = [l,'"',headers{ii},'",'];
         end
-        l = [l,'\n'];
-        fprintf(FID,l);
     end
-    fprintf(FID,'\n');
+    l = [l,'"',headers{m},'"'];
+    l = [l,'\n'];
+    fprintf(FID,l);
 end
 
+l = '';
+if m>1
+    for j = 1:m-1
+        c = s.(headers{j});
+        str = '';
+
+        if isnumeric(c)
+            str = [str,num2str(c),','];
+        elseif islogical(c)
+            str = [str,num2str(double(c)),','];
+        elseif ischar(c)
+            str = ['"',c(:),'",'];
+        elseif iscell(c)
+            if isnumeric(c{1,1})
+                str = [str,num2str(c),','];
+            elseif islogical(c{1,1})
+                str = [str,num2str(double(c)),','];
+            elseif ischar(c{1,1})
+                str = [str,'"',c,'",'];
+            end
+        end
+        l = [l,str];
+    end
+end
+
+c = s.(headers{m});
+str = '';
+
+if isnumeric(c)
+    str = [str,num2str(c)];
+elseif islogical(c)
+    str = [str,num2str(double(c))];
+elseif ischar(c)
+    str = ['"',c(:),'"'];
+elseif iscell(c)
+    if isnumeric(c{1,1})
+        str = [str,num2str(c)];
+    elseif islogical(c{1,1})
+        str = [str,num2str(double(c))];
+    elseif ischar(c{1,1})
+        str = [str,'"',c];
+    end
+end
+l = [l,str];
+
+l = [l,'\n'];
+fprintf(FID,l);
 fclose(FID);
