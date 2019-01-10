@@ -33,12 +33,13 @@ function sensibilityAnalysis( out_path )
     phase3.IE = 0;
     phase3.II = 0;  
     
-    simu.phases = {phase1, phase2, phase3};
-    simu.T = 2;
-    simu.nPhases = 3;
+    std.simu.phases = {phase1, phase2, phase3};
+    std.simu.T = 2;
+    std.simu.nPhases = 3;
     
     % Defining default parameter values
     std.syn = getSynapse();
+    std.syn.J = 0.2;
     
     std.net.N = 200;
     std.net.NIn = 200;
@@ -50,7 +51,6 @@ function sensibilityAnalysis( out_path )
     std.neu.V_t = 20;
     std.neu.t_rp = 2e-3;
     
-    std.net.J = 0.2;
     std.net.g = 3.8;
     std.net.rExtRel = 2;
     
@@ -67,6 +67,7 @@ function sensibilityAnalysis( out_path )
     std.plt.spl.rho = 0;
     std.plt.spl.w = 0;
     std.plt.spl.phase = 0;
+    std.plt.progress = 0;
     
     std.gif.graph = 0;
     std.gif.N = 0;
@@ -75,22 +76,21 @@ function sensibilityAnalysis( out_path )
     
     % Creating exploration sets
     
-    syn.Cpre = [0.1, 0.2, 0.8, 0.84];
-    syn.Cpost = [0.5, 0.7, 1, 1.5];
-    syn.theta_p = [1.05, 1.15, 1.35, 1.7];
-    syn.theta_d = [0.4, 0.6, 0.8, 1];
-    syn.gamma_p = [20, 60, 100, 200];
-    syn.gamma_d = [60, 100, 250, 400];
+    syn.C_pre = [0.1, 0.2, 0.8, 0.84];
+    syn.C_post = [0.5, 0.7, 1, 1.5];
+    syn.theta_pot = [1.05, 1.15, 1.35, 1.7];
+    syn.theta_dep = [0.4, 0.6, 0.8, 1];
+    syn.gamma_pot = [20, 60, 100, 200];
+    syn.gamma_dep = [60, 100, 250, 400];
     syn.S_attr = [20, 30, 60, 100];    
+    syn.J = [2e-3, 2e-2, 4e-1, 5];
     
     net.rExtRel = [0.7, 1.5, 2.5, 4];
-    net.nu_ext = net.rExtRel.*net.nu_thresh;
     
     net.N = [180,200,250,300];
     net.Connectivity = [0.05,0.1,0.3,0.7];
     net.NE = [100,140,160,190];
     net.D = [5e-4,1e-3,5e-3,1e-2];
-    net.J = [2e-3, 2e-2, 4e-1, 5];
     net.g = [0.5, 2, 4, 8];
     
     % Exploring sets
@@ -100,36 +100,24 @@ function sensibilityAnalysis( out_path )
     for k=1:numel(fn_syn)
         for lvl=1:4
             run = std;
-            fieldList = syn(fn_syn{k});
-            run.syn(fn_syn{k}) = fieldList(lvl);
+            fieldList = syn.(fn_syn{k});
+            run.syn.(fn_syn{k}) = fieldList(lvl);
             run.out = simuNetwork(run.syn, run.simu, run.net, run.neu, run.init, run.plt, run.gif);
             
-            out.ID = getSimuID(outputFile);
-            out.date = date;
-            out = concatStruct(out,run.syn);
-            out = concatStruct(out,run.simu);
-            out = concatStruct(out,run.net);
-            out = concatStruct(out,run.neu);
-            out = concatStruct(out,run.init);
-            struct2csv(out, out_path);
+            run.out.ID = getSimuID(out_path);
+            struct2csv(run.out, out_path);
         end
     end
     
     for k=1:numel(fn_net)
         for lvl=1:4
             run = std;
-            fieldList = net(fn_net{k});
-            run.net(fn_net{k}) = fieldList(lvl);
+            fieldList = net.(fn_net{k});
+            run.net.(fn_net{k}) = fieldList(lvl);
             run.out = simuNetwork(run.syn, run.simu, run.net, run.neu, run.init, run.plt, run.gif);
             
-            out.ID = getSimuID(outputFile);
-            out.date = date;
-            out = concatStruct(out,run.syn);
-            out = concatStruct(out,run.simu);
-            out = concatStruct(out,run.net);
-            out = concatStruct(out,run.neu);
-            out = concatStruct(out,run.init);
-            struct2csv(out, out_path);
+            run.out.ID = getSimuID(out_path);
+            struct2csv(run.out, out_path);
         end        
     end
 end

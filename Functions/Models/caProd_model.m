@@ -109,7 +109,7 @@ if strcmp(scheme, 'euler_expl')
                 % c_pre = c_pre + C_pre;
                 
                 % SATURATION VARIABLE MODEL
-                c_pre = c_pre + C_pre*x_pre^x_post;
+                c_pre = c_pre + C_pre*x_pre;
                 x_pre = x_pre*(1-dampFactor);
             end
             if evt_post
@@ -117,7 +117,7 @@ if strcmp(scheme, 'euler_expl')
                 % c_post = c_post + C_post;
                 
                 % SATURATION VARIABLE MODEL
-                c_post = c_post + C_post*x_post^x_pre;
+                c_post = c_post + C_post*x_post;
                 x_post = x_post*(1-dampFactor);                
             end
             % PRODUCT MODEL

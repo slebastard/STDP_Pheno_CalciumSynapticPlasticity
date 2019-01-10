@@ -65,15 +65,17 @@ end
 
 phase.nIter = phase.T / phase.dt;
 
+ExInput = zeros(net.NIn,bSize);
 for i=phase.firstIter:phase.lastIter
     if (1+mod(i-1,bSize))==1
         inSpikeTimes = indPoisson( net.NIn, net.nu_ext, bSize*phase.dt );
         inSpikeIter = ceil(inSpikeTimes./phase.dt);
         inSpikeIter = inSpikeIter(:,2:end);
-        inSpikeIter = (inSpikeIter<bSize).*inSpikeIter + (inSpikeIter>=bSize).*bSize;
+        inSpikeIter = (inSpikeIter<bSize).*inSpikeIter  + (inSpikeIter>=bSize).*bSize;
         ExInput = zeros(net.NIn,bSize);
         inIterIDs = sub2ind(size(ExInput), transpose(repmat(1:net.NIn,size(inSpikeIter,2),1)), inSpikeIter);
         ExInput(inIterIDs) = 1;
+        ExInput(net.NIn*(bSize-1):net.NIn*bSize - 1) = 0;
     end
 
     % Who (input) is spiking?
@@ -85,6 +87,10 @@ for i=phase.firstIter:phase.lastIter
     net.xpreIn = 1 - exp(-phase.dt/syn.tau_pre).*(1-net.xpreIn);
     net.xpostIn = 1 - exp(-phase.dt/syn.tau_post).*(1-net.xpostIn);        
 
+    if sum(spikeIn~=0)
+        test=0;
+    end
+    
     % Recurrent passive evolution
     net.V = (1-phase.dt/neu.tau)*net.V + net.WIn*spikeIn + net.RI(:,1+mod(i-1,neu.N_del));
     net.ca = net.ca.*exp(-phase.dt/syn.tau_Ca);
@@ -132,6 +138,12 @@ for i=phase.firstIter:phase.lastIter
     plt.Rasterplot(:,i)=spikeRec;
     plt.RasterplotIn(:,i)=spikeIn;
     
+    % Coloring neurons currently in refractory
+    % plt.Rasterplot(net.LS<i & net.LS>i-neu.N_del,i) = 0.1;
+    
+    %
+    %plt.Rasterplot(net.WIn*spikeIn~=0,i) = 0.1;
+    
     % Updating synapse sample history
     splSyn.ca(:,i) =  net.ca(splSyn.IDs);
     splSyn.xpre(:,i) =  net.xpre(splSyn.IDs);
@@ -140,7 +152,14 @@ for i=phase.firstIter:phase.lastIter
     splSyn.w(:,i) = net.W(splSyn.IDs);
     
     if mod(i,gif.updIter)==0
-        % Printing network to GIF
+        % PrintiIDRec,:) + syn.C_post.*net.xpostIn(spikeIDRec,:);
+    net.caIn(:,spikeIDIn) = net.caIn(:,spikeIDIn) + syn.C_pre.*net.xpreIn(:,spikeIDIn);
+    net.actPotIn = (net.caIn >= syn.theta_pot).*(net.WIn~=0);
+    net.actDepIn = (net.caIn >= syn.theta_dep).*(net.WIn~=0);
+    net.xpostIn(spikeIDRec,:) = net.xpostIn(spikeIDRec,:)*(1 - syn.dampFactor);
+    net.xpreIn(:,spikeIDIn) = net.xpreIn(:,spikeIDIn)*(1 - syn.dampFactor);
+    net.rhoIn = net.rhoIn + phase.PlastInON .* phase.dt./syn.tau_rho .* (syn.gamma_pot.*(syn.rho_max - net.rhoIn).*net.actPotIn - syn.gamma_dep.*net.rhoIn.*net.actDepIn);
+    net.WIn = syn.J.*transfer(net.rhoIn, prot);
         if gif.graph
             G = digraph(net.W([subIDsExc;subIDsInh],[subIDsExc;subIDsInh])');
             LWiphase.dths = (5.*(G.Edges.Weight>0) + 0.8.*(G.Edges.Weight<0)).*abs(G.Edges.Weight);
@@ -168,7 +187,9 @@ for i=phase.firstIter:phase.lastIter
         end
     end
    
-    progressbar(i/nIterTot)
+    if plt.progress
+        progressbar(i/nIterTot)
+    end
 end
 
 end

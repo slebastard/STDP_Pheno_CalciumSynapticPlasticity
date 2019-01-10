@@ -22,7 +22,7 @@ function varargout = networkGUI(varargin)
 
 % Edit the above text to modify the response to help networkGUI
 
-% Last Modified by GUIDE v2.5 06-Dec-2018 17:16:27
+% Last Modified by GUIDE v2.5 10-Jan-2019 12:09:38
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -416,13 +416,14 @@ function LaunchButton_Callback(hObject, eventdata, handles)
     plt.spl.ca = 0;
     plt.spl.rho = 0;
     plt.spl.w = 0;
+    plt.progress = 1;
     
     phaseOut = get(handles.phaseButtonGroup, 'SelectedObject');
     switch get(phaseOut, 'String')
         case 'None'
             plt.spl.phase = 0;
         case 'Relative'
-            plt.spl.phase = 2;
+            plt.spl.phase = 1;
     end
     
     
@@ -556,13 +557,13 @@ function plastIIcheckbox_Callback(hObject, eventdata, handles)
 % Hint: get(hObject,'Value') returns toggle state of plastIIcheckbox
 
 
-% --- Executes on button press in plastEIcheckbox.
+% --- Executes on button press in plastIEcheckbox.
 function plastEIcheckbox_Callback(hObject, eventdata, handles)
-% hObject    handle to plastEIcheckbox (see GCBO)
+% hObject    handle to plastIEcheckbox (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
-% Hint: get(hObject,'Value') returns toggle state of plastEIcheckbox
+% Hint: get(hObject,'Value') returns toggle state of plastIEcheckbox
 
 
 % --- Executes on button press in plastEEcheckbox.

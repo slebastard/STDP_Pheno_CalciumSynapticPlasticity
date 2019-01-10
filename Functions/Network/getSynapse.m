@@ -1,8 +1,8 @@
 function syn = getSynapse( )
 %GET_SYNAPSE Summary of this function goes here
 %   Detailed explanation goes here
-    syn.C_pre = 0.4;
-    syn.C_post = 0.84;
+    syn.C_pre = 0.6;
+    syn.C_post = 0.9;
     syn.delay_pre = -15e-3;
     
     syn.theta_dep = 1;

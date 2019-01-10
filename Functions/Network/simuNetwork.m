@@ -33,7 +33,7 @@ else
         simu.phases{phID}.firstIter = simu.nIterTot + 1;
         simu.phases{phID}.nIter = simu.phases{phID}.T / simu.phases{phID}.dt;
         simu.phases{phID}.lastIter = simu.nIterTot + simu.phases{phID}.nIter;
-        simu.nIterTot = simu.nIterTot + simu.phases{phID}.nIter;
+        simu.nIterTot = simu.nIterTot + floor(simu.phases{phID}.nIter);
         
         % Build PlastOn and PlastInOn matrices
         simu.phases{phID}.PlastON = zeros(net.N,net.N);
@@ -109,10 +109,10 @@ for i=1:net.N
     net.WIn(i,InputCells) = 1000.*init.c.*syn.J./net.NIn;
 end
 
-net.synSign = syn.J.*(net.W>0) - net.g*syn.J.*(net.W<0);
+net.synSign = 2*syn.J.*(net.W>0) - 2*net.g*syn.J.*(net.W<0);
 [~,excNeurons] = ind2sub(size(net.W), find(net.W>0));
 [~,inhNeurons] = ind2sub(size(net.W), find(net.W<0));
-net.W(net.W<0) = -net.W(net.W<0); 
+net.W(net.W<0) = -net.W(net.W<0); % Inhibitory synapses are turned positive, but we have track of who is inhibitory through net.synSign
 
 % Mean stats for phase plot
 net.meanWexc = mean(net.W(excNeurons)).*ones(simu.nIterTot+1,1);
@@ -248,9 +248,9 @@ L_rw = eye(net.N) - D^(-1)*A;
 % filter = repmat(gausswin(100,2.5e-2),net.N,1);
 filter = gausswin(100,3);
 filter = (1/sum(filter)).*filter;
- for n=1:net.N
-     rateEst(n,:) = (1/simu.dt).*conv(plt.Rasterplot(n,:), filter, 'same');
- end
+%for n=1:net.N
+%    rateEst(n,:) = (1/simu.dt).*conv(plt.Rasterplot(n,:), filter, 'same');
+%end
 
 fMax = floor(500/plt.nbins)*plt.nbins;
 edgesRates = 0:fMax/plt.nbins:fMax;
@@ -304,13 +304,17 @@ end
 
 set(0,'DefaultFigureWindowStyle','docked')
 
+RasterIn = plt.RasterplotIn(1:ceil(0.1*net.NIn),:);
+RasterNet = plt.Rasterplot(ceil(0.1*net.N):net.N,:);
+Rasterplot = [RasterIn; zeros(15,simu.nIterTot); RasterNet];
+
 switch plt.all.raster
     case 1
         fig.raster = figure('Name','NET_Rasterplot','NumberTitle','off');
-        [I1,I2] = find(plt.Rasterplot);
-        totActSnaps = sum(plt.Rasterplot);
+        [I1,I2] = find(Rasterplot);
+        totActSnaps = sum(Rasterplot);
         ax1 = subplot(2,1,1);
-        imagesc(plt.Rasterplot)
+        imagesc(Rasterplot)
         xticklabels(simu.dt.*xticks)
         ax2 = subplot(2,1,2);
         plot(totActSnaps)
@@ -320,12 +324,12 @@ switch plt.all.raster
         ax1.Position(1,4) = 1.7*ax1.Position(1,4);
         ax2.Position(1,4) = 0.3*ax2.Position(1,4);
     case 2
-        rasterSnaps = zeros(net.N, plt.timeSpl.n*ceil(plt.timeSpl.dur/simu.dt) + (plt.timeSpl.n-1)*plt.timeSpl.inter);
+        rasterSnaps = zeros(ceil(0.1*net.NIn) + net.N + 15 + 1 -ceil(0.1*net.N), plt.timeSpl.n*ceil(plt.timeSpl.dur/simu.dt) + (plt.timeSpl.n-1)*plt.timeSpl.inter);
         totActSnaps = zeros(1, plt.timeSpl.n*ceil(plt.timeSpl.dur/simu.dt) + (plt.timeSpl.n-1)*plt.timeSpl.inter);
         xticksList=[]; xtickvalsList=[];
         for tSplID = 1:plt.timeSpl.n
             rasterSnaps(:, 1+(tSplID-1)*(ceil(plt.timeSpl.dur/simu.dt)+plt.timeSpl.inter):tSplID*ceil(plt.timeSpl.dur/simu.dt)+(tSplID-1)*plt.timeSpl.inter) ...
-                = plt.Rasterplot(:,1+floor((tSplID-1)/(plt.timeSpl.n-1)*(simu.nIterTot-ceil(plt.timeSpl.dur/simu.dt)-1)):floor((tSplID-1)/(plt.timeSpl.n-1)*(simu.nIterTot-ceil(plt.timeSpl.dur/simu.dt)-1)+ceil(plt.timeSpl.dur/simu.dt)));           
+                = Rasterplot(:,1+floor((tSplID-1)/(plt.timeSpl.n-1)*(simu.nIterTot-ceil(plt.timeSpl.dur/simu.dt)-1)):floor((tSplID-1)/(plt.timeSpl.n-1)*(simu.nIterTot-ceil(plt.timeSpl.dur/simu.dt)-1)+ceil(plt.timeSpl.dur/simu.dt)));           
 
             rasterSnaps(:, 1 + tSplID*ceil(plt.timeSpl.dur/simu.dt)+(tSplID-1)*plt.timeSpl.inter : plt.timeSpl.inter + tSplID*ceil(plt.timeSpl.dur/simu.dt)+(tSplID-1)*plt.timeSpl.inter) ... 
                 = 1;
@@ -419,7 +423,7 @@ switch plt.spl.pres
                     = splSyn.ca(i,1+floor((tSplID-1)/(plt.timeSpl.n-1)*(simu.nIterTot-ceil(plt.timeSpl.dur/simu.dt)-1)):floor((tSplID-1)/(plt.timeSpl.n-1)*(simu.nIterTot-ceil(plt.timeSpl.dur/simu.dt)-1)+ceil(plt.timeSpl.dur/simu.dt)));
 
                 splSyn.pres(5*(i-1)+4, 1+(tSplID-1)*(ceil(plt.timeSpl.dur/simu.dt)+plt.timeSpl.inter):tSplID*ceil(plt.timeSpl.dur/simu.dt)+(tSplID-1)*plt.timeSpl.inter) ...
-                    = (1/(syn.J*syn.rho_max)).*synSign(splSyn.IDs(i)).*splSyn.rho(i,1+floor((tSplID-1)/(plt.timeSpl.n-1)*(simu.nIterTot-ceil(plt.timeSpl.dur/simu.dt)-1)):floor((tSplID-1)/(plt.timeSpl.n-1)*(simu.nIterTot-ceil(plt.timeSpl.dur/simu.dt)-1)+ceil(plt.timeSpl.dur/simu.dt)));
+                    = (1/(syn.J*syn.rho_max)).*net.synSign(splSyn.IDs(i)).*splSyn.rho(i,1+floor((tSplID-1)/(plt.timeSpl.n-1)*(simu.nIterTot-ceil(plt.timeSpl.dur/simu.dt)-1)):floor((tSplID-1)/(plt.timeSpl.n-1)*(simu.nIterTot-ceil(plt.timeSpl.dur/simu.dt)-1)+ceil(plt.timeSpl.dur/simu.dt)));
 
                 splSyn.pres(5*(i-1)+5, 1+(tSplID-1)*(ceil(plt.timeSpl.dur/simu.dt)+plt.timeSpl.inter):tSplID*ceil(plt.timeSpl.dur/simu.dt)+(tSplID-1)*plt.timeSpl.inter) ...
                     = (1/syn.J).*splSyn.w(i,1+floor((tSplID-1)/(plt.timeSpl.n-1)*(simu.nIterTot-ceil(plt.timeSpl.dur/simu.dt)-1)):floor((tSplID-1)/(plt.timeSpl.n-1)*(simu.nIterTot-ceil(plt.timeSpl.dur/simu.dt)-1)+ceil(plt.timeSpl.dur/simu.dt)));
@@ -546,7 +550,7 @@ if plt.spl.hist
 end
 
 switch plt.spl.phase
-    case 1
+    case 2
         
         fig.phase = figure('Name','NET_BrunelPhase','NumberTitle','off');
         c = rand(1,3);
@@ -570,7 +574,7 @@ switch plt.spl.phase
             [net.g, net.rExtRel, net.Connectivity, syn.C_pre, syn.C_post, syn.theta_pot, syn.theta_dep, syn.S_attr], ...
             phaseParamPos);
         
-    case 2
+    case 1
         fig.phase = figure('Name','NET_BrunelPhase','NumberTitle','off');
         c = rand(1,3);
         plot((1/net.meanWexc(2,1)).*net.meanWexc(2:end,1), -net.meanWinh(2:end,1)./net.meanWexc(2:end,1), '-', 'Color', c)

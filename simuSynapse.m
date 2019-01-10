@@ -42,12 +42,12 @@ env = getEnv();
 addpath(genpath(env.functionsRoot), env.dataRoot);
 data.path = strcat(env.dataRoot,'Venance2016/');
 
-simu.mode = 'poissonMap';
+simu.mode = 'single';
 simu.model = 'caProd';
 
 % Parameters controlling excitation history
-simu.d_t = 15;
-simu.n_iter = 30;
+simu.d_t = 2;
+simu.n_iter = 400;
 simu.frequency = 1;
 simu.int_scheme = 'euler_expl';
 simu.int_step = 0.5;
@@ -74,7 +74,7 @@ V = 2.5e-16; %L
 pre_spikes_hist = linspace(0, 1000*(simu.n_iter-1)./simu.frequency, simu.n_iter);
 post_spikes_hist = pre_spikes_hist + simu.d_t;
 simu.T = max(1000*(simu.n_iter-1)./simu.frequency + abs(simu.d_t) + 10*params.tau_Ca);
-post_spikes_hist = post_spikes_hist(post_spikes_hist > 0.3*simu.T & post_spikes_hist < 0.6*simu.T );
+post_spikes_hist = post_spikes_hist(post_spikes_hist > 0.48*simu.T & post_spikes_hist < 0.56*simu.T );
 
 set(0,'DefaultFigureWindowStyle','docked')
 
