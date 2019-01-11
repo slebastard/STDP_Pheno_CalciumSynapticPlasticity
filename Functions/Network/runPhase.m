@@ -44,7 +44,7 @@ if phase.strap > 0
         net.xpostIn(spikeIDRec,:) = net.xpostIn(spikeIDRec,:)*(1 - syn.dampFactor);
         net.xpreIn(:,spikeIDIn) = net.xpreIn(:,spikeIDIn)*(1 - syn.dampFactor);
         net.rhoIn = net.rhoIn + phase.dt./syn.tau_rho .* (syn.gamma_pot.*(syn.rho_max - net.rhoIn).*net.actPotIn - syn.gamma_dep.*net.rhoIn.*net.actDepIn);
-        net.WIn = syn.J.*transfer(net.rhoIn, prot);
+        net.WIn = 2.*syn.J.*transfer(net.rhoIn, prot)./net.NIn;
         
         % Recurrent synapses update
         net.ca(spikeIDRec,:) = net.ca(spikeIDRec,:) + syn.C_post.*net.xpost(spikeIDRec,:);
@@ -84,18 +84,17 @@ for i=phase.firstIter:phase.lastIter
     
     % Input passive evolution
     net.caIn = net.caIn.*exp(-phase.dt/syn.tau_Ca);
-    net.xpreIn = 1 - exp(-phase.dt/syn.tau_pre).*(1-net.xpreIn);
-    net.xpostIn = 1 - exp(-phase.dt/syn.tau_post).*(1-net.xpostIn);        
-
-    if sum(spikeIn~=0)
-        test=0;
-    end
+    net.xpreIn = 1.*net.xpreIn;% - exp(-phase.dt/syn.tau_pre).*(1-net.xpreIn);
+    net.xpostIn = 1.*net.xpostIn;% - exp(-phase.dt/syn.tau_post).*(1-net.xpostIn);        
     
     % Recurrent passive evolution
+    tIn = net.WIn*spikeIn;
+    tRec = net.RI(:,1+mod(i-1,neu.N_del));
     net.V = (1-phase.dt/neu.tau)*net.V + net.WIn*spikeIn + net.RI(:,1+mod(i-1,neu.N_del));
+    net.V(net.LS>i-neu.N_rp)=neu.V_r;
     net.ca = net.ca.*exp(-phase.dt/syn.tau_Ca);
-    net.xpre = 1 - exp(-phase.dt/syn.tau_pre).*(1-net.xpre);
-    net.xpost = 1 - exp(-phase.dt/syn.tau_post).*(1-net.xpost);        
+    net.xpre = 1.*net.xpre;% - exp(-phase.dt/syn.tau_pre).*(1-net.xpre);
+    net.xpost = 1.*net.xpost;% - exp(-phase.dt/syn.tau_post).*(1-net.xpost);        
 
     % Who (recurrent) is spiking?
     spikeRec = (net.V>=neu.V_t);
@@ -109,7 +108,7 @@ for i=phase.firstIter:phase.lastIter
     net.xpostIn(spikeIDRec,:) = net.xpostIn(spikeIDRec,:)*(1 - syn.dampFactor);
     net.xpreIn(:,spikeIDIn) = net.xpreIn(:,spikeIDIn)*(1 - syn.dampFactor);
     net.rhoIn = net.rhoIn + phase.PlastInON .* phase.dt./syn.tau_rho .* (syn.gamma_pot.*(syn.rho_max - net.rhoIn).*net.actPotIn - syn.gamma_dep.*net.rhoIn.*net.actDepIn);
-    net.WIn = syn.J.*transfer(net.rhoIn, prot);
+    net.WIn = 80.*2.*syn.J.*transfer(net.rhoIn, prot)./net.NIn;
 
     % Recurrent synapses update
     net.ca(spikeIDRec,:) = net.ca(spikeIDRec,:) + syn.C_post.*net.xpost(spikeIDRec,:);
@@ -123,7 +122,6 @@ for i=phase.firstIter:phase.lastIter
 
     % Recurrent reset
     net.RI(:,1+mod(i,neu.N_del))=net.W*spikeRec;
-    net.V(net.LS>i-neu.N_del)=neu.V_r;
     net.V(spikeRec)=neu.V_r;
     
     % Stats & recordings

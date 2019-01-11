@@ -12,8 +12,6 @@ function out = simuNetwork(syn, simu, net, neu, init, plt, gif)
 % - Create clusterization index and look at its evolution
 %   For this purpose, use techniques from spectral clustering
 
-% ALL POTENTIALS IN mV
-% ALL TIMES IN s
 % Add plot tools to path
 env = getEnv();
 addpath(genpath(env.functionsRoot));
@@ -107,8 +105,8 @@ for i=1:net.N
     net.W(i,ICells)= -strcmp(init.mode, 'rand').*rand(1,CI) - ~strcmp(init.mode, 'rand');
     
     InputCells=randperm(net.NIn);
-    InputCells=InputCells(1:ceil(1*net.NIn));
-    net.WIn(i,InputCells) = init.c.*syn.J./net.NIn;
+    InputCells=InputCells(1:ceil(0.5*net.NIn));
+    net.WIn(i,InputCells) = 1000.*init.c.*syn.J/.net.NIn;
 end
 
 net.synSign = 2*syn.J.*(net.W>0) - 2*net.g*syn.J.*(net.W<0);
@@ -140,7 +138,7 @@ plt.histW_inh = zeros(plt.nbins, simu.nIterTot);
 net.ca = zeros(net.N,net.N);
 net.xpre = ones(net.N,net.N);
 net.xpost = ones(net.N,net.N);
-net.rho = transferinv(net.W./net.synSign, syn.S_attr, syn.noise_lvl, syn.rho_max);
+net.rho = transferinv(net.W, syn.S_attr, syn.noise_lvl, syn.rho_max);
 net.W = net.synSign.*transfer(net.rho, prot);
 net.actPot = zeros(net.N,net.N);
 net.actDep = zeros(net.N,net.N);
@@ -149,7 +147,7 @@ net.actDep = zeros(net.N,net.N);
 net.caIn = zeros(net.N,net.NIn);
 net.xpreIn = ones(net.N,net.NIn);
 net.xpostIn = ones(net.N,net.NIn);
-net.rhoIn = transferinv(net.WIn./(syn.J./net.NIn), syn.S_attr, syn.noise_lvl, syn.rho_max);
+net.rhoIn = transferinv(net.WIn, syn.S_attr, syn.noise_lvl, syn.rho_max);
 net.actPotIn = zeros(net.N,net.NIn);
 net.actDepIn = zeros(net.N,net.NIn);
 
