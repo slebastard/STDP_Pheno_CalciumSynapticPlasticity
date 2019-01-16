@@ -23,6 +23,9 @@ addpath(genpath(env.functionsRoot));
 
 % %%%%%%%%%% LOADING PHASE INFORMATION %%%%%%%%
 
+seed = 19;
+rng(seed);
+
 if isempty(simu.phases)
     return
 else
@@ -85,7 +88,7 @@ neu.tau=20e-3;
 neu.t_rp=2e-3;
 
 % Input
-net.nu_thresh=neu.V_t/(syn.J*CE*neu.tau);   % Frequency needed for a neuron to reach the threshold. 
+net.nu_thresh=(neu.V_t-neu.V_r)/(syn.J*CE*neu.tau);   % Frequency needed for a neuron to reach the threshold. 
 net.nu_ext=net.rExtRel*net.nu_thresh; %./net.NIn;       % external Poisson input rate
 
 
@@ -95,7 +98,9 @@ net.nu_ext=net.rExtRel*net.nu_thresh; %./net.NIn;       % external Poisson input
 
 % %%% Synaptic weights %%%
 net.W = zeros(net.N,net.N);   % 1st index for postsynaptic neuron, 2nd for presynaptic
+net.NIn = net.N;
 net.WIn = zeros(net.N,net.NIn);
+
 
 for i=1:net.N
     ECells=randperm(net.NE);
@@ -106,22 +111,33 @@ for i=1:net.N
     ICells=net.NE+ICells(1:CI);
     net.W(i,ICells)= -strcmp(init.mode, 'rand').*rand(1,CI) - ~strcmp(init.mode, 'rand');
     
-    InputCells=randperm(net.NIn);
-    InputCells=InputCells(1:ceil(1*net.NIn));
-    net.WIn(i,InputCells) = init.c.*syn.J./net.NIn;
+    %InputCells=randperm(net.NIn);
+    %InputCells=InputCells(1:ceil(1*net.NIn));
+    %net.WIn(i,InputCells) = init.c*0.5;
+    net.WIn(i,i) = 0.5;
 end
 
-net.synSign = 2*syn.J.*(net.W>0) - 2*net.g*syn.J.*(net.W<0);
-[~,excNeurons] = ind2sub(size(net.W), find(net.W>0));
-[~,inhNeurons] = ind2sub(size(net.W), find(net.W<0));
-net.W(net.W<0) = -net.W(net.W<0); % Inhibitory synapses are turned positive, but we have track of who is inhibitory through net.synSign
+net.synSign = 2*syn.J.*(net.W>0) - 2*net.g.*syn.J.*(net.W<0);
+%net.W(net.W<0) = -net.W(net.W<0); % Inhibitory synapses are turned positive, but we have track of who is inhibitory through net.synSign
+excNeurons = (1:net.NE)'; inhNeurons = (net.NE+1:net.N)';
 
 % Mean stats for phase plot
-net.meanWexc = mean(net.W(excNeurons)).*ones(simu.nIterTot+1,1);
-net.meanWinh = mean(net.W(inhNeurons)).*ones(simu.nIterTot+1,1);
+net.meanWexc = mean(2*syn.J.*net.W(net.W>0)).*ones(simu.nIterTot+1,1);
+net.meanWinh = mean(2*net.g.*syn.J.*net.W(net.W<0)).*ones(simu.nIterTot+1,1);
 
 rateEst = zeros(net.N, simu.nIterTot);
 histRates = zeros(plt.nbins, simu.nIterTot);
+
+plt.patchTime = 0.075;
+plt.maxPatchSize = 2*floor(0.5*plt.patchTime/simu.dt);
+plt.meanISI = zeros(simu.nIterTot-plt.maxPatchSize,2);
+plt.stdISI = zeros(simu.nIterTot-plt.maxPatchSize,2);
+plt.patchTime = 0.075;
+%plt.fourier = zeros(net.N, simu.nIterTot-plt.maxPatchSize);
+plt.phaseMetr = zeros(simu.nIterTot-plt.maxPatchSize,2);
+plt.freqMetr = zeros(simu.nIterTot-plt.maxPatchSize,1);
+plt.mainModeFreq = zeros(simu.nIterTot-plt.maxPatchSize,1);
+plt.regime = zeros(simu.nIterTot-plt.maxPatchSize,2);
 
 subIDsExc = excNeurons( ...
     randperm(size(excNeurons,1),floor(0.8*min(max(gif.minN, 0.3*net.N), gif.maxN))) ...
@@ -140,7 +156,7 @@ plt.histW_inh = zeros(plt.nbins, simu.nIterTot);
 net.ca = zeros(net.N,net.N);
 net.xpre = ones(net.N,net.N);
 net.xpost = ones(net.N,net.N);
-net.rho = transferinv(net.W./net.synSign, syn.S_attr, syn.noise_lvl, syn.rho_max);
+net.rho = transferinv(abs(net.W), syn.S_attr, syn.noise_lvl, syn.rho_max);
 net.W = net.synSign.*transfer(net.rho, prot);
 net.actPot = zeros(net.N,net.N);
 net.actDep = zeros(net.N,net.N);
@@ -149,7 +165,9 @@ net.actDep = zeros(net.N,net.N);
 net.caIn = zeros(net.N,net.NIn);
 net.xpreIn = ones(net.N,net.NIn);
 net.xpostIn = ones(net.N,net.NIn);
-net.rhoIn = transferinv(net.WIn./(syn.J./net.NIn), syn.S_attr, syn.noise_lvl, syn.rho_max);
+net.rhoIn = transferinv(net.WIn, syn.S_attr, syn.noise_lvl, syn.rho_max);
+%net.WIn = 2.*syn.J.*transfer(net.rhoIn, prot)./net.NIn;
+net.WIn = 2.*syn.J.*transfer(net.rhoIn, prot);
 net.actPotIn = zeros(net.N,net.NIn);
 net.actDepIn = zeros(net.N,net.NIn);
 
@@ -275,6 +293,7 @@ if gif.ratesHist
 end
 
 for i=1:simu.nIterTot
+    % Rates estimation
     histRates(:,i) = histcounts(rateEst(:,i),edgesRates);  
     if mod(i,gif.updIter)==0 && gif.ratesHist
         rates.synapses(:,1) = repelem(rateEst(:,i),net.N,1);
@@ -285,6 +304,54 @@ for i=1:simu.nIterTot
         view(0, 90);
         f4 = getframe;
         im4(:,:,1,floor(i/gif.updIter)) = rgb2ind(f4.cdata,map4,'nodither');
+    end
+    
+    % Fourier transform
+    if i>floor(0.5*plt.maxPatchSize) && i<=simu.nIterTot - floor(0.5*plt.maxPatchSize)
+        % Find the last two spiking events per neuron. Use this to find a
+        % second estimate of ISI and determine a patch window
+        
+        meanISI = 0;
+        varISI = 0;
+        
+        for nerID=1:net.N
+            raster = plt.Rasterplot(nerID,1:i);
+            lastSpikes = find(raster,11,'last');
+            ISI = lastSpikes - circshift(lastSpikes,1);
+            ISI = ISI(2:end);
+            meanISI = meanISI + mean(ISI)./net.N;
+            varISI = varISI + (std(ISI)^2)./net.N;
+        end
+        
+        plt.ISI(i-floor(0.5*plt.maxPatchSize),1) = meanISI;
+        plt.ISI(i-floor(0.5*plt.maxPatchSize),2) = sqrt(varISI);
+        
+        patch = plt.Rasterplot(:,i-floor(0.5*plt.maxPatchSize):i+floor(0.5*plt.maxPatchSize));
+        
+        y = fft(patch,plt.maxPatchSize,2);
+        ys = fftshift(y(:,2:end), 2);
+        ly = length(y);
+        modY = abs(ys);
+        phsY = angle(ys)./pi;
+        %plt.fourier(:,i-floor(0.5*plt.maxPatchSize)) = fft(patch,plt.maxPatchSize,2);
+        
+        sigPhase = 0.5*std(phsY); % Measures synchrony
+        meanPhase = mean(phsY);
+        plt.phaseMetr(i-floor(0.5*plt.maxPatchSize),1) = mean(meanPhase);
+        plt.phaseMetr(i-floor(0.5*plt.maxPatchSize),2) = mean(sigPhase);
+        sigFreq = std(modY,0,2);
+        plt.freqMetr(i-floor(0.5*plt.maxPatchSize),1) = mean(sigFreq);
+        %[~,plt.mainModeFreq(i-floor(0.5*plt.maxPatchSize),1)] = max(modY,[],2); % Measures regularity
+        
+        % Determining regime
+        plt.regime(i-floor(0.5*plt.maxPatchSize),1) = plt.phaseMetr(i-floor(0.5*plt.maxPatchSize),2) < 0.3; % SYNCHRONICITY
+        plt.regime(i-floor(0.5*plt.maxPatchSize),2) = sqrt(varISI)/meanISI < 0.3; % REGULARITY
+        
+        % Cutting regions per regime
+        SR = and(plt.regime(:,1)==1, plt.regime(:,2)==1);
+        AR = and(plt.regime(:,1)==0, plt.regime(:,2)==1);
+        SI = and(plt.regime(:,1)==1, plt.regime(:,2)==0);
+        AI = and(plt.regime(:,1)==0, plt.regime(:,2)==0);
     end
 end
 
@@ -319,13 +386,53 @@ switch plt.all.raster
         imagesc(Rasterplot)
         xticklabels(simu.dt.*xticks)
         ax2 = subplot(2,1,2);
-        plot(totActSnaps)
+        
+        SRspikes = totActSnaps;
+        SRspikes(SI) = NaN;
+        SRspikes(AR) = NaN;
+        SRspikes(AI) = NaN;
+        ARspikes = totActSnaps;
+        ARspikes(SI) = NaN;
+        ARspikes(SR) = NaN;
+        ARspikes(AI) = NaN;        
+        SIspikes = totActSnaps;
+        SIspikes(SR) = NaN;
+        SIspikes(AR) = NaN;
+        SIspikes(AI) = NaN;        
+        AIspikes = totActSnaps;        
+        AIspikes(SI) = NaN;
+        AIspikes(AR) = NaN;
+        AIspikes(SR) = NaN;
+        
+        p = plot((1:simu.nIterTot), SRspikes, (1:simu.nIterTot), ARspikes, (1:simu.nIterTot), SIspikes, (1:simu.nIterTot), AIspikes); 
+        p(1).LineWidth = 1;
+        p(1).Color = 'r';
+        p(2).LineWidth = 1;
+        p(2).Color = 'g';
+        p(3).LineWidth = 1;
+        p(3).Color = 'b';
+        p(4).LineWidth = 1;
+        p(4).Color = 'k';        
+        
         xticklabels(simu.dt.*xticks)
         title('Spiking activity in neural population')
         ax1.Position(1,2) = ax1.Position(1,2) - 0.7*ax2.Position(1,4);
         ax1.Position(1,4) = 1.7*ax1.Position(1,4);
         ax2.Position(1,4) = 0.3*ax2.Position(1,4);
-   %case 1
+ 
+        text(0.04,-0.45, strcat('N: ', num2str(net.N)), 'FontSize', 15, 'Units', 'normalized');
+        text(0.12,-0.45, strcat('C_E: ', num2str(net.Connectivity*net.NE)), 'FontSize', 15, 'Units', 'normalized');
+        text(0.04,-0.75, strcat('g: ', num2str(net.g)), 'FontSize', 15, 'Units', 'normalized');
+        text(0.12,-0.75, strcat('nu_{rel}: ', num2str(net.rExtRel)), 'FontSize', 15, 'Units', 'normalized'); 
+        text(0.2,-0.45, strcat('N_{In}: ', num2str(net.NIn)), 'FontSize', 15, 'Units', 'normalized');
+        text(0.2,-0.75, strcat('D: ', num2str(net.D)), 'FontSize', 15, 'Units', 'normalized');
+        text(0.28,-0.45, strcat('C_{pre}: ', num2str(syn.C_pre)), 'FontSize', 15, 'Units', 'normalized');
+        text(0.28,-0.75, strcat('C_{post}: ', num2str(syn.C_post)), 'FontSize', 15, 'Units', 'normalized');
+        text(0.36,-0.45, strcat('\gamma_p: ', num2str(syn.gamma_pot)), 'FontSize', 15, 'Units', 'normalized');
+        text(0.36,-0.75, strcat('\gamma_d: ', num2str(syn.gamma_dep)), 'FontSize', 15, 'Units', 'normalized');
+        text(0.44,-0.45, strcat('S_{attr}: ', num2str(syn.S_attr)), 'FontSize', 15, 'Units', 'normalized');         
+        
+        %case 1
         rasterSnaps = zeros(ceil(0.1*net.NIn) + net.N + 15 + 1 -ceil(0.1*net.N), plt.timeSpl.n*ceil(plt.timeSpl.dur/simu.dt) + (plt.timeSpl.n-1)*plt.timeSpl.inter);
         totActSnaps = zeros(1, plt.timeSpl.n*ceil(plt.timeSpl.dur/simu.dt) + (plt.timeSpl.n-1)*plt.timeSpl.inter);
         xticksList=[]; xtickvalsList=[];
@@ -360,6 +467,20 @@ switch plt.all.raster
         ax1.Position(1,2) = ax1.Position(1,2) - 0.7*ax2.Position(1,4);
         ax1.Position(1,4) = 1.7*ax1.Position(1,4);
         ax2.Position(1,4) = 0.3*ax2.Position(1,4);
+        
+        
+        text(0.04,-0.45, strcat('N: ', num2str(net.N)), 'FontSize', 15, 'Units', 'normalized');
+        text(0.12,-0.45, strcat('C_E: ', num2str(net.Connectivity*net.NE)), 'FontSize', 15, 'Units', 'normalized');
+        text(0.04,-0.75, strcat('g: ', num2str(net.g)), 'FontSize', 15, 'Units', 'normalized');
+        text(0.12,-0.75, strcat('nu_{rel}: ', num2str(net.rExtRel)), 'FontSize', 15, 'Units', 'normalized'); 
+        text(0.2,-0.45, strcat('N_{In}: ', num2str(net.NIn)), 'FontSize', 15, 'Units', 'normalized');
+        text(0.2,-0.75, strcat('D: ', num2str(net.D)), 'FontSize', 15, 'Units', 'normalized');
+        text(0.28,-0.45, strcat('C_{pre}: ', num2str(syn.C_pre)), 'FontSize', 15, 'Units', 'normalized');
+        text(0.28,-0.75, strcat('C_{post}: ', num2str(syn.C_post)), 'FontSize', 15, 'Units', 'normalized');
+        text(0.36,-0.45, strcat('\gamma_p: ', num2str(syn.gamma_pot)), 'FontSize', 15, 'Units', 'normalized');
+        text(0.36,-0.75, strcat('\gamma_d: ', num2str(syn.gamma_dep)), 'FontSize', 15, 'Units', 'normalized');
+        text(0.44,-0.45, strcat('S_{attr}: ', num2str(syn.S_attr)), 'FontSize', 15, 'Units', 'normalized');           
+        
 end
 
 if plt.spl.ca  % DEPRECATED

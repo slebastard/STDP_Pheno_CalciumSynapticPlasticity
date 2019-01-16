@@ -51,8 +51,8 @@ function sensibilityAnalysis( out_path )
     std.neu.V_t = 20;
     std.neu.t_rp = 2e-3;
     
-    std.net.g = 3.8;
-    std.net.rExtRel = 2;
+    std.net.g = 80;
+    std.net.rExtRel = 4;
     
     std.init.c = 1;
     std.init.mode = 'rand';

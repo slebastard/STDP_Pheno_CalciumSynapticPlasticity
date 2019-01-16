@@ -44,7 +44,8 @@ if phase.strap > 0
         net.xpostIn(spikeIDRec,:) = net.xpostIn(spikeIDRec,:)*(1 - syn.dampFactor);
         net.xpreIn(:,spikeIDIn) = net.xpreIn(:,spikeIDIn)*(1 - syn.dampFactor);
         net.rhoIn = net.rhoIn + phase.dt./syn.tau_rho .* (syn.gamma_pot.*(syn.rho_max - net.rhoIn).*net.actPotIn - syn.gamma_dep.*net.rhoIn.*net.actDepIn);
-        net.WIn = 2.*syn.J.*transfer(net.rhoIn, prot)./net.NIn;
+        %net.WIn = 2.*syn.J.*transfer(net.rhoIn, prot)./net.NIn;
+        net.WIn = 2.*syn.J.*transfer(net.rhoIn, prot);
         
         % Recurrent synapses update
         net.ca(spikeIDRec,:) = net.ca(spikeIDRec,:) + syn.C_post.*net.xpost(spikeIDRec,:);
@@ -55,6 +56,7 @@ if phase.strap > 0
         net.xpre(:,spikeIDRec) = net.xpre(:,spikeIDRec)*(1 - syn.dampFactor);
         net.rho = net.rho + phase.dt./syn.tau_rho .* (syn.gamma_pot.*(syn.rho_max - net.rho).*net.actPot - syn.gamma_dep.*net.rho.*net.actDep);
         net.W = net.synSign.*transfer(net.rho, prot);
+ 
         
         % Recurrent reset
         net.RI(:,1+mod(i,neu.N_del))=net.W*spikeRec;
@@ -108,8 +110,9 @@ for i=phase.firstIter:phase.lastIter
     net.xpostIn(spikeIDRec,:) = net.xpostIn(spikeIDRec,:)*(1 - syn.dampFactor);
     net.xpreIn(:,spikeIDIn) = net.xpreIn(:,spikeIDIn)*(1 - syn.dampFactor);
     net.rhoIn = net.rhoIn + phase.PlastInON .* phase.dt./syn.tau_rho .* (syn.gamma_pot.*(syn.rho_max - net.rhoIn).*net.actPotIn - syn.gamma_dep.*net.rhoIn.*net.actDepIn);
-    net.WIn = 80.*2.*syn.J.*transfer(net.rhoIn, prot)./net.NIn;
-
+    %net.WIn = 2.*syn.J.*transfer(net.rhoIn, prot)./net.NIn;
+    net.WIn = 2.*syn.J.*transfer(net.rhoIn, prot);
+    
     % Recurrent synapses update
     net.ca(spikeIDRec,:) = net.ca(spikeIDRec,:) + syn.C_post.*net.xpost(spikeIDRec,:);
     net.ca(:,spikeIDRec) = net.ca(:,spikeIDRec) + syn.C_pre.*net.xpre(:,spikeIDRec);
@@ -119,14 +122,18 @@ for i=phase.firstIter:phase.lastIter
     net.xpre(:,spikeIDRec) = net.xpre(:,spikeIDRec)*(1 - syn.dampFactor);
     net.rho = net.rho + phase.PlastON .* phase.dt./syn.tau_rho .* (syn.gamma_pot.*(syn.rho_max - net.rho).*net.actPot - syn.gamma_dep.*net.rho.*net.actDep);
     net.W = net.synSign.*transfer(net.rho, prot);
-
+ 
+    if any(net.actDep)
+        net.lastIterCa = i;
+    end
+    
     % Recurrent reset
     net.RI(:,1+mod(i,neu.N_del))=net.W*spikeRec;
     net.V(spikeRec)=neu.V_r;
     
     % Stats & recordings
-    net.meanWexc(i+1,1) = mean(net.W((1/syn.J).*net.W>0));
-    net.meanWinh(i+1,1) = mean(net.W((1/syn.J).*net.W<0));
+    net.meanWexc(i+1,1) = mean(net.W(net.W>0));
+    net.meanWinh(i+1,1) = mean(net.W(net.W<0));
     
     plt.histRho(:,i) = (1/net.N^2).*histcounts(net.rho(net.rho>0),plt.edgesRho);
     plt.histW_exc(:,i) = (1/net.N^2).*histcounts((1/syn.J).*net.W((1/syn.J).*net.W>=5e-3),plt.edgesW_exc);
@@ -151,13 +158,7 @@ for i=phase.firstIter:phase.lastIter
     
     if mod(i,gif.updIter)==0
         % PrintiIDRec,:) + syn.C_post.*net.xpostIn(spikeIDRec,:);
-    net.caIn(:,spikeIDIn) = net.caIn(:,spikeIDIn) + syn.C_pre.*net.xpreIn(:,spikeIDIn);
-    net.actPotIn = (net.caIn >= syn.theta_pot).*(net.WIn~=0);
-    net.actDepIn = (net.caIn >= syn.theta_dep).*(net.WIn~=0);
-    net.xpostIn(spikeIDRec,:) = net.xpostIn(spikeIDRec,:)*(1 - syn.dampFactor);
-    net.xpreIn(:,spikeIDIn) = net.xpreIn(:,spikeIDIn)*(1 - syn.dampFactor);
-    net.rhoIn = net.rhoIn + phase.PlastInON .* phase.dt./syn.tau_rho .* (syn.gamma_pot.*(syn.rho_max - net.rhoIn).*net.actPotIn - syn.gamma_dep.*net.rhoIn.*net.actDepIn);
-    net.WIn = syn.J.*transfer(net.rhoIn, prot);
+        
         if gif.graph
             G = digraph(net.W([subIDsExc;subIDsInh],[subIDsExc;subIDsInh])');
             LWiphase.dths = (5.*(G.Edges.Weight>0) + 0.8.*(G.Edges.Weight<0)).*abs(G.Edges.Weight);
