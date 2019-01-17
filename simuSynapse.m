@@ -40,14 +40,14 @@ clear all
 
 env = getEnv();
 addpath(genpath(env.functionsRoot), env.dataRoot);
-data.path = strcat(env.dataRoot,'Venance2016/');
+data.path = strcat(env.dataRoot,'Venance2016/');            
 
-simu.mode = 'single';
+simu.mode = 'dataFit';
 simu.model = 'caProd';
 
 % Parameters controlling excitation history
 simu.d_t = 2;
-simu.n_iter = 400;
+simu.n_iter = 100;
 simu.frequency = 1;
 simu.int_scheme = 'euler_expl';
 simu.int_step = 0.5;
@@ -310,8 +310,8 @@ if strcmp(simu.mode, 'dataFit')
     dataFit.dt.max = 100;
     dataFit.dt.step = 4;
 
-    dataFit.freq.max = 10;
-    dataFit.freq.step = 1;
+    dataFit.freq.max = 200;
+    dataFit.freq.step = 5;
 
     dataFit.heat = get_freq_heatmap(dataFit, params);
 
@@ -319,24 +319,24 @@ if strcmp(simu.mode, 'dataFit')
     data.freqSTDP.freqs=unique(data.freqSTDP.data(:,5));
     n_data_freqs=length(data.freqSTDP.freqs); 
 
-    scatter3(data.freqSTDP.data(:,5), data.freqSTDP.data(:,2), data.freqSTDP.data(:,3)./100, 50*ones(size(data.freqSTDP.data,1),1), '*r')
-    hold on
+    % scatter3(data.freqSTDP.data(:,5), data.freqSTDP.data(:,2), data.freqSTDP.data(:,3)./100, 50*ones(size(data.freqSTDP.data,1),1), '*r')
+    % hold on
     
     [freq_grid, dt_grid] = meshgrid(1:dataFit.freq.step:dataFit.freq.max, dataFit.dt.min:dataFit.dt.step:dataFit.dt.max);
     dataFit.interpol = griddata(dataFit.heat(:,1), dataFit.heat(:,2), dataFit.heat(:,3), freq_grid, dt_grid);
-    ribboncoloredZ(gca,dt_grid,dataFit.interpol);
+    % ribboncoloredZ(gca,dt_grid,dataFit.interpol);
     surf(freq_grid, dt_grid, dataFit.interpol);
     colormap(bluewhitered), colorbar;
     alpha 0.3
     
-    for f=1:n_data_freqs
-        hold on
-        ids=find(data.freqSTDP.data(:,5)==data.freqSTDP.freqs(f) & data.freqSTDP.data(:,7)~=0);
-        filtered_freq=data.freqSTDP.data(ids,:);
-        [a,b]=sort(filtered_freq(:,2));
-        h = ribbon(filtered_freq(b,2), filtered_freq(b,3)./100, 0.15);
-        set(h, 'XData', filtered_freq(b,5)-1 + get(h, 'XData'));
-    end   
+%     for f=1:n_data_freqs
+%         hold on
+%         ids=find(data.freqSTDP.data(:,5)==data.freqSTDP.freqs(f) & data.freqSTDP.data(:,7)~=0);
+%         filtered_freq=data.freqSTDP.data(ids,:);
+%         [a,b]=sort(filtered_freq(:,2));
+%         h = ribbon(filtered_freq(b,2), filtered_freq(b,3)./100, 0.15);
+%         set(h, 'XData', filtered_freq(b,5)-1 + get(h, 'XData'));
+%     end   
     
 %     dataFit.1Hz = freq_data(floor(freq_data(:,5))==1,:);
 %     
@@ -498,10 +498,10 @@ if strcmp(simu.mode, 'poissonMap')
     pSTDP = simu;
     pSTDP.T = 1000;
     pSTDP.nuPre.min = 1;
-    pSTDP.nuPre.max = 100;
+    pSTDP.nuPre.max = 200;
     pSTDP.nuPre.step = 15;
     pSTDP.nuPost.min = 1;
-    pSTDP.nuPost.max = 100;
+    pSTDP.nuPost.max = 200;
     pSTDP.nuPost.step = 15;
     pSTDP.nTry = 1;
     

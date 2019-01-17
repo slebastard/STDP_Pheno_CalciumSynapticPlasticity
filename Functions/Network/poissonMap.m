@@ -26,7 +26,7 @@ function STDP = poissonMap( params, simu )
             cache_qw = zeros(1,nRho);
             for tryID = 1:nTry
                 if strcmp(corr.type, 'none')
-                    t = indPoisson( 2, [1000/nu_pre; 1000/nu_post], simu.T);
+                    t = indPoisson( 2, [nu_pre/1000; nu_post/1000], simu.T);
                     pre_spikes_hist = t(1,:);
                     post_spikes_hist = t(2,:);
                 elseif strcmp(corr.type, 'exp')

@@ -128,11 +128,10 @@ net.meanWinh = mean(2*net.g.*syn.J.*net.W(net.W<0)).*ones(simu.nIterTot+1,1);
 rateEst = zeros(net.N, simu.nIterTot);
 histRates = zeros(plt.nbins, simu.nIterTot);
 
-plt.patchTime = 0.075;
+plt.patchTime = 0.05;
 plt.maxPatchSize = 2*floor(0.5*plt.patchTime/simu.dt);
 plt.meanISI = zeros(simu.nIterTot-plt.maxPatchSize,2);
-plt.stdISI = zeros(simu.nIterTot-plt.maxPatchSize,2);
-plt.patchTime = 0.075;
+plt.stdISI = zeros(simu.nIterTot-plt.maxPatchSize,2); 
 %plt.fourier = zeros(net.N, simu.nIterTot-plt.maxPatchSize);
 plt.phaseMetr = zeros(simu.nIterTot-plt.maxPatchSize,2);
 plt.freqMetr = zeros(simu.nIterTot-plt.maxPatchSize,1);
@@ -344,8 +343,8 @@ for i=1:simu.nIterTot
         %[~,plt.mainModeFreq(i-floor(0.5*plt.maxPatchSize),1)] = max(modY,[],2); % Measures regularity
         
         % Determining regime
-        plt.regime(i-floor(0.5*plt.maxPatchSize),1) = plt.phaseMetr(i-floor(0.5*plt.maxPatchSize),2) < 0.3; % SYNCHRONICITY
-        plt.regime(i-floor(0.5*plt.maxPatchSize),2) = sqrt(varISI)/meanISI < 0.3; % REGULARITY
+        plt.regime(i-floor(0.5*plt.maxPatchSize),1) = plt.phaseMetr(i-floor(0.5*plt.maxPatchSize),2) < 0.285; % SYNCHRONICITY
+        plt.regime(i-floor(0.5*plt.maxPatchSize),2) = sqrt(varISI)/meanISI < 0.2; % REGULARITY
         
         % Cutting regions per regime
         SR = and(plt.regime(:,1)==1, plt.regime(:,2)==1);
@@ -388,18 +387,29 @@ switch plt.all.raster
         ax2 = subplot(2,1,2);
         
         SRspikes = totActSnaps;
+        SRspikes(1,1:max(1,floor(0.5*plt.maxPatchSize))) = NaN;
+        SRspikes(1,max(end-floor(0.5*plt.maxPatchSize),1):end) = NaN;
         SRspikes(SI) = NaN;
         SRspikes(AR) = NaN;
         SRspikes(AI) = NaN;
-        ARspikes = totActSnaps;
+        
+        ARspikes = totActSnaps; 
+        ARspikes(1,1:max(1,floor(0.5*plt.maxPatchSize))) = NaN;
+        ARspikes(1,max(end-floor(0.5*plt.maxPatchSize),1):end) = NaN;        
         ARspikes(SI) = NaN;
         ARspikes(SR) = NaN;
-        ARspikes(AI) = NaN;        
-        SIspikes = totActSnaps;
+        ARspikes(AI) = NaN;
+        
+        SIspikes = totActSnaps; 
+        SIspikes(1,1:max(1,floor(0.5*plt.maxPatchSize))) = NaN;
+        SIspikes(1,max(end-floor(0.5*plt.maxPatchSize),1):end) = NaN;  
         SIspikes(SR) = NaN;
         SIspikes(AR) = NaN;
-        SIspikes(AI) = NaN;        
-        AIspikes = totActSnaps;        
+        SIspikes(AI) = NaN;
+        
+        AIspikes = totActSnaps;    
+        AIspikes(1,1:max(1,floor(0.5*plt.maxPatchSize))) = NaN;
+        AIspikes(1,max(end-floor(0.5*plt.maxPatchSize),1):end) = NaN;         
         AIspikes(SI) = NaN;
         AIspikes(AR) = NaN;
         AIspikes(SR) = NaN;

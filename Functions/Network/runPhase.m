@@ -122,10 +122,7 @@ for i=phase.firstIter:phase.lastIter
     net.xpre(:,spikeIDRec) = net.xpre(:,spikeIDRec)*(1 - syn.dampFactor);
     net.rho = net.rho + phase.PlastON .* phase.dt./syn.tau_rho .* (syn.gamma_pot.*(syn.rho_max - net.rho).*net.actPot - syn.gamma_dep.*net.rho.*net.actDep);
     net.W = net.synSign.*transfer(net.rho, prot);
- 
-    if any(net.actDep)
-        net.lastIterCa = i;
-    end
+
     
     % Recurrent reset
     net.RI(:,1+mod(i,neu.N_del))=net.W*spikeRec;
@@ -136,8 +133,8 @@ for i=phase.firstIter:phase.lastIter
     net.meanWinh(i+1,1) = mean(net.W(net.W<0));
     
     plt.histRho(:,i) = (1/net.N^2).*histcounts(net.rho(net.rho>0),plt.edgesRho);
-    plt.histW_exc(:,i) = (1/net.N^2).*histcounts((1/syn.J).*net.W((1/syn.J).*net.W>=5e-3),plt.edgesW_exc);
-    plt.histW_inh(:,i) = (1/net.N^2).*histcounts((1/syn.J).*net.W((1/syn.J).*net.W<=-5e-3),plt.edgesW_inh);
+    plt.histW_exc(:,i) = (1/net.N^2).*histcounts((0.5/syn.J).*net.W((0.5/syn.J).*net.W>0),plt.edgesW_exc);
+    plt.histW_inh(:,i) = (1/net.N^2).*histcounts((0.5/syn.J).*net.W((0.5/syn.J).*net.W<0),plt.edgesW_inh);
     net.LS(spikeRec)=i;                % Time of last spike
     
     plt.Rasterplot(:,i)=spikeRec;
