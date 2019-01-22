@@ -76,8 +76,8 @@ function sensibilityAnalysis( out_path )
     
     % Creating exploration sets
     
-    syn.C_pre = [0.1, 0.2, 0.8, 0.84];
-    syn.C_post = [0.5, 0.7, 1, 1.5];
+    syn.C_pre = [0.3, 0.5, 1, 2];
+    syn.C_post = [1.2, 1, 0.5, 0.3];
     syn.theta_pot = [1.05, 1.15, 1.35, 1.7];
     syn.theta_dep = [0.4, 0.6, 0.8, 1];
     syn.gamma_pot = [20, 60, 100, 200];

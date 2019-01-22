@@ -42,7 +42,7 @@ env = getEnv();
 addpath(genpath(env.functionsRoot), env.dataRoot);
 data.path = strcat(env.dataRoot,'Venance2016/');            
 
-simu.mode = 'dataFit';
+simu.mode = 'poissonMap';
 simu.model = 'caProd';
 
 % Parameters controlling excitation history

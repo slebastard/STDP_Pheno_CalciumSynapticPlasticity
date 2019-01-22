@@ -105,11 +105,11 @@ net.WIn = zeros(net.N,net.NIn);
 for i=1:net.N
     ECells=randperm(net.NE);
     ECells=ECells(1:CE);
-    net.W(i,ECells) = strcmp(init.mode, 'rand').*rand(1,CE) + ~strcmp(init.mode, 'rand');
+    net.W(i,ECells) = strcmp(init.mode, 'rand').*rand(1,CE) + ~strcmp(init.mode, 'rand')*0.5*ones(1,CE);
     
     ICells=randperm(net.NI);
     ICells=net.NE+ICells(1:CI);
-    net.W(i,ICells)= -strcmp(init.mode, 'rand').*rand(1,CI) - ~strcmp(init.mode, 'rand');
+    net.W(i,ICells)= -strcmp(init.mode, 'rand').*rand(1,CI) - ~strcmp(init.mode, 'rand')*0.5*ones(1,CI);
     
     %InputCells=randperm(net.NIn);
     %InputCells=InputCells(1:ceil(1*net.NIn));
@@ -130,13 +130,14 @@ histRates = zeros(plt.nbins, simu.nIterTot);
 
 plt.patchTime = 0.05;
 plt.maxPatchSize = 2*floor(0.5*plt.patchTime/simu.dt);
-plt.meanISI = zeros(simu.nIterTot-plt.maxPatchSize,2);
-plt.stdISI = zeros(simu.nIterTot-plt.maxPatchSize,2); 
+plt.ISI = zeros(simu.nIterTot,2); 
 %plt.fourier = zeros(net.N, simu.nIterTot-plt.maxPatchSize);
-plt.phaseMetr = zeros(simu.nIterTot-plt.maxPatchSize,2);
-plt.freqMetr = zeros(simu.nIterTot-plt.maxPatchSize,1);
-plt.mainModeFreq = zeros(simu.nIterTot-plt.maxPatchSize,1);
-plt.regime = zeros(simu.nIterTot-plt.maxPatchSize,2);
+plt.phaseMetr = zeros(simu.nIterTot,2);
+plt.freqMetr = zeros(simu.nIterTot,1);
+plt.regMetr = zeros(simu.nIterTot,1);
+plt.synMetr = zeros(simu.nIterTot,1);
+plt.mainModeFreq = zeros(simu.nIterTot,1);
+plt.regime = zeros(simu.nIterTot,2);
 
 subIDsExc = excNeurons( ...
     randperm(size(excNeurons,1),floor(0.8*min(max(gif.minN, 0.3*net.N), gif.maxN))) ...
@@ -191,6 +192,10 @@ splNeu.NE = 3;
 splNeu.NI = 2;
 splNeu.ExcNeurons = excNeurons(randperm(size(excNeurons,1),splNeu.NE));
 splNeu.InhNeurons = inhNeurons(randperm(size(inhNeurons,1),splNeu.NI));
+
+plt.regimeThr = zeros(1,2);
+plt.regimeThr(1,1) = 0.27;
+plt.regimeThr(1,2) = 0.06;
 
 %% Initialization
 % %%%%%%%%   SIMULATION PARAMETERS %%%%%%%%  
@@ -312,48 +317,66 @@ for i=1:simu.nIterTot
         
         meanISI = 0;
         varISI = 0;
-        
+        missM = 0; 
+        missS = 0;
         for nerID=1:net.N
             raster = plt.Rasterplot(nerID,1:i);
             lastSpikes = find(raster,11,'last');
             ISI = lastSpikes - circshift(lastSpikes,1);
             ISI = ISI(2:end);
-            meanISI = meanISI + mean(ISI)./net.N;
-            varISI = varISI + (std(ISI)^2)./net.N;
+
+            
+            if length(ISI)>1
+                varISI = varISI + (std(ISI)^2)./net.N; 
+            else
+                missS = missS+1;
+            end
+            
+            if length(ISI)>=1
+                meanISI = meanISI + mean(ISI)./net.N;
+            else
+                missM = missM + 1;               
+            end
+            
         end
         
-        plt.ISI(i-floor(0.5*plt.maxPatchSize),1) = meanISI;
-        plt.ISI(i-floor(0.5*plt.maxPatchSize),2) = sqrt(varISI);
+        plt.ISI(i,1) = meanISI*(net.N-missM)/net.N; 
+        plt.ISI(i,2) = sqrt(varISI)*(net.N-missS)/net.N;
         
         patch = plt.Rasterplot(:,i-floor(0.5*plt.maxPatchSize):i+floor(0.5*plt.maxPatchSize));
         
         y = fft(patch,plt.maxPatchSize,2);
         ys = fftshift(y(:,2:end), 2);
-        ly = length(y);
         modY = abs(ys);
         phsY = angle(ys)./pi;
         %plt.fourier(:,i-floor(0.5*plt.maxPatchSize)) = fft(patch,plt.maxPatchSize,2);
         
         sigPhase = 0.5*std(phsY); % Measures synchrony
         meanPhase = mean(phsY);
-        plt.phaseMetr(i-floor(0.5*plt.maxPatchSize),1) = mean(meanPhase);
-        plt.phaseMetr(i-floor(0.5*plt.maxPatchSize),2) = mean(sigPhase);
+        plt.phaseMetr(i,1) = mean(meanPhase);
+        plt.phaseMetr(i,2) = mean(sigPhase);
         sigFreq = std(modY,0,2);
-        plt.freqMetr(i-floor(0.5*plt.maxPatchSize),1) = mean(sigFreq);
+        plt.freqMetr(i,1) = mean(sigFreq);
         %[~,plt.mainModeFreq(i-floor(0.5*plt.maxPatchSize),1)] = max(modY,[],2); % Measures regularity
-        
-        % Determining regime
-        plt.regime(i-floor(0.5*plt.maxPatchSize),1) = plt.phaseMetr(i-floor(0.5*plt.maxPatchSize),2) < 0.285; % SYNCHRONICITY
-        plt.regime(i-floor(0.5*plt.maxPatchSize),2) = sqrt(varISI)/meanISI < 0.2; % REGULARITY
-        
-        % Cutting regions per regime
-        SR = and(plt.regime(:,1)==1, plt.regime(:,2)==1);
-        AR = and(plt.regime(:,1)==0, plt.regime(:,2)==1);
-        SI = and(plt.regime(:,1)==1, plt.regime(:,2)==0);
-        AI = and(plt.regime(:,1)==0, plt.regime(:,2)==0);
     end
 end
 
+for i=floor(0.5*plt.maxPatchSize)+1:simu.nIterTot - floor(0.5*plt.maxPatchSize)
+    
+	plt.synMetr(i,1) = mean(plt.phaseMetr(max(i-floor(0.2*plt.maxPatchSize),floor(0.5*plt.maxPatchSize)):min(i+floor(0.2*plt.maxPatchSize),simu.nIterTot-floor(0.5*plt.maxPatchSize)),2));
+    plt.regMetr(i,1) = mean(plt.ISI(max(i-floor(0.2*plt.maxPatchSize),floor(0.5*plt.maxPatchSize)):min(i+floor(0.2*plt.maxPatchSize),simu.nIterTot-floor(0.5*plt.maxPatchSize)),2)./plt.ISI(max(i-floor(0.2*plt.maxPatchSize),floor(0.5*plt.maxPatchSize)):min(i+floor(0.2*plt.maxPatchSize),simu.nIterTot-floor(0.5*plt.maxPatchSize)),1));
+        % Determining regime
+        
+    plt.regime(i,1) = (plt.synMetr(i,1) < plt.regimeThr(1,1)); % SYNCHRONICITY
+    plt.regime(i,2) = (plt.regMetr(i,1) < plt.regimeThr(1,2)); % REGULARITY
+    
+end
+
+% Cutting regions per regime
+SR = and(plt.regime(:,1)==1, plt.regime(:,2)==1);
+AR = and(plt.regime(:,1)==0, plt.regime(:,2)==1);
+SI = and(plt.regime(:,1)==1, plt.regime(:,2)==0);
+AI = and(plt.regime(:,1)==0, plt.regime(:,2)==0);
 
 %% Creating graph for visualization
 if gif.graph
@@ -490,6 +513,8 @@ switch plt.all.raster
         text(0.36,-0.45, strcat('\gamma_p: ', num2str(syn.gamma_pot)), 'FontSize', 15, 'Units', 'normalized');
         text(0.36,-0.75, strcat('\gamma_d: ', num2str(syn.gamma_dep)), 'FontSize', 15, 'Units', 'normalized');
         text(0.44,-0.45, strcat('S_{attr}: ', num2str(syn.S_attr)), 'FontSize', 15, 'Units', 'normalized');           
+        
+        getRegimeMetrics(simu, plt, fig);
         
 end
 
@@ -795,3 +820,9 @@ sqWexc = (net.W - net.meanWexc(end,1)).^2;
 sqWinh = (net.W - net.meanWinh(end,1)).^2;
 out.stdWexc = sqrt(mean(sqWexc(net.W>0)));
 out.stdWinh = sqrt(mean(sqWinh(net.W<0)));
+
+out.synScore = plt.synMetr(end,1);
+out.regScore = plt.regMetr(end,1);
+
+out.synRegime = plt.regime(end,1);
+out.regRegime = plt.regime(end,2);
