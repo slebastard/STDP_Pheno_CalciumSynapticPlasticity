@@ -120,12 +120,9 @@ end
 % Create matrix that maps phase to stimuli
 % Joint stimuli are to be superimposed
 simu.phases{1}.stim = [1,0,0];
-simu.phases{2}.stim = [0,1,0];
-simu.phases{3}.stim = [0,0,1];
-simu.phases{4}.stim = [1,1,0];
-simu.phases{5}.stim = [1,0,0];
-simu.phases{6}.stim = [0,1,0];
-simu.phases{7}.stim = [0,0,1];
+simu.phases{2}.stim = [1,0,0];
+simu.phases{3}.stim = [1,0,0];
+simu.phases{4}.stim = [1,0,0];
 
 input.structured = 1;
 

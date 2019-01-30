@@ -90,16 +90,16 @@ for i=phase.firstIter:phase.lastIter
         % Make sure bSize is greater than the input signal duration
         nReps = ceil(bSize*phase.dt/input.T);
         ExInput = zeros(net.NIn,bSize);
-        for j=1:net.N
-            inSpikeIter = [];
-            for stID=1:nStims
+        inSpikeIter = [];
+        for stID=1:nStims
+            for j=1:net.N
                 inSpikeIter = [inSpikeIter; floor(input.spikes{stims(stID)}{j}/phase.dt)];
+                for k=2:nReps
+                    inSpikeIter = [inSpikeIter, floor((k-1)*floor(input.T/phase.dt) + inSpikeIter)];
+                end
+                inSpikeIter = inSpikeIter(inSpikeIter>bSize);
+                ExInput(j,inSpikeIter) = 1;
             end
-            for k=2:nReps
-                inSpikeIter = [inSpikeIter, floor((k-1)*floor(input.T/phase.dt) + inSpikeIter)];
-            end
-            inSpikeIter = inSpikeIter(inSpikeIter>bSize);
-            ExInput(j,inSpikeIter) = 1;
         end
         ExInput = ExInput + transpose(indPoisson2(net.nu_inNoise, bSize, net.NIn, phase.dt));
     end

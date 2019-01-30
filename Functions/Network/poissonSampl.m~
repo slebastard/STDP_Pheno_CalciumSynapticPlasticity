@@ -1,0 +1,13 @@
+function S = poissonSampl(lambda)
+%POISSONSAMPL Summary of this function goes here
+%   Detailed explanation goes here
+  S = 0;
+  k = 0;
+  produ = rand;
+  while produ >= exp(-lambda)
+      produ = produ*rand;
+      k = k+1;
+  end
+  S = k;
+end
+

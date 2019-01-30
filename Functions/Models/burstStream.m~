@@ -1,0 +1,15 @@
+function out = burstStream(signal, tuning)
+%UNTITLED Summary of this function goes here
+%   Detailed explanation goes here
+
+N = size(tuning,2);
+T = size(signal,1);
+
+out = zeros(N);
+
+for t=dt:dt:T
+    out
+end
+
+end
+

@@ -3,7 +3,7 @@ function sensibilityAnalysis( out_path )
 %   Detailed explanation goes here
     
     % Defining stimulation protocol
-    phase1.T = 0.5;
+    phase1.T = 0.3;
     phase1.dt = 5e-4;
     phase1.strap = 0;
     phase1.InE = 0;
@@ -13,7 +13,7 @@ function sensibilityAnalysis( out_path )
     phase1.IE = 0;
     phase1.II = 0;
  
-    phase2.T = 1;
+    phase2.T = 0.7;
     phase2.dt = 5e-4;
     phase2.strap = 0;
     phase2.InE = 0;
@@ -23,7 +23,7 @@ function sensibilityAnalysis( out_path )
     phase2.IE = 0;
     phase2.II = 0;    
 
-    phase3.T = 0.5;
+    phase3.T = 0.3;
     phase3.dt = 5e-4;
     phase3.strap = 0;
     phase3.InE = 0;
@@ -34,7 +34,7 @@ function sensibilityAnalysis( out_path )
     phase3.II = 0;  
     
     std.simu.phases = {phase1, phase2, phase3};
-    std.simu.T = 2;
+    std.simu.T = 1.3;
     std.simu.nPhases = 3;
     
     % Defining default parameter values
@@ -51,7 +51,7 @@ function sensibilityAnalysis( out_path )
     std.neu.V_t = 20;
     std.neu.t_rp = 2e-3;
     
-    std.net.g = 80;
+    std.net.g = 4;
     std.net.rExtRel = 4;
     
     std.init.c = 1;

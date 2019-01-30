@@ -1,0 +1,23 @@
+function ExInput = indPoisson2(mu, nIter, N, dt)
+%CORRPOISSON Generates uncorrelated Poisson processes
+% Currently only supports homogeneous Poisson processes
+
+% %% Inputs %%
+%   N  - Number of Poisson processes to simulate
+%   mu - Contains the spike rates of all processes
+%     N*1 matrix
+%   T  - Total duration of simulation
+
+% %% Outputs %%
+%   t  - Spike times
+%   I  - N*length(t) matrix containing spike flags at each times, for each
+%   of the N processes to simulate
+    
+    ExInput = zeros(nIter, N);  % Contains the min of time reached by generation
+    
+    for i=1:nIter
+        ExInput(i,:) = poissonSampl(N, mu*dt);
+    end
+end
+
+

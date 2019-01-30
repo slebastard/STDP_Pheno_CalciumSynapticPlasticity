@@ -42,12 +42,12 @@ env = getEnv();
 addpath(genpath(env.functionsRoot), env.dataRoot);
 data.path = strcat(env.dataRoot,'Venance2016/');            
 
-simu.mode = 'poissonMap';
+simu.mode = 'STDP';
 simu.model = 'caProd';
 
 % Parameters controlling excitation history
 simu.d_t = 2;
-simu.n_iter = 100;
+simu.n_iter = 10;
 simu.frequency = 1;
 simu.int_scheme = 'euler_expl';
 simu.int_step = 0.5;
