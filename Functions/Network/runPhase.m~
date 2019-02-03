@@ -1,4 +1,4 @@
-function [net, plt, splSyn] = runPhase(net, neu, syn, input, prot, phase, plt, splSyn, gif, nIterTot)
+function [net, plt, splSyn, tuning] = runPhase(net, neu, syn, input, prot, phase, plt, splSyn, gif, nIterTot)
 % runPhase Summary of this function goes here
 %   Detailed explanation goes here
 
@@ -58,7 +58,20 @@ if phase.strap > 0
         net.xpre(:,spikeIDRec) = net.xpre(:,spikeIDRec)*(1 - syn.dampFactor);
         net.rho = net.rho + phase.dt./syn.tau_rho .* (syn.gamma_pot.*(syn.rho_max - net.rho).*net.actPot - syn.gamma_dep.*net.rho.*net.actDep);
         net.W = net.synSign.*transfer(net.rho, prot);
- 
+        
+        % Creation of new excitatory synapses
+        t = rand(net.N,net.N);
+        t_exc = (t < simu.phases{phID}.birth.exc*phase.dt/syn.tau_rho && );
+        t_inh = 
+        net.synSign(net.W==0) = 2*syn.J.*t(net.W==0);
+        v = transfer(net.rho, prot);
+        net.W(net.W==0) = net.synSign(net.W==0).*v(net.W==0);
+        
+        % Creation of new inhibitory synapses
+        t = (rand(net.N,net.N) > simu.phases{phID}.birth.inh*phase.dt/syn.tau_rho);
+        net.synSign(net.W==0) = 2*syn.J.*t(net.W==0);
+        v = transfer(net.rho, prot);
+        net.W(net.W==0) = net.synSign(net.W==0).*v(net.W==0);        
         
         % Recurrent reset
         net.RI(:,1+mod(i,neu.N_del))=net.W*spikeRec;
@@ -90,16 +103,16 @@ for i=phase.firstIter:phase.lastIter
         % Make sure bSize is greater than the input signal duration
         nReps = ceil(bSize*phase.dt/input.T);
         ExInput = zeros(net.NIn,bSize);
-        inSpikeIter = [];
-        for stID=1:nStims
-            for j=1:net.N
-                inSpikeIter = [inSpikeIter; floor(input.spikes{stims(stID)}{j}/phase.dt)];
-                for k=2:nReps
-                    inSpikeIter = [inSpikeIter, floor((k-1)*floor(input.T/phase.dt) + inSpikeIter)];
-                end
-                inSpikeIter = inSpikeIter(inSpikeIter>bSize);
-                ExInput(j,inSpikeIter) = 1;
+        for j=1:net.NIn
+            inSpikeIter = [];
+            for stID=1:nStims
+                inSpikeIter = [inSpikeIter; max(1,floor(input.spikes{stims(stID)}{j}/phase.dt))];
             end
+            for k=2:nReps
+                inSpikeIter = [inSpikeIter, max(1,floor((k-1)*floor(input.T/phase.dt) + inSpikeIter))];
+            end
+            inSpikeIter = inSpikeIter(inSpikeIter<=bSize);
+            ExInput(j,inSpikeIter) = 1;
         end
         ExInput = ExInput + transpose(indPoisson2(net.nu_inNoise, bSize, net.NIn, phase.dt));
     end
@@ -214,5 +227,34 @@ for i=phase.firstIter:phase.lastIter
     end
 end
 
+if phase.specAnalysis
+    figName = strcat('Specificity analysis - Phase ', num2str(phase.ID));
+    figure('Name',figName,'NumberTitle','off')
+    
+    % Compute firing rate
+    filter = gausswin(100,3);
+    filter = (1/sum(filter)).*filter;
+    firing.rate = zeros(net.N, phase.lastIter - phase.firstIter + 1);
+    for n=1:net.N
+       firing.rate(n,:) = (1/phase.dt).*conv(plt.Rasterplot(n,phase.firstIter:phase.lastIter), filter, 'same');
+    end
+    
+    % Superimpose firing rate and stimulus value
+    tuning.nBins = 500;
+    tuning.input = input.stim{stims(1)};
+    tuning.curve = zeros(tuning.nBins, net.N);
+    
+    for b=1:tuning.nBins
+        inst = (tuning.input >= (b-1)*pi/tuning.nBins & tuning.input < b*pi/tuning.nBins);
+        for n=1:net.N
+            tuning.curve(b,n) = mean(firing.rate(n,inst));
+        end
+    end
+    
+    tuning.curve(isnan(tuning.curve)) = 0;
+    plot(tuning.curve(:,1));
+    plot(tuning.curve(:,9));
+    
+end
 end
 

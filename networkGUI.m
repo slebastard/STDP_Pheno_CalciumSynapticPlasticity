@@ -518,6 +518,25 @@ function addPhasepushbutton_Callback(hObject, eventdata, handles)
     phase.IE = get(handles.plastIEcheckbox,'Value');
     phase.II = get(handles.plastIIcheckbox,'Value');
     
+    phase.specAnalysis = get(handles.checkPhaseTuning,'Value');
+    
+    synData = get(handles.synParams,'Data');
+    synData = synData(1,:);
+    phase.syn = getSynapse();
+    phase.syn.tau_Ca = synData(1,1);
+    phase.syn.tau_rho = synData(1,2);
+    phase.syn.tau_x = synData(1,3);
+    phase.syn.C_pre = synData(1,4);
+    phase.syn.C_post = synData(1,5);
+    phase.syn.delay_pre = synData(1,6);
+    phase.syn.theta_pot = synData(1,7);
+    phase.syn.gamma_pot = synData(1,8);
+    phase.syn.theta_dep = synData(1,9);
+    phase.syn.gamma_dep = synData(1,10);
+    phase.syn.S_attr = synData(1,11);
+    phase.syn.noise_lvl = synData(1,12);
+    phase.syn.dampFactor = synData(1,13);
+    
     handles.phases = [handles.phases, phase];
     handles.simu.T = handles.simu.T + phase.T;
     handles.simu.nPhases = handles.simu.nPhases + 1;

@@ -36,6 +36,7 @@ if 1
         simu.nIter = zeros(1,nPhase);
         for phID=1:nPhase
             simu.T = simu.T + simu.phases{phID}.T;
+            simu.phases{phID}.ID = phID;
             simu.phases{phID}.firstIter = simu.nIterTot + 1;
             simu.phases{phID}.nIter = simu.phases{phID}.T / simu.phases{phID}.dt;
             simu.phases{phID}.lastIter = simu.nIterTot + simu.phases{phID}.nIter;
@@ -51,6 +52,12 @@ if 1
             simu.phases{phID}.PlastInON = zeros(net.N,net.NIn);
             simu.phases{phID}.PlastInON(1:net.NE,:) = (simu.phases{phID}.InE == 1);
             simu.phases{phID}.PlastInON(net.NE+1:net.N,:) = (simu.phases{phID}.InE == 1);
+            
+            simu.phases{phID}.birth.exc = 0.05; % / (N_E*tau_rho)
+            simu.phases{phID}.birth.inh = 0.05; % / (N_I*tau_rho)
+            simu.phases{phID}.connDeathThr = 0.05; % Threshold on weight for synapse elimination
+            
+            simu.phases{phID}.syn.J = syn.J;
         end
         if simu.T == 0
             return
@@ -85,7 +92,9 @@ if 1
     CE=round(net.Connectivity*net.NE);          % Number of exc connections
     CI=round(net.Connectivity*net.NI);          % Number of inh connections
     net.C_ext=CE;
-
+    
+    net.ConnectivityIn = net.Connectivity;
+    
     % Neurons
     neu.tau=20e-3;
     neu.t_rp=2e-3;
@@ -101,33 +110,33 @@ end
 
 input.T = 0.2;
 input.res = 1000;
-input.nStim = 3;
+input.nStim = 1;
 
-% input.stim = inputAngle(0.05, input.T, simu.dt);
-% for i=1:net.NIn
-%     input.spikes{k}{i} = spikesFromRate(input.inRates(:,i), simu.dt);
-% end
+net.inTuning = generateTuningCurves(0.6, net.NIn, input.res, net.nu_ext, 0);
 
-input.inTuning = generateTuningCurves(0.6, net.NIn, input.res, net.nu_ext, 0);
-for k=1:input.nStim
-input.stim{k} = ((k-1)*pi/input.nStim).*ones(input.T*simu.dt);
-input.inRates{k} = burstStream(input.stim, input.inTuning, input.T, simu.dt, input.res);
-    for i=1:net.NIn
-        input.spikes{k}{i} = spikesFromRate(input.inRates(:,i), simu.dt);
-    end
+input.stim{1} = inputAngle(0.05, input.T, simu.dt);
+input.inRates = burstStream(input.stim{1}, net.inTuning, input.T, simu.dt, input.res);
+
+for i=1:net.NIn
+    input.spikes{1}{i} = spikesFromRate(input.inRates(:,i), simu.dt);
 end
+
+% input.inTuning = generateTuningCurves(0.6, net.NIn, input.res, net.nu_ext, 0);
+% for k=1:input.nStim
+% input.stim{k} = ((k-1)*pi/input.nStim).*ones(input.T*simu.dt);
+% input.inRates{k} = burstStream(input.stim, input.inTuning, input.T, simu.dt, input.res);
+%     for i=1:net.NIn
+%         input.spikes{k}{i} = spikesFromRate(input.inRates(:,i), simu.dt);
+%     end
+% end
 
 % Create matrix that maps phase to stimuli
 % Joint stimuli are to be superimposed
-simu.phases{1}.stim = [1,0,0];
-simu.phases{2}.stim = [0,1,0];
-simu.phases{3}.stim = [0,0,1];
-simu.phases{4}.stim = [1,1,0];
-simu.phases{5}.stim = [1,0,0];
-simu.phases{6}.stim = [0,1,0];
-simu.phases{7}.stim = [0,0,1];
+for i=1:nPhase
+    simu.phases{i}.stim = 1;
+end
 
-input.structured = 1;
+input.structured = 0;
 
 %% Creating network
 
@@ -136,23 +145,42 @@ input.structured = 1;
 if 1
     % %%% Synaptic weights %%%
     net.W = zeros(net.N,net.N);   % 1st index for postsynaptic neuron, 2nd for presynaptic
-    net.NIn = net.N;
     net.WIn = zeros(net.N,net.NIn);
 
 
     for i=1:net.N
-        ECells=randperm(net.NE);
-        ECells=ECells(1:CE);
-        net.W(i,ECells) = strcmp(init.mode, 'rand').*rand(1,CE) + ~strcmp(init.mode, 'rand')*0.5*ones(1,CE);
+        % %%%%%%%% RECCURENT WEIGHTS MAPPING %%%%%%%%%%
+        if 1 % Brunel 2000
+            ECells=randperm(net.NE);
+            ECells=ECells(1:CE);
+            net.W(i,ECells) = strcmp(init.mode, 'rand').*rand(1,CE) + ~strcmp(init.mode, 'rand')*0.5*ones(1,CE);
 
-        ICells=randperm(net.NI);
-        ICells=net.NE+ICells(1:CI);
-        net.W(i,ICells)= -strcmp(init.mode, 'rand').*rand(1,CI) - ~strcmp(init.mode, 'rand')*0.5*ones(1,CI);
-
+            ICells=randperm(net.NI);
+            ICells=net.NE+ICells(1:CI);
+            net.W(i,ICells)= -strcmp(init.mode, 'rand').*rand(1,CI) - ~strcmp(init.mode, 'rand')*0.5*ones(1,CI);
+        
+        elseif 0 % Pokorny 2017
+            % Assemble neurons on a grid
+            neuGrid.dim = ceil(nthroot(net.N,3));
+            neuGrid.coords = rand(net.NE,3);
+            neuGrid.dists = squareform(pdist(neuGrid.coords));
+            net.W = net.Connectivity*exp(-neu.dists/(neuGrid.dim*neuGrid.lambda));
+       
+        end
+        
         %InputCells=randperm(net.NIn);
         %InputCells=InputCells(1:ceil(1*net.NIn));
         %net.WIn(i,InputCells) = init.c*0.5;
-        net.WIn(i,i) = 0.5;
+        
+        % %%%%%%%% INPUT WEIGHTS MAPPING %%%%%%%%%
+        if 0 % One-to-one mapping to all recurrent neruons
+            net.WIn(i,i) = 0.5;
+        elseif 1 % Random connections from input to excitatory neurons, connectivity cIn 
+            net.WIn = 0.5.*(rand(net.N,net.NIn) >= net.ConnectivityIn);
+            net.WIn(net.NE+1:end,:) = 0;
+        elseif 0 % Ran6dom connections to all recurrent neurons
+            net.WIn = 0.5.*(rand(net.N,net.NIn) >= net.ConnectivityIn);        
+        end
     end
 
     net.synSign = 2*syn.J.*(net.W>0) - 2*net.g.*syn.J.*(net.W<0);
@@ -178,14 +206,6 @@ if 1
     plt.mainModeFreq = zeros(simu.nIterTot,1);
     plt.regime = zeros(simu.nIterTot,2);
 
-    subIDsExc = excNeurons( ...
-        randperm(size(excNeurons,1),floor(0.8*min(max(gif.minN, 0.3*net.N), gif.maxN))) ...
-        );
-    subIDsInh = inhNeurons( ...
-        randperm(size(inhNeurons,1),ceil(0.2*min(max(gif.minN, 0.3*net.N), gif.maxN))) ...
-        );
-    G = digraph(net.W([subIDsExc;subIDsInh]',[subIDsExc;subIDsInh]')');    % Graph for plotting evolution of network
-    A = abs(net.W + net.W'); % Weight matrix for spectral clustering
     % Symmetrization, all information on directionnality is lost
     plt.histRho = zeros(plt.nbins, simu.nIterTot);
     plt.histW_exc = zeros(plt.nbins, simu.nIterTot);
@@ -205,7 +225,6 @@ if 1
     net.xpreIn = ones(net.N,net.NIn);
     net.xpostIn = ones(net.N,net.NIn);
     net.rhoIn = transferinv(net.WIn, syn.S_attr, syn.noise_lvl, syn.rho_max);
-    %net.WIn = 2.*syn.J.*transfer(net.rhoIn, prot)./net.NIn;
     net.WIn = net.synSignIn.*transfer(net.rhoIn, prot);
     net.actPotIn = zeros(net.N,net.NIn);
     net.actDepIn = zeros(net.N,net.NIn);
@@ -256,37 +275,10 @@ if 1
     plt.Rasterplot=zeros(net.N,simu.nIterTot);
     plt.RasterplotIn=zeros(net.NIn,simu.nIterTot);
 
-    % %%%%%%% INITIALIZING GIFS %%%%%%%
-    LWisimu.dths = (5.*(G.Edges.Weight>0) + 0.8.*(G.Edges.Weight<0)).*abs(G.Edges.Weight);
-    EColors = [0 1 0].*(G.Edges.Weight>0) + [1 0 0].*(G.Edges.Weight<0);
-    if gif.graph
-        figure(1)
-        plot(G,'LineWidth',LWisimu.dths,'EdgeColor',EColors)
-        axis tight
-        set(gca,'nextplot','replacechildren','visible','off')
-        f1 = getframe;
-        [im1,map1] = rgb2ind(f1.cdata,256,'nodither');
-    end
-
-    if gif.lapl
-        A = net.W + net.W';
-        D = diag(sum(A,1));
-        L_rw = eye(net.N) - D^(-1)*A;
-        [eVals, ~] = eig(L_rw);
-
-        figure(2)
-        spc = sort(diag(eVals));
-        plot(1:20, spc(1:20), '+r')
-        xlabel('Index')
-        ylabel('Eigenvalue')
-        title('Eigendecomposition at time 0s')
-        set(gca,'nextplot','replacechildren')
-        f2 = getframe;
-        [im2,map2] = rgb2ind(f2.cdata,256,'nodither');
-    end
 end
 
 %% Simulation
+
 tic();
 
 % This part will execute the simulate() function, that takes as arguments:
@@ -297,6 +289,7 @@ tic();
 plt.progress = 1;
 
 for phID = 1:nPhase
+    syn = simu.phases{phID}.syn;
     [net, plt, splSyn] = runPhase(net, neu, syn, input, prot, simu.phases{phID}, plt, splSyn, gif, simu.nIterTot);
 end
 
@@ -322,23 +315,6 @@ filter = (1/sum(filter)).*filter;
 
 fMax = floor(500/plt.nbins)*plt.nbins;
 edgesRates = 0:fMax/plt.nbins:fMax;
-
-if gif.ratesHist
-    rates.min = 145;
-    rates.max = 170;
-    rates.nbins = 10;
-    rates.edges = linspace(rates.min,rates.max,rates.nbins+1);
-    rates.synapses = zeros((net.N).^2,2);
-
-    figure(4)
-    rates.synapses(:,1) = repelem(rateEst(:,1),net.N,1);
-    rates.synapses(:,2) = repmat(rateEst(:,1),net.N,1);
-    noNulSyns = rates.synapses(abs(net.W)>1e-7,:);
-    hist3(noNulSyns,'Edges',{rates.edges, rates.edges},'CDataMode','auto','FaceColor','interp')
-    view(0, 90);
-    f4 = getframe;
-    [im4,map4] = rgb2ind(f4.cdata,256,'nodither');
-end
 
 for i=1:simu.nIterTot
     % Rates estimation
@@ -421,19 +397,6 @@ SR = and(plt.regime(:,1)==1, plt.regime(:,2)==1);
 AR = and(plt.regime(:,1)==0, plt.regime(:,2)==1);
 SI = and(plt.regime(:,1)==1, plt.regime(:,2)==0);
 AI = and(plt.regime(:,1)==0, plt.regime(:,2)==0);
-
-%% Creating graph for visualization
-if gif.graph
-    imwrite(im1, map1, strcat(env.outputRoot, 'Figures/Network/sampleGraph_randinit.gif'), 'DelayTime',0, 'LoopCount',inf)
-end
-
-if gif.lapl
-    imwrite(im2,map2, strcat(env.outputRoot, 'Figures/Network/specClust_asym.gif'), 'DelayTime',0, 'LoopCount',inf)
-end
-
-if gif.ratesHist
-    imwrite(im4,map4, strcat(env.outputRoot, 'Figures/Network/ratesHist.gif'), 'DelayTime',0, 'LoopCount',inf)
-end
 
 %% Plotting network stats
 
